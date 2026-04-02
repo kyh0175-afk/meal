@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>야간 급식 확인 조회</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#111827;--bg2:#1a2236;--card:#1e293b;--card2:#263044;--border:#334155;--border2:#475569;--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--amber:#f59e0b;--amber2:#fbbf24;--green:#34d399;--green-bg:rgba(52,211,153,.12);--red:#f87171;--red-bg:rgba(248,113,113,.10);--blue:#60a5fa;--radius:12px;--radius-sm:8px}
+html{font-size:15px}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;-webkit-tap-highlight-color:transparent}
+.container{max-width:520px;margin:0 auto;padding:0 16px}
+button{font-family:inherit;cursor:pointer;border:none;outline:none;transition:all .2s}
+button:active{transform:scale(.97)}
+input{font-family:inherit;outline:none;border:none}
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 0;position:sticky;top:0;z-index:100}
+.header-inner{max-width:520px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:10px}
+.header-icon{font-size:24px}
+.header-title{font-size:17px;font-weight:800;color:var(--amber)}
+.header-sub{font-size:11px;color:var(--text3);margin-left:auto}
+.search-area{padding:24px 0 16px}
+.search-box{display:flex;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 6px 6px 16px;align-items:center}
+.search-box input{flex:1;background:transparent;color:var(--text);font-size:16px;padding:8px 0}
+.search-box input::placeholder{color:var(--text3)}
+.search-btn{background:var(--amber);color:#000;font-size:13px;font-weight:700;padding:10px 20px;border-radius:var(--radius-sm)}
+.profile-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.profile-top{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.profile-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--amber),var(--amber2));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#000}
+.profile-name{font-size:18px;font-weight:800}
+.profile-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.profile-info{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info-item{background:var(--bg2);border-radius:var(--radius-sm);padding:12px;text-align:center}
+.info-label{font-size:11px;color:var(--text3);margin-bottom:4px}
+.info-value{font-size:15px;font-weight:700}
+.section-title{font-size:13px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;padding:0 4px}
+.record-list{display:flex;flex-direction:column;gap:6px;margin-bottom:24px}
+.record-item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px}
+.record-date{font-size:13px;font-weight:600;min-width:90px}
+.record-time{font-size:13px;color:var(--text2);margin-left:auto;font-variant-numeric:tabular-nums}
+.record-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700}
+.badge-ok{background:var(--green-bg);color:var(--green)}
+.badge-today{background:rgba(245,158,11,.15);color:var(--amber)}
+.stat-bar{display:flex;gap:8px;margin-bottom:16px}
+.stat-chip{flex:1;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px}
+.stat-chip .num{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
+.stat-chip .lbl{font-size:10px;color:var(--text3);margin-top:2px}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+.empty-state .msg{font-size:14px;line-height:1.8}
+.loading{text-align:center;padding:40px;color:var(--text3)}
+.spinner{display:inline-block;width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--amber);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-msg{background:var(--red-bg);border:1px solid rgba(248,113,113,.2);border-radius:var(--radius-sm);padding:12px 16px;color:var(--red);font-size:13px;text-align:center;margin-bottom:16px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <span class="header-icon">🍱</span>
+    <span class="header-title">야간 급식 확인</span>
+    <span class="header-sub">내 수령 조회</span>
+  </div>
+</div>
+
+<div class="container" style="padding-top:8px;padding-bottom:40px">
+  <div class="search-area">
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="학번 입력" inputmode="numeric" maxlength="5" onkeydown="if(event.key==='Enter')doSearch()">
+      <button class="search-btn" onclick="doSearch()">조회</button>
+    </div>
+  </div>
+  <div id="result-area">
+    <div class="empty-state">
+      <div class="icon">🔍</div>
+      <div class="msg">학번을 입력하면<br>급식 수령 내역을 확인할 수 있어요</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+'use strict';
+
+const GAS_URL = "https://script.google.com/macros/s/여기에_배포URL을_넣으세요/exec";
+
+async function gasPost(payload) {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 15000);
+    const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload), signal: ctrl.signal });
+    clearTimeout(t);
+    return JSON.parse(await res.text());
+  } catch(e) {
+    return { ok: false, msg: e.name === 'AbortError' ? '응답 시간 초과' : '서버 연결 실패' };
+  }
+}
+
+const area = document.getElementById('result-area');
+
+async function doSearch() {
+  const no = document.getElementById('search-input').value.trim();
+  if (!no) return;
+  area.innerHTML = '<div class="loading"><div class="spinner"></div><div style="margin-top:10px">조회 중...</div></div>';
+
+  const r = await gasPost({ action: 'getStudentMealInfo', no });
+  if (!r.ok) {
+    area.innerHTML = `<div class="error-msg">${r.msg}</div><div class="empty-state"><div class="icon">😢</div><div class="msg">급식 신청 명단에서<br>해당 학번을 찾을 수 없어요</div></div>`;
+    return;
+  }
+  renderResult(r, no);
+}
+window.doSearch = doSearch;
+
+function renderResult(data, no) {
+  const today = new Date().toISOString().slice(0, 10);
+  const records = (data.records || []).sort((a, b) => b.date.localeCompare(a.date));
+  const totalDays = records.length;
+  const todayRec = records.find(r => r.date === today);
+  const dayNames = ['일','월','화','수','목','금','토'];
+
+  let html = `
+    <div class="profile-card">
+      <div class="profile-top">
+        <div class="profile-avatar">${data.name.charAt(0)}</div>
+        <div>
+          <div class="profile-name">${data.name}</div>
+          <div class="profile-meta">${data.grade}학년 ${data.cls}반 · ${no}</div>
+        </div>
+      </div>
+      <div class="profile-info">
+        <div class="info-item">
+          <div class="info-label">신청 요일</div>
+          <div class="info-value" style="color:var(--amber)">${data.days || '매일'}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">오늘 수령</div>
+          <div class="info-value" style="color:${todayRec ? 'var(--green)' : 'var(--red)'}">
+            ${todayRec ? '✓ 수령 완료' : '✗ 미수령'}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="stat-bar">
+      <div class="stat-chip">
+        <div class="num" style="color:var(--green)">${totalDays}</div>
+        <div class="lbl">최근 30일 수령</div>
+      </div>
+      <div class="stat-chip">
+        <div class="num" style="color:${todayRec ? 'var(--green)' : 'var(--red)'}">${todayRec ? todayRec.time.slice(0,5) : '—'}</div>
+        <div class="lbl">오늘 수령 시각</div>
+      </div>
+    </div>
+    <div class="section-title">최근 수령 이력 (30일)</div>`;
+
+  if (!records.length) {
+    html += '<div class="empty-state" style="padding:24px"><div class="icon">📭</div><div class="msg">아직 수령 기록이 없어요</div></div>';
+  } else {
+    html += '<div class="record-list">';
+    records.forEach(rec => {
+      const isToday = rec.date === today;
+      const d = new Date(rec.date);
+      const dn = dayNames[d.getDay()];
+      html += `<div class="record-item">
+        <span class="record-date">${rec.date} (${dn})</span>
+        <span class="record-badge ${isToday ? 'badge-today' : 'badge-ok'}">${isToday ? '오늘' : '수령'}</span>
+        <span class="record-time">${rec.time || ''}</span>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  area.innerHTML = html;
+}
+
+// URL 파라미터로 학번 자동 검색
+const autoNo = new URLSearchParams(location.search).get('no');
+if (autoNo) { document.getElementById('search-input').value = autoNo; doSearch(); }
+
+})();
+</script>
+</body>
+</html>
