@@ -51,7 +51,7 @@ body::before{
   position:sticky;top:0;z-index:200;
 }
 .logo{font-size:20px;font-weight:900;letter-spacing:-.5px;white-space:nowrap;color:var(--accent);cursor:pointer}
-.topbar-right{display:flex;gap:6px;margin-left:auto;align-items:center}
+.topbar-right{display:flex;gap:8px;margin-left:auto;align-items:center}
 .live-dot{
   width:7px;height:7px;border-radius:50%;
   background:var(--ok);display:none;flex-shrink:0;
@@ -60,6 +60,10 @@ body::before{
 .live-dot.on{display:inline-block}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
 .sess-lbl{font-size:13px;color:var(--muted);font-weight:500}
+.timer-num{font-family:'DM Mono',monospace;font-size:14px;font-weight:600;padding:4px 10px;border-radius:6px}
+.t-ok{background:rgba(52,211,153,.15);color:var(--ok)}
+.t-warn{background:rgba(245,158,11,.15);color:var(--accent)}
+.t-end{background:rgba(248,113,113,.15);color:var(--red)}
 
 /* buttons */
 .btn{
@@ -122,8 +126,27 @@ td{font-size:13px;padding:8px 10px;border-bottom:1px solid var(--border)}
 tr:last-child td{border-bottom:none}
 .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
 .badge-ok{background:rgba(52,211,153,.15);color:var(--ok)}
+.badge-wait{background:rgba(248,113,113,.12);color:var(--red)}
 .badge-qr{background:rgba(96,165,250,.12);color:var(--sky)}
 .badge-manual{background:rgba(167,139,250,.12);color:#a78bfa}
+
+/* roster list */
+.roster-search{
+  display:flex;gap:8px;margin-bottom:12px;
+}
+.roster-search input{
+  flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;
+}
+.roster-search input:focus{border-color:var(--accent)}
+.roster-filter{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.filter-chip{
+  padding:5px 12px;border-radius:16px;font-size:12px;font-weight:600;
+  border:1px solid var(--border);background:transparent;color:var(--muted);
+  cursor:pointer;transition:all .15s;
+}
+.filter-chip:hover{background:var(--card2);color:var(--text)}
+.filter-chip.on{background:var(--accent);color:#000;border-color:var(--accent)}
 
 /* numpad */
 .numpad-wrap{
@@ -259,6 +282,7 @@ tr:last-child td{border-bottom:none}
     <div class="topbar-right">
       <span class="live-dot" id="live-dot"></span>
       <span class="sess-lbl" id="sess-lbl"></span>
+      <span class="timer-num t-ok" id="timer-disp">30:00</span>
       <button class="btn btn-ghost btn-sm" id="btn-end" onclick="openEndModal()">종료</button>
     </div>
   </div>
@@ -266,12 +290,12 @@ tr:last-child td{border-bottom:none}
   <div style="padding:24px 20px;max-width:900px;margin:0 auto">
     <div class="tab-bar" id="tab-bar">
       <button class="tab-btn on" data-tab="live" onclick="goTab('live')">📡 실시간</button>
-      <button class="tab-btn" data-tab="uncollected" onclick="goTab('uncollected')">🚫 미수령</button>
+      <button class="tab-btn" data-tab="roster" onclick="goTab('roster')">📋 명단</button>
       <button class="tab-btn" data-tab="manual" onclick="goTab('manual')">✏️ 수동 입력</button>
-      <button class="tab-btn" data-tab="history" onclick="goTab('history')">📋 기록</button>
+      <button class="tab-btn" data-tab="history" onclick="goTab('history')">📂 기록</button>
     </div>
 
-    <!-- 실시간 탭 -->
+    <!-- ── 실시간 탭 ── -->
     <div class="tab-content on" id="tab-live">
       <div class="qr-wrap">
         <div style="flex-shrink:0">
@@ -310,27 +334,29 @@ tr:last-child td{border-bottom:none}
       </div>
     </div>
 
-    <!-- 미수령 탭 -->
-    <div class="tab-content" id="tab-uncollected">
+    <!-- ── 명단 탭 (핵심 변경: 전체 명단 + 수령 상태 표시) ── -->
+    <div class="tab-content" id="tab-roster">
       <div class="card">
-        <div class="card-head">미수령 학생 목록</div>
-        <div class="filter-bar">
-          <select id="unc-grade" onchange="renderUncollected()">
-            <option value="">전체 학년</option><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option>
-          </select>
-          <select id="unc-cls" onchange="renderUncollected()">
-            <option value="">전체 반</option>
-          </select>
-          <span id="unc-count" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+        <div class="card-head">오늘 급식 대상 명단</div>
+        <div class="roster-search">
+          <input type="text" id="roster-search" placeholder="학번 또는 이름 검색" oninput="renderRoster()">
         </div>
-        <table>
-          <thead><tr><th>학번</th><th>이름</th><th>학년반</th><th>조치</th></tr></thead>
-          <tbody id="unc-tbody"></tbody>
-        </table>
+        <div class="roster-filter" id="roster-filter">
+          <button class="filter-chip on" data-filter="all" onclick="setRosterFilter('all')">전체</button>
+          <button class="filter-chip" data-filter="wait" onclick="setRosterFilter('wait')">🔴 미수령</button>
+          <button class="filter-chip" data-filter="done" onclick="setRosterFilter('done')">🟢 수령</button>
+        </div>
+        <div id="roster-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
+        <div style="max-height:500px;overflow-y:auto">
+          <table>
+            <thead><tr><th>학번</th><th>이름</th><th>상태</th><th>수령 시각</th></tr></thead>
+            <tbody id="roster-tbody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
-    <!-- 수동 입력 탭 -->
+    <!-- ── 수동 입력 탭 ── -->
     <div class="tab-content" id="tab-manual">
       <div class="card">
         <div class="card-head">수동 급식 확인</div>
@@ -351,7 +377,7 @@ tr:last-child td{border-bottom:none}
       </div>
     </div>
 
-    <!-- 기록 탭 -->
+    <!-- ── 기록 탭 ── -->
     <div class="tab-content" id="tab-history">
       <div class="card">
         <div class="card-head">날짜별 기록</div>
@@ -360,7 +386,7 @@ tr:last-child td{border-bottom:none}
           <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📥 CSV 내보내기</button>
         </div>
         <table>
-          <thead><tr><th>학번</th><th>이름</th><th>학년반</th><th>시각</th><th>방법</th></tr></thead>
+          <thead><tr><th>학번</th><th>이름</th><th>시각</th><th>방법</th></tr></thead>
           <tbody id="hist-tbody"></tbody>
         </table>
         <div id="hist-empty" style="font-size:13px;color:var(--muted);padding:20px;text-align:center;display:none">해당 날짜의 기록이 없어요</div>
@@ -434,13 +460,16 @@ tr:last-child td{border-bottom:none}
 /* ══ 상태 ══ */
 const S = {
   session: null,
-  roster: [],
-  confirmed: [],
+  roster: [],        // 오늘 대상 명단
+  confirmed: [],     // 수령 완료 목록
   pollInt: null,
+  timerInt: null,
+  timerRemain: 1800, // 30분 = 1800초
   npVal: '',
+  rosterFilter: 'all',
 };
 
-/* ★★★ GAS 웹 앱 URL — 배포 후 여기에 붙여넣기 ★★★ */
+/* ★★★ GAS URL ★★★ */
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwFIL1HitTOj8CruJU9uXoONyxP1XpE9ubK7nRfYR0iP0MmKr5FrLa2wwk-Rhq6b3Q/exec";
 
 async function gasPost(payload, retry = 2) {
@@ -452,10 +481,7 @@ async function gasPost(payload, retry = 2) {
       clearTimeout(t);
       const text = await res.text();
       try { return JSON.parse(text); }
-      catch(e) {
-        if (attempt < retry) continue;
-        return {ok:false, msg:'서버 응답 오류'};
-      }
+      catch(e) { if (attempt < retry) continue; return {ok:false, msg:'서버 응답 오류'}; }
     } catch(e) {
       if (attempt < retry && e.name !== 'AbortError') continue;
       return {ok:false, msg: e.name==='AbortError' ? '응답 시간 초과' : '서버 연결 실패'};
@@ -464,10 +490,42 @@ async function gasPost(payload, retry = 2) {
 }
 
 
+/* ══ 시간 포맷 유틸 ══ */
+function fmtTime(dateOrStr) {
+  let d;
+  if (dateOrStr instanceof Date) d = dateOrStr;
+  else if (typeof dateOrStr === 'string' && dateOrStr.includes(':')) {
+    // "HH:mm:ss" 또는 Date 문자열
+    const now = new Date();
+    const parts = dateOrStr.split(':');
+    d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), +parts[0], +parts[1], +parts[2]||0);
+  } else {
+    d = new Date(dateOrStr);
+  }
+  if (isNaN(d.getTime())) return dateOrStr; // 파싱 실패 시 원본 반환
+  const yy = String(d.getFullYear()).slice(2);
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  const ss = String(d.getSeconds()).padStart(2,'0');
+  return `${yy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+}
+
+function fmtTimeShort(timeStr) {
+  // "HH:mm:ss" → "HH:mm:ss" (이미 짧은 형태면 그대로)
+  if (!timeStr) return '';
+  // Date 객체가 문자열로 들어온 경우 처리
+  if (timeStr.length > 10) return fmtTime(timeStr);
+  return timeStr;
+}
+
+function fmtNow() { return fmtTime(new Date()); }
+
+
 /* ══ 초기화 ══ */
 (async function init() {
   const p = new URLSearchParams(location.search);
-
   if (p.get('mode') === 'student') {
     document.getElementById('start-screen').style.display = 'none';
     document.getElementById('student-screen').classList.add('on');
@@ -475,11 +533,7 @@ async function gasPost(payload, retry = 2) {
     document.getElementById('sf-no').focus();
     return;
   }
-
-  if (p.get('mode') === 'history') {
-    goHistoryMode();
-    return;
-  }
+  if (p.get('mode') === 'history') { goHistoryMode(); return; }
 })();
 
 
@@ -496,7 +550,6 @@ async function startMealSession() {
   btn.textContent = '세션 생성 중...';
   const res = await gasPost({ action: 'startMealSession', sessionId, teacher });
   btn.disabled = false; btn.textContent = '🍱 급식 확인 시작';
-
   if (!res.ok) { toast(res.msg || '세션 시작 실패', 'err'); return; }
 
   S.session = { id: sessionId, teacher, date: res.date };
@@ -507,21 +560,40 @@ async function startMealSession() {
   document.getElementById('sess-lbl').textContent = `${res.date} · ${teacher}`;
   document.getElementById('hist-date').value = res.date;
 
-  // 반 필터 옵션 생성
-  buildClsFilter();
-
   buildQR();
   refreshStats();
   renderRecentList();
+  renderRoster();
+  startTimer();
   startPolling();
   toast('급식 확인 시작! QR을 학생들에게 보여주세요.', 'ok');
 }
 window.startMealSession = startMealSession;
 
-function buildClsFilter() {
-  const classes = [...new Set(S.roster.map(s => s.cls).filter(Boolean))].sort();
-  const sel = document.getElementById('unc-cls');
-  sel.innerHTML = '<option value="">전체 반</option>' + classes.map(c => `<option value="${c}">${c}반</option>`).join('');
+
+/* ══ 30분 타이머 ══ */
+function startTimer() {
+  S.timerRemain = 1800;
+  clearInterval(S.timerInt);
+  renderTimer();
+  S.timerInt = setInterval(() => {
+    S.timerRemain--;
+    if (S.timerRemain <= 0) {
+      S.timerRemain = 0;
+      clearInterval(S.timerInt);
+      renderTimer();
+      toast('QR 시간이 만료됐어요. 종료하거나 QR을 갱신하세요.', 'err');
+      return;
+    }
+    renderTimer();
+  }, 1000);
+}
+
+function renderTimer() {
+  const s = S.timerRemain;
+  const el = document.getElementById('timer-disp');
+  el.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  el.className = 'timer-num ' + (s <= 60 ? 't-end' : s <= 300 ? 't-warn' : 't-ok');
 }
 
 
@@ -533,7 +605,13 @@ function buildQR() {
   new QRCode(tmp, { text: url, width: 280, height: 280, colorDark: '#000', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M });
   setTimeout(() => { box.innerHTML = ''; while (tmp.firstChild) box.appendChild(tmp.firstChild); }, 50);
 }
-function refreshQR() { if (S.session) { buildQR(); toast('QR 갱신됨', 'ok'); } }
+function refreshQR() {
+  if (!S.session) return;
+  S.timerRemain = 1800; // 타이머도 리셋
+  startTimer();
+  buildQR();
+  toast('QR 갱신 + 타이머 리셋', 'ok');
+}
 window.refreshQR = refreshQR;
 
 
@@ -552,7 +630,7 @@ function startPolling() {
         upd = true;
       }
     });
-    if (upd) { refreshStats(); renderRecentList(); }
+    if (upd) { refreshStats(); renderRecentList(); renderRoster(); }
   }, 3000);
 }
 function stopPolling() { clearInterval(S.pollInt); S.pollInt = null; }
@@ -568,44 +646,82 @@ function refreshStats() {
   document.getElementById('st-rate').textContent = (total > 0 ? Math.round(done/total*100) : 0) + '%';
 }
 
+
+/* ══ 최근 수령 (실시간 탭) ══ */
 function renderRecentList() {
   const el = document.getElementById('recent-list');
   if (!S.confirmed.length) { el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:16px;text-align:center">아직 수령 기록이 없어요</div>'; return; }
   const list = [...S.confirmed].reverse().slice(0, 20);
-  el.innerHTML = '<table><thead><tr><th>학번</th><th>이름</th><th>학년반</th><th>시각</th><th>방법</th></tr></thead><tbody>'
+  el.innerHTML = '<table><thead><tr><th>학번</th><th>이름</th><th>시각</th><th>방법</th></tr></thead><tbody>'
     + list.map(c => `<tr>
-      <td style="font-family:'DM Mono',monospace">${c.no}</td><td>${c.name}</td><td>${c.grade||''}-${c.cls||''}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:12px">${c.time}</td>
+      <td style="font-family:'DM Mono',monospace">${c.no}</td><td>${c.name}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${fmtTimeShort(c.time)}</td>
       <td><span class="badge ${c.method==='수동'?'badge-manual':'badge-qr'}">${c.method||'QR'}</span></td>
     </tr>`).join('') + '</tbody></table>';
 }
 
 
-/* ══ 미수령 ══ */
-function renderUncollected() {
-  const doneSet = new Set(S.confirmed.map(c => String(c.no)));
-  let unc = S.roster.filter(s => !doneSet.has(String(s.no)));
-  const gf = document.getElementById('unc-grade').value;
-  const cf = document.getElementById('unc-cls').value;
-  if (gf) unc = unc.filter(s => String(s.grade) === gf);
-  if (cf) unc = unc.filter(s => String(s.cls) === cf);
-  document.getElementById('unc-count').textContent = unc.length + '명';
-  const tbody = document.getElementById('unc-tbody');
-  if (!unc.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">모든 학생이 수령했어요 🎉</td></tr>'; return; }
-  unc.sort((a, b) => String(a.no).localeCompare(String(b.no)));
-  tbody.innerHTML = unc.map(s => `<tr>
-    <td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${s.grade}-${s.cls}</td>
-    <td><button class="btn btn-green btn-sm" onclick="manualConfirmNo('${s.no}')">수동 확인</button></td>
-  </tr>`).join('');
+/* ══ 명단 탭 (전체 명단 + 수령 상태) ══ */
+function setRosterFilter(f) {
+  S.rosterFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.toggle('on', b.dataset.filter === f));
+  renderRoster();
 }
-window.renderUncollected = renderUncollected;
+window.setRosterFilter = setRosterFilter;
+
+function renderRoster() {
+  const confirmedSet = new Set(S.confirmed.map(c => String(c.no)));
+  const searchVal = (document.getElementById('roster-search').value || '').trim().toLowerCase();
+
+  let list = S.roster.map(s => ({
+    ...s,
+    isDone: confirmedSet.has(String(s.no)),
+    time: (() => { const c = S.confirmed.find(c => String(c.no) === String(s.no)); return c ? c.time : ''; })()
+  }));
+
+  // 필터
+  if (S.rosterFilter === 'done') list = list.filter(s => s.isDone);
+  else if (S.rosterFilter === 'wait') list = list.filter(s => !s.isDone);
+
+  // 검색
+  if (searchVal) list = list.filter(s => String(s.no).includes(searchVal) || s.name.toLowerCase().includes(searchVal));
+
+  // 정렬: 미수령 먼저, 그 안에서 학번순
+  list.sort((a, b) => {
+    if (a.isDone !== b.isDone) return a.isDone ? 1 : -1;
+    return String(a.no).localeCompare(String(b.no));
+  });
+
+  const doneCount = S.roster.filter(s => confirmedSet.has(String(s.no))).length;
+  document.getElementById('roster-count').textContent = `표시: ${list.length}명 / 전체: ${S.roster.length}명 (수령 ${doneCount}명)`;
+
+  const tbody = document.getElementById('roster-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(s => {
+    const statusBadge = s.isDone
+      ? '<span class="badge badge-ok">수령 완료</span>'
+      : '<span class="badge badge-wait">미수령</span>';
+    const timeCell = s.isDone ? fmtTimeShort(s.time) : '<button class="btn btn-green btn-sm" onclick="manualConfirmNo(\'' + s.no + '\')">수동 확인</button>';
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace">${s.no}</td>
+      <td>${s.name}</td>
+      <td>${statusBadge}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${timeCell}</td>
+    </tr>`;
+  }).join('');
+}
+window.renderRoster = renderRoster;
 
 
 /* ══ 탭 전환 ══ */
 function goTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ['live','uncollected','manual','history'].forEach(t => document.getElementById('tab-'+t).classList.toggle('on', t === tab));
-  if (tab === 'uncollected') renderUncollected();
+  ['live','roster','manual','history'].forEach(t => document.getElementById('tab-'+t).classList.toggle('on', t === tab));
+  if (tab === 'roster') renderRoster();
   if (tab === 'history') loadHistoryDate();
 }
 window.goTab = goTab;
@@ -619,20 +735,20 @@ async function tryMealConfirm(no, method) {
 
   const local = S.roster.find(s => String(s.no) === no);
   const time = new Date().toTimeString().slice(0,8);
-  const tmp = { no, name: local ? local.name : no, grade: local ? local.grade : '', cls: local ? local.cls : '', time, method: method||'QR', _p:true };
+  const tmp = { no, name: local ? local.name : no, time, method: method||'QR', _p:true };
   S.confirmed.push(tmp);
-  refreshStats(); renderRecentList();
+  refreshStats(); renderRecentList(); renderRoster();
 
   const r = await gasPost({ action:'confirmMeal', sessionId: S.session ? S.session.id : '', studentNo: no, method: method||'QR' });
   if (!r.ok) {
     const idx = S.confirmed.indexOf(tmp);
     if (idx !== -1) S.confirmed.splice(idx,1);
-    refreshStats(); renderRecentList();
+    refreshStats(); renderRecentList(); renderRoster();
     return {ok:false, msg:r.msg};
   }
-  tmp.name = r.name; tmp.grade = r.grade; tmp.cls = r.cls; tmp.time = r.time; delete tmp._p;
-  refreshStats(); renderRecentList(); renderUncollected();
-  return {ok:true, name:r.name, time:r.time, grade:r.grade, cls:r.cls};
+  tmp.name = r.name; tmp.time = r.time; delete tmp._p;
+  refreshStats(); renderRecentList(); renderRoster();
+  return {ok:true, name:r.name, time:r.time};
 }
 
 
@@ -648,7 +764,7 @@ async function doMealConfirmFull() {
   document.getElementById('sf-input-wrap').style.display = 'none';
   document.getElementById('sf-ok').style.display = 'flex';
   document.getElementById('sf-ok-name').textContent = r.name + ' 학생';
-  document.getElementById('sf-ok-meta').textContent = `${r.grade}학년 ${r.cls}반\n수령 시각: ${r.time}`;
+  document.getElementById('sf-ok-meta').textContent = `수령 시각: ${fmtTimeShort(r.time)}`;
 }
 window.doMealConfirmFull = doMealConfirmFull;
 
@@ -669,7 +785,7 @@ async function manualConfirm() {
   el.innerHTML = '<span style="color:var(--muted)">처리 중...</span>';
   const r = await tryMealConfirm(no, '수동');
   if (!r.ok) { el.innerHTML = `<span style="color:var(--red)">${r.msg}</span>`; return; }
-  el.innerHTML = `<span style="color:var(--ok)">✓ ${r.name} (${r.grade}-${r.cls}) 수령 확인 (${r.time})</span>`;
+  el.innerHTML = `<span style="color:var(--ok)">✓ ${r.name} 수령 확인 (${fmtTimeShort(r.time)})</span>`;
   document.getElementById('manual-no').value = '';
 }
 window.manualConfirm = manualConfirm;
@@ -684,10 +800,7 @@ window.manualConfirmNo = manualConfirmNo;
 
 /* ══ 넘버패드 ══ */
 function openNumpad() {
-  S.npVal = '';
-  document.getElementById('np-display').textContent = '—';
-  document.getElementById('np-display').classList.remove('full');
-  document.getElementById('np-ok').disabled = true;
+  S.npVal = ''; npRefresh();
   document.getElementById('numpad').style.display = 'flex';
 }
 window.openNumpad = openNumpad;
@@ -702,9 +815,8 @@ window.npClear = npClear;
 function npRefresh() {
   const d = document.getElementById('np-display');
   d.textContent = S.npVal || '—';
-  const ok = S.npVal.length >= 4;
-  d.classList.toggle('full', ok);
-  document.getElementById('np-ok').disabled = !ok;
+  d.classList.toggle('full', S.npVal.length >= 4);
+  document.getElementById('np-ok').disabled = S.npVal.length < 4;
 }
 async function npConfirm() {
   if (S.npVal.length < 4) return;
@@ -725,8 +837,8 @@ async function loadHistoryDate() {
   if (!r.ok || !r.records || !r.records.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
   tbody.innerHTML = r.records.map(c => `<tr>
-    <td style="font-family:'DM Mono',monospace">${c.no}</td><td>${c.name}</td><td>${c.grade||''}-${c.cls||''}</td>
-    <td style="font-family:'DM Mono',monospace;font-size:12px">${c.time}</td>
+    <td style="font-family:'DM Mono',monospace">${c.no}</td><td>${c.name}</td>
+    <td style="font-family:'DM Mono',monospace;font-size:12px">${fmtTimeShort(c.time)}</td>
     <td><span class="badge ${c.method==='수동'?'badge-manual':'badge-qr'}">${c.method||'QR'}</span></td>
   </tr>`).join('');
 }
@@ -737,7 +849,7 @@ window.loadHistoryDate = loadHistoryDate;
 function exportCSV() {
   const data = S.confirmed.length ? S.confirmed : [];
   if (!data.length) { toast('내보낼 데이터가 없어요', 'err'); return; }
-  const csv = '\uFEFF학번,이름,학년,반,수령시각,방법\n' + data.map(c => `${c.no},${c.name},${c.grade},${c.cls},${c.time},${c.method}`).join('\n');
+  const csv = '\uFEFF학번,이름,수령시각,방법\n' + data.map(c => `${c.no},${c.name},${fmtTimeShort(c.time)},${c.method}`).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
   a.download = `급식수령_${S.session ? S.session.date : 'data'}.csv`;
@@ -754,7 +866,7 @@ window.openEndModal = openEndModal;
 window.closeEndModal = closeEndModal;
 
 async function endMealSession() {
-  closeEndModal(); stopPolling();
+  closeEndModal(); stopPolling(); clearInterval(S.timerInt);
   if (S.session) await gasPost({action:'endMealSession', sessionId: S.session.id});
   document.getElementById('live-dot').classList.remove('on');
   toast('급식 확인이 종료됐어요.', 'ok');
@@ -768,10 +880,10 @@ function goHistoryMode() {
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('main-screen').style.display = 'block';
   document.getElementById('btn-end').style.display = 'none';
+  document.getElementById('timer-disp').style.display = 'none';
   document.getElementById('sess-lbl').textContent = '기록 조회';
   goTab('history');
-  const today = new Date().toISOString().slice(0,10);
-  document.getElementById('hist-date').value = today;
+  document.getElementById('hist-date').value = new Date().toISOString().slice(0,10);
   loadHistoryDate();
 }
 window.goHistoryMode = goHistoryMode;
