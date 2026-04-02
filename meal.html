@@ -383,12 +383,43 @@ tr:last-child td{border-bottom:none}
         <div class="card-head">날짜별 기록</div>
         <div class="filter-bar">
           <input type="date" id="hist-date" onchange="loadHistoryDate()">
-          <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📥 CSV 내보내기</button>
+          <span id="hist-day" style="font-size:13px;color:var(--accent);font-weight:700"></span>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="exportHistCSV()">📥 CSV</button>
         </div>
-        <table>
-          <thead><tr><th>학번</th><th>이름</th><th>시각</th><th>방법</th></tr></thead>
-          <tbody id="hist-tbody"></tbody>
-        </table>
+        <!-- 통계 -->
+        <div class="stats-row" id="hist-stats" style="display:none">
+          <div class="stat-box">
+            <div class="stat-num" id="hist-total" style="color:var(--sky)">0</div>
+            <div class="stat-lbl">대상</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="hist-done" style="color:var(--ok)">0</div>
+            <div class="stat-lbl">수령</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="hist-miss" style="color:var(--red)">0</div>
+            <div class="stat-lbl">미수령</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="hist-rate" style="color:var(--accent)">0%</div>
+            <div class="stat-lbl">수령률</div>
+          </div>
+        </div>
+        <!-- 필터 칩 -->
+        <div class="roster-filter" id="hist-filter" style="display:none">
+          <button class="filter-chip on" data-hf="all" onclick="setHistFilter('all')">전체</button>
+          <button class="filter-chip" data-hf="done" onclick="setHistFilter('done')">🟢 수령</button>
+          <button class="filter-chip" data-hf="miss" onclick="setHistFilter('miss')">🔴 미수령</button>
+        </div>
+        <div class="roster-search" id="hist-search-wrap" style="display:none">
+          <input type="text" id="hist-search" placeholder="학번 또는 이름 검색" oninput="renderHistTable()">
+        </div>
+        <div style="max-height:500px;overflow-y:auto">
+          <table>
+            <thead><tr><th>학번</th><th>이름</th><th>상태</th><th>시각</th></tr></thead>
+            <tbody id="hist-tbody"></tbody>
+          </table>
+        </div>
         <div id="hist-empty" style="font-size:13px;color:var(--muted);padding:20px;text-align:center;display:none">해당 날짜의 기록이 없어요</div>
       </div>
     </div>
@@ -880,21 +911,143 @@ window.npConfirm = npConfirm;
 
 
 /* ══ 기록 탭 ══ */
+/* ══ 기록 탭 상태 ══ */
+var _histData = { roster: [], records: [], date: '', day: '' };
+var _histFilter = 'all';
+
 async function loadHistoryDate() {
   const date = document.getElementById('hist-date').value;
   if (!date) return;
+
   const r = await gasPost({action:'getMealHistory', date});
-  const tbody = document.getElementById('hist-tbody');
   const empty = document.getElementById('hist-empty');
-  if (!r.ok || !r.records || !r.records.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+
+  if (!r.ok) {
+    _histData = { roster: [], records: [], date: date, day: '' };
+    document.getElementById('hist-stats').style.display = 'none';
+    document.getElementById('hist-filter').style.display = 'none';
+    document.getElementById('hist-search-wrap').style.display = 'none';
+    document.getElementById('hist-tbody').innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+
+  _histData = {
+    roster: r.roster || [],
+    records: r.records || [],
+    date: r.date || date,
+    day: r.day || ''
+  };
+
+  document.getElementById('hist-day').textContent = _histData.day ? `(${_histData.day}요일)` : '';
+  document.getElementById('hist-stats').style.display = 'flex';
+  document.getElementById('hist-filter').style.display = 'flex';
+  document.getElementById('hist-search-wrap').style.display = 'flex';
   empty.style.display = 'none';
-  tbody.innerHTML = r.records.map(c => `<tr>
-    <td style="font-family:'DM Mono',monospace">${c.no}</td><td>${c.name}</td>
-    <td style="font-family:'DM Mono',monospace;font-size:12px">${fmtTimeShort(c.time)}</td>
-    <td><span class="badge ${c.method==='수동'?'badge-manual':'badge-qr'}">${c.method||'QR'}</span></td>
-  </tr>`).join('');
+
+  // 통계 갱신
+  const doneSet = new Set(_histData.records.map(r => String(r.no)));
+  const total = _histData.roster.length;
+  const done = _histData.roster.filter(s => doneSet.has(String(s.no))).length;
+  const miss = total - done;
+  const rate = total > 0 ? Math.round(done / total * 100) : 0;
+
+  document.getElementById('hist-total').textContent = total;
+  document.getElementById('hist-done').textContent = done;
+  document.getElementById('hist-miss').textContent = miss;
+  document.getElementById('hist-rate').textContent = rate + '%';
+
+  _histFilter = 'all';
+  document.querySelectorAll('[data-hf]').forEach(b => b.classList.toggle('on', b.dataset.hf === 'all'));
+  document.getElementById('hist-search').value = '';
+  renderHistTable();
 }
 window.loadHistoryDate = loadHistoryDate;
+
+function setHistFilter(f) {
+  _histFilter = f;
+  document.querySelectorAll('[data-hf]').forEach(b => b.classList.toggle('on', b.dataset.hf === f));
+  renderHistTable();
+}
+window.setHistFilter = setHistFilter;
+
+function renderHistTable() {
+  const doneMap = {};
+  _histData.records.forEach(r => { doneMap[String(r.no)] = r; });
+
+  // 명단 기반 목록 생성
+  let list = _histData.roster.map(s => {
+    const rec = doneMap[String(s.no)];
+    return {
+      no: s.no,
+      name: s.name,
+      isDone: !!rec,
+      time: rec ? rec.time : '',
+      method: rec ? rec.method : ''
+    };
+  });
+
+  // 필터
+  if (_histFilter === 'done') list = list.filter(s => s.isDone);
+  else if (_histFilter === 'miss') list = list.filter(s => !s.isDone);
+
+  // 검색
+  const q = (document.getElementById('hist-search').value || '').trim().toLowerCase();
+  if (q) list = list.filter(s => String(s.no).includes(q) || s.name.toLowerCase().includes(q));
+
+  // 정렬: 미수령 먼저
+  list.sort((a, b) => {
+    if (a.isDone !== b.isDone) return a.isDone ? 1 : -1;
+    return String(a.no).localeCompare(String(b.no));
+  });
+
+  const tbody = document.getElementById('hist-tbody');
+  const empty = document.getElementById('hist-empty');
+
+  if (!list.length && !_histData.roster.length) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(s => {
+    const badge = s.isDone
+      ? '<span class="badge badge-ok">수령</span>'
+      : '<span class="badge badge-wait">미수령</span>';
+    const timeCell = s.isDone ? fmtTimeShort(s.time) : '—';
+    return `<tr>
+      <td style="font-family:'DM Mono',monospace">${s.no}</td>
+      <td>${s.name}</td>
+      <td>${badge}</td>
+      <td style="font-family:'DM Mono',monospace;font-size:12px">${timeCell}</td>
+    </tr>`;
+  }).join('');
+}
+window.renderHistTable = renderHistTable;
+
+function exportHistCSV() {
+  const doneMap = {};
+  _histData.records.forEach(r => { doneMap[String(r.no)] = r; });
+  const list = _histData.roster.map(s => {
+    const rec = doneMap[String(s.no)];
+    return { no: s.no, name: s.name, status: rec ? '수령' : '미수령', time: rec ? fmtTimeShort(rec.time) : '' };
+  });
+  if (!list.length) { toast('내보낼 데이터가 없어요', 'err'); return; }
+  list.sort((a, b) => String(a.no).localeCompare(String(b.no)));
+  const csv = '\uFEFF학번,이름,상태,수령시각\n' + list.map(c => `${c.no},${c.name},${c.status},${c.time}`).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+  a.download = `급식기록_${_histData.date}.csv`;
+  a.click();
+  toast('CSV 다운로드 완료', 'ok');
+}
+window.exportHistCSV = exportHistCSV;
 
 
 /* ══ CSV 내보내기 ══ */
