@@ -259,7 +259,7 @@ tr:last-child td{border-bottom:none}
   <div style="font-size:48px;margin-bottom:16px">🍱</div>
   <div style="font-size:28px;font-weight:900;color:var(--accent);margin-bottom:6px">야간 급식 확인</div>
   <div style="font-size:13px;color:var(--muted);line-height:1.8;margin-bottom:32px">
-    QR 코드를 생성하고<br>학생들의 급식 수령을 확인하세요
+    QR 코드를 생성하고<br>학생들의 식사를 확인하세요
   </div>
   <div class="card" style="max-width:400px;width:100%;text-align:left">
     <div class="field">
@@ -315,20 +315,20 @@ tr:last-child td{border-bottom:none}
             </div>
             <div class="stat-box">
               <div class="stat-num" id="st-done" style="color:var(--ok)">0</div>
-              <div class="stat-lbl">수령</div>
+              <div class="stat-lbl">식사 완료</div>
             </div>
             <div class="stat-box">
               <div class="stat-num" id="st-remain" style="color:var(--red)">0</div>
-              <div class="stat-lbl">미수령</div>
+              <div class="stat-lbl">식사 안함</div>
             </div>
             <div class="stat-box">
               <div class="stat-num" id="st-rate" style="color:var(--accent)">0%</div>
-              <div class="stat-lbl">수령률</div>
+              <div class="stat-lbl">식사 비율</div>
             </div>
           </div>
-          <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px">최근 수령</div>
+          <div style="font-size:13px;font-weight:700;color:var(--muted);margin-bottom:6px">금일 식사 인원</div>
           <div id="recent-list" style="max-height:320px;overflow-y:auto">
-            <div style="font-size:13px;color:var(--muted);padding:16px;text-align:center">아직 수령 기록이 없어요</div>
+            <div style="font-size:13px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>
           </div>
         </div>
       </div>
@@ -343,13 +343,13 @@ tr:last-child td{border-bottom:none}
         </div>
         <div class="roster-filter" id="roster-filter">
           <button class="filter-chip on" data-filter="all" onclick="setRosterFilter('all')">전체</button>
-          <button class="filter-chip" data-filter="wait" onclick="setRosterFilter('wait')">🔴 미수령</button>
-          <button class="filter-chip" data-filter="done" onclick="setRosterFilter('done')">🟢 수령</button>
+          <button class="filter-chip" data-filter="wait" onclick="setRosterFilter('wait')">🔴 식사 안함</button>
+          <button class="filter-chip" data-filter="done" onclick="setRosterFilter('done')">🟢 식사 완료</button>
         </div>
         <div id="roster-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
         <div style="max-height:500px;overflow-y:auto">
           <table>
-            <thead><tr><th>학번</th><th>이름</th><th>상태</th><th>수령 시각</th></tr></thead>
+            <thead><tr><th>학번</th><th>이름</th><th>상태</th><th>식사 시각</th></tr></thead>
             <tbody id="roster-tbody"></tbody>
           </table>
         </div>
@@ -359,8 +359,8 @@ tr:last-child td{border-bottom:none}
     <!-- ── 수동 입력 탭 ── -->
     <div class="tab-content" id="tab-manual">
       <div class="card">
-        <div class="card-head">수동 급식 확인</div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">QR 스캔 없이 학번을 직접 입력해 급식 수령을 확인합니다.</p>
+        <div class="card-head">수동 식사 확인</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">QR 스캔 없이 학번을 직접 입력해 식사를 확인합니다.</p>
         <div style="display:flex;gap:10px;align-items:flex-end">
           <div class="field" style="flex:1;margin-bottom:0">
             <label>학번</label>
@@ -394,22 +394,22 @@ tr:last-child td{border-bottom:none}
           </div>
           <div class="stat-box">
             <div class="stat-num" id="hist-done" style="color:var(--ok)">0</div>
-            <div class="stat-lbl">수령</div>
+            <div class="stat-lbl">식사 완료</div>
           </div>
           <div class="stat-box">
             <div class="stat-num" id="hist-miss" style="color:var(--red)">0</div>
-            <div class="stat-lbl">미수령</div>
+            <div class="stat-lbl">식사 안함</div>
           </div>
           <div class="stat-box">
             <div class="stat-num" id="hist-rate" style="color:var(--accent)">0%</div>
-            <div class="stat-lbl">수령률</div>
+            <div class="stat-lbl">식사 비율</div>
           </div>
         </div>
         <!-- 필터 칩 -->
         <div class="roster-filter" id="hist-filter" style="display:none">
           <button class="filter-chip on" data-hf="all" onclick="setHistFilter('all')">전체</button>
-          <button class="filter-chip" data-hf="done" onclick="setHistFilter('done')">🟢 수령</button>
-          <button class="filter-chip" data-hf="miss" onclick="setHistFilter('miss')">🔴 미수령</button>
+          <button class="filter-chip" data-hf="done" onclick="setHistFilter('done')">🟢 식사 완료</button>
+          <button class="filter-chip" data-hf="miss" onclick="setHistFilter('miss')">🔴 식사 안함</button>
         </div>
         <div class="roster-search" id="hist-search-wrap" style="display:none">
           <input type="text" id="hist-search" placeholder="학번 또는 이름 검색" oninput="renderHistTable()">
@@ -431,10 +431,10 @@ tr:last-child td{border-bottom:none}
   <div id="sf-input-wrap" style="display:flex;flex-direction:column;align-items:center">
     <div style="font-size:48px;margin-bottom:12px">🍱</div>
     <div class="s-title">야간 급식 확인</div>
-    <div class="s-sub" id="sf-sub">학번을 입력하면 급식 수령이 확인돼요</div>
+    <div class="s-sub" id="sf-sub">학번을 입력하면 급식 식사가 확인돼요</div>
     <input type="text" class="s-input" id="sf-no" inputmode="numeric" placeholder="학번" maxlength="5" onkeydown="if(event.key==='Enter')doMealConfirmFull()">
     <div style="margin-top:16px">
-      <button class="btn btn-amber" style="padding:14px 48px;font-size:16px" id="sf-btn" onclick="doMealConfirmFull()">🍱 수령 확인</button>
+      <button class="btn btn-amber" style="padding:14px 48px;font-size:16px" id="sf-btn" onclick="doMealConfirmFull()">🍱 식사 확인</button>
     </div>
     <div class="s-err" id="sf-err"></div>
   </div>
@@ -479,7 +479,7 @@ tr:last-child td{border-bottom:none}
     <button class="npbtn" onclick="npInput('0')">0</button>
     <button class="npbtn" style="background:transparent;color:var(--muted)" onclick="npClear()">C</button>
   </div>
-  <button class="npbtn npbtn-ok" id="np-ok" style="width:100%;max-width:420px;padding:14px" onclick="npConfirm()" disabled>🍱 수령 확인</button>
+  <button class="npbtn npbtn-ok" id="np-ok" style="width:100%;max-width:420px;padding:14px" onclick="npConfirm()" disabled>🍱 식사 확인</button>
 </div>
 
 </div>
@@ -583,10 +583,6 @@ async function restoreSession() {
   if (!result.ok) return;
   if (!result.sessionId || !result.remainSec || result.remainSec <= 0) return;
 
-  // 명단 로드
-  const rosterRes = await gasPost({ action: 'getRoster' });
-  if (rosterRes.ok) S.roster = rosterRes.students.filter(s => s.isToday);
-
   // 세션 복원
   S.session = {
     id: result.sessionId,
@@ -594,7 +590,7 @@ async function restoreSession() {
     date: result.date || ''
   };
 
-  // 수령 현황 복원
+  // 식사 현황 복원
   S.confirmed = (result.confirmed || []).map(c => ({
     ...c,
     no: String(c.no).replace(/\.0$/, '')
@@ -603,7 +599,7 @@ async function restoreSession() {
   // 타이머 복원
   S.timerRemain = result.remainSec;
 
-  // UI 전환
+  // UI 즉시 전환
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('main-screen').style.display = 'block';
   document.getElementById('live-dot').classList.add('on');
@@ -614,9 +610,14 @@ async function restoreSession() {
   startTimer();
   refreshStats();
   renderRecentList();
-  renderRoster();
   startPolling();
   toast('진행 중인 급식 세션이 복원됐어요 ✅', 'ok');
+
+  // 명단은 백그라운드 로드
+  const rosterRes = await gasPost({ action: 'getRoster' });
+  if (rosterRes.ok) S.roster = rosterRes.students.filter(s => s.isToday);
+  refreshStats();
+  renderRoster();
 }
 
 
@@ -625,18 +626,16 @@ async function startMealSession() {
   const teacher = document.getElementById('f-teacher').value.trim() || '담당자';
   const sessionId = Date.now().toString();
   const btn = document.querySelector('#start-screen .btn-amber');
-  btn.disabled = true; btn.textContent = '명단 불러오는 중...';
+  btn.disabled = true; btn.textContent = '세션 생성 중...';
 
-  const rosterRes = await gasPost({action: 'getRoster'});
-  if (rosterRes.ok) S.roster = rosterRes.students.filter(s => s.isToday);
-
-  btn.textContent = '세션 생성 중...';
+  // 1) 세션 먼저 생성
   const res = await gasPost({ action: 'startMealSession', sessionId, teacher });
   btn.disabled = false; btn.textContent = '🍱 급식 확인 시작';
   if (!res.ok) { toast(res.msg || '세션 시작 실패', 'err'); return; }
 
   S.session = { id: sessionId, teacher, date: res.date };
 
+  // 2) 화면 즉시 전환 + QR 즉시 표시
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('main-screen').style.display = 'block';
   document.getElementById('live-dot').classList.add('on');
@@ -644,12 +643,18 @@ async function startMealSession() {
   document.getElementById('hist-date').value = res.date;
 
   buildQR();
+  startTimer();
   refreshStats();
   renderRecentList();
-  renderRoster();
-  startTimer();
   startPolling();
-  toast('급식 확인 시작! QR을 학생들에게 보여주세요.', 'ok');
+  toast('QR 생성 완료! 명단을 불러오는 중...', 'ok');
+
+  // 3) 명단은 백그라운드에서 로드
+  const rosterRes = await gasPost({action: 'getRoster'});
+  if (rosterRes.ok) S.roster = rosterRes.students.filter(s => s.isToday);
+  refreshStats();
+  renderRoster();
+  toast(`명단 로드 완료 (오늘 대상: ${S.roster.length}명)`, 'ok');
 }
 window.startMealSession = startMealSession;
 
@@ -733,7 +738,7 @@ function refreshStats() {
 /* ══ 최근 수령 (실시간 탭) ══ */
 function renderRecentList() {
   const el = document.getElementById('recent-list');
-  if (!S.confirmed.length) { el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:16px;text-align:center">아직 수령 기록이 없어요</div>'; return; }
+  if (!S.confirmed.length) { el.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>'; return; }
   const list = [...S.confirmed].reverse().slice(0, 20);
   el.innerHTML = '<table><thead><tr><th>학번</th><th>이름</th><th>시각</th><th>방법</th></tr></thead><tbody>'
     + list.map(c => `<tr>
@@ -776,7 +781,7 @@ function renderRoster() {
   });
 
   const doneCount = S.roster.filter(s => confirmedSet.has(String(s.no))).length;
-  document.getElementById('roster-count').textContent = `표시: ${list.length}명 / 전체: ${S.roster.length}명 (수령 ${doneCount}명)`;
+  document.getElementById('roster-count').textContent = `표시: ${list.length}명 / 전체: ${S.roster.length}명 (식사 완료 ${doneCount}명)`;
 
   const tbody = document.getElementById('roster-tbody');
   if (!list.length) {
@@ -786,8 +791,8 @@ function renderRoster() {
 
   tbody.innerHTML = list.map(s => {
     const statusBadge = s.isDone
-      ? '<span class="badge badge-ok">수령 완료</span>'
-      : '<span class="badge badge-wait">미수령</span>';
+      ? '<span class="badge badge-ok">식사 완료</span>'
+      : '<span class="badge badge-wait">식사 안함</span>';
     const timeCell = s.isDone ? fmtTimeShort(s.time) : '<button class="btn btn-green btn-sm" onclick="manualConfirmNo(\'' + s.no + '\')">수동 확인</button>';
     return `<tr>
       <td style="font-family:'DM Mono',monospace">${s.no}</td>
@@ -810,11 +815,11 @@ function goTab(tab) {
 window.goTab = goTab;
 
 
-/* ══ 수령 확인 (공통 로직) ══ */
+/* ══ 식사 확인 (공통 로직) ══ */
 async function tryMealConfirm(no, method) {
   if (!no) return {ok:false, msg:'학번을 입력해주세요.'};
   no = String(no).trim();
-  if (S.confirmed.find(c => String(c.no) === no)) return {ok:false, msg:'이미 수령 확인된 학생이에요.'};
+  if (S.confirmed.find(c => String(c.no) === no)) return {ok:false, msg:'이미 식사 확인된 학생이에요.'};
 
   const local = S.roster.find(s => String(s.no) === no);
   const time = new Date().toTimeString().slice(0,8);
@@ -842,12 +847,12 @@ async function doMealConfirmFull() {
   const btn = document.getElementById('sf-btn');
   btn.disabled = true; btn.textContent = '확인 중...';
   const r = await tryMealConfirm(document.getElementById('sf-no').value.trim(), 'QR');
-  btn.disabled = false; btn.textContent = '🍱 수령 확인';
+  btn.disabled = false; btn.textContent = '🍱 식사 확인';
   if (!r.ok) { err.textContent = r.msg; err.style.display = 'block'; return; }
   document.getElementById('sf-input-wrap').style.display = 'none';
   document.getElementById('sf-ok').style.display = 'flex';
   document.getElementById('sf-ok-name').textContent = r.name + ' 학생';
-  document.getElementById('sf-ok-meta').textContent = `수령 시각: ${fmtTimeShort(r.time)}`;
+  document.getElementById('sf-ok-meta').textContent = `식사 시각: ${fmtTimeShort(r.time)}`;
 }
 window.doMealConfirmFull = doMealConfirmFull;
 
@@ -868,14 +873,14 @@ async function manualConfirm() {
   el.innerHTML = '<span style="color:var(--muted)">처리 중...</span>';
   const r = await tryMealConfirm(no, '수동');
   if (!r.ok) { el.innerHTML = `<span style="color:var(--red)">${r.msg}</span>`; return; }
-  el.innerHTML = `<span style="color:var(--ok)">✓ ${r.name} 수령 확인 (${fmtTimeShort(r.time)})</span>`;
+  el.innerHTML = `<span style="color:var(--ok)">✓ ${r.name} 식사 확인 (${fmtTimeShort(r.time)})</span>`;
   document.getElementById('manual-no').value = '';
 }
 window.manualConfirm = manualConfirm;
 
 async function manualConfirmNo(no) {
   const r = await tryMealConfirm(no, '수동');
-  if (r.ok) toast(`${r.name} 수령 확인!`, 'ok');
+  if (r.ok) toast(`${r.name} 식사 확인!`, 'ok');
   else toast(r.msg, 'err');
 }
 window.manualConfirmNo = manualConfirmNo;
@@ -904,7 +909,7 @@ function npRefresh() {
 async function npConfirm() {
   if (S.npVal.length < 4) return;
   const r = await tryMealConfirm(S.npVal, '수동');
-  if (r.ok) { toast(`${r.name} 수령 확인!`, 'ok'); S.npVal = ''; npRefresh(); }
+  if (r.ok) { toast(`${r.name} 식사 확인!`, 'ok'); S.npVal = ''; npRefresh(); }
   else toast(r.msg, 'err');
 }
 window.npConfirm = npConfirm;
@@ -1018,8 +1023,8 @@ function renderHistTable() {
 
   tbody.innerHTML = list.map(s => {
     const badge = s.isDone
-      ? '<span class="badge badge-ok">수령</span>'
-      : '<span class="badge badge-wait">미수령</span>';
+      ? '<span class="badge badge-ok">식사 완료</span>'
+      : '<span class="badge badge-wait">식사 안함</span>';
     const timeCell = s.isDone ? fmtTimeShort(s.time) : '—';
     return `<tr>
       <td style="font-family:'DM Mono',monospace">${s.no}</td>
@@ -1036,11 +1041,11 @@ function exportHistCSV() {
   _histData.records.forEach(r => { doneMap[String(r.no)] = r; });
   const list = _histData.roster.map(s => {
     const rec = doneMap[String(s.no)];
-    return { no: s.no, name: s.name, status: rec ? '수령' : '미수령', time: rec ? fmtTimeShort(rec.time) : '' };
+    return { no: s.no, name: s.name, status: rec ? '식사 완료' : '식사 안함', time: rec ? fmtTimeShort(rec.time) : '' };
   });
   if (!list.length) { toast('내보낼 데이터가 없어요', 'err'); return; }
   list.sort((a, b) => String(a.no).localeCompare(String(b.no)));
-  const csv = '\uFEFF학번,이름,상태,수령시각\n' + list.map(c => `${c.no},${c.name},${c.status},${c.time}`).join('\n');
+  const csv = '\uFEFF학번,이름,상태,식사시각\n' + list.map(c => `${c.no},${c.name},${c.status},${c.time}`).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
   a.download = `급식기록_${_histData.date}.csv`;
@@ -1054,10 +1059,10 @@ window.exportHistCSV = exportHistCSV;
 function exportCSV() {
   const data = S.confirmed.length ? S.confirmed : [];
   if (!data.length) { toast('내보낼 데이터가 없어요', 'err'); return; }
-  const csv = '\uFEFF학번,이름,수령시각,방법\n' + data.map(c => `${c.no},${c.name},${fmtTimeShort(c.time)},${c.method}`).join('\n');
+  const csv = '\uFEFF학번,이름,식사시각,방법\n' + data.map(c => `${c.no},${c.name},${fmtTimeShort(c.time)},${c.method}`).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
-  a.download = `급식수령_${S.session ? S.session.date : 'data'}.csv`;
+  a.download = `급식기록_${S.session ? S.session.date : 'data'}.csv`;
   a.click();
   toast('CSV 다운로드 완료', 'ok');
 }
