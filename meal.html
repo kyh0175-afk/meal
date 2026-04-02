@@ -513,10 +513,18 @@ function fmtTime(dateOrStr) {
 }
 
 function fmtTimeShort(timeStr) {
-  // "HH:mm:ss" → "HH:mm:ss" (이미 짧은 형태면 그대로)
   if (!timeStr) return '';
-  // Date 객체가 문자열로 들어온 경우 처리
-  if (timeStr.length > 10) return fmtTime(timeStr);
+  // 이미 "HH:mm:ss" 형태 (8자)면 그대로
+  if (/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) return timeStr;
+  // "HH:mm" 형태 (5자)면 그대로
+  if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
+  // Date 문자열이 섞여 들어온 경우 → 파싱해서 HH:mm:ss만 추출
+  try {
+    const d = new Date(timeStr);
+    if (!isNaN(d.getTime())) {
+      return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
+    }
+  } catch(e) {}
   return timeStr;
 }
 
