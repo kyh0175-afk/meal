@@ -282,7 +282,6 @@ tr:last-child td{border-bottom:none}
     <div class="topbar-right">
       <span class="live-dot" id="live-dot"></span>
       <span class="sess-lbl" id="sess-lbl"></span>
-      <span class="timer-num t-ok" id="timer-disp">30:00</span>
       <button class="btn btn-ghost btn-sm" id="btn-end" onclick="openEndModal()">종료</button>
     </div>
   </div>
@@ -303,8 +302,14 @@ tr:last-child td{border-bottom:none}
             <div id="qr-render" style="width:280px;height:280px"></div>
           </div>
           <div class="qr-hint" style="margin-top:8px;font-size:13px">스캔하면 학생 급식 확인 화면으로 이동</div>
+          <div style="text-align:center;margin-top:10px">
+            <span class="timer-num t-ok" id="timer-disp" style="font-size:18px;padding:5px 14px">30:00</span>
+          </div>
           <div style="text-align:center;margin-top:8px">
             <button class="btn btn-ghost btn-sm" onclick="refreshQR()">🔄 QR 갱신</button>
+          </div>
+          <div style="text-align:center;margin-top:6px">
+            <button class="btn btn-ghost btn-sm" id="btn-end2" onclick="openEndModal()" style="color:var(--red);border-color:rgba(248,113,113,.3)">⏹ 종료</button>
           </div>
         </div>
         <div class="status-panel">
@@ -561,6 +566,23 @@ function fmtTimeShort(timeStr) {
 
 function fmtNow() { return fmtTime(new Date()); }
 
+function fmtDate(dateStr) {
+  // 어떤 형태든 "26-04-02" 식으로 변환
+  if (!dateStr) return '';
+  let d;
+  if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
+    // "2026-04-02" 형태
+    const p = dateStr.trim().split('-');
+    return p[0].slice(2) + '-' + p[1] + '-' + p[2];
+  }
+  d = new Date(dateStr);
+  if (isNaN(d.getTime())) return String(dateStr).slice(0, 10);
+  const yy = String(d.getFullYear()).slice(2);
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${yy}-${mm}-${dd}`;
+}
+
 
 /* ══ 초기화 ══ */
 (async function init() {
@@ -603,7 +625,7 @@ async function restoreSession() {
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('main-screen').style.display = 'block';
   document.getElementById('live-dot').classList.add('on');
-  document.getElementById('sess-lbl').textContent = `${result.date} · ${result.teacher || '담당자'}`;
+  document.getElementById('sess-lbl').textContent = `${fmtDate(result.date)} · ${result.teacher || '담당자'}`;
   document.getElementById('hist-date').value = result.date || new Date().toISOString().slice(0, 10);
 
   buildQR();
@@ -639,7 +661,7 @@ async function startMealSession() {
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('main-screen').style.display = 'block';
   document.getElementById('live-dot').classList.add('on');
-  document.getElementById('sess-lbl').textContent = `${res.date} · ${teacher}`;
+  document.getElementById('sess-lbl').textContent = `${fmtDate(res.date)} · ${teacher}`;
   document.getElementById('hist-date').value = res.date;
 
   buildQR();
@@ -1090,7 +1112,6 @@ function goHistoryMode() {
   document.getElementById('start-screen').style.display = 'none';
   document.getElementById('main-screen').style.display = 'block';
   document.getElementById('btn-end').style.display = 'none';
-  document.getElementById('timer-disp').style.display = 'none';
   document.getElementById('sess-lbl').textContent = '기록 조회';
   goTab('history');
   document.getElementById('hist-date').value = new Date().toISOString().slice(0,10);
