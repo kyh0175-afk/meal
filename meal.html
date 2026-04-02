@@ -542,7 +542,51 @@ function fmtNow() { return fmtTime(new Date()); }
     return;
   }
   if (p.get('mode') === 'history') { goHistoryMode(); return; }
+
+  // 교사 모드: 진행 중인 세션이 있으면 자동 복원
+  await restoreSession();
 })();
+
+async function restoreSession() {
+  const result = await gasPost({ action: 'getTeacherSession' });
+  if (!result.ok) return;
+  if (!result.sessionId || !result.remainSec || result.remainSec <= 0) return;
+
+  // 명단 로드
+  const rosterRes = await gasPost({ action: 'getRoster' });
+  if (rosterRes.ok) S.roster = rosterRes.students.filter(s => s.isToday);
+
+  // 세션 복원
+  S.session = {
+    id: result.sessionId,
+    teacher: result.teacher || '',
+    date: result.date || ''
+  };
+
+  // 수령 현황 복원
+  S.confirmed = (result.confirmed || []).map(c => ({
+    ...c,
+    no: String(c.no).replace(/\.0$/, '')
+  }));
+
+  // 타이머 복원
+  S.timerRemain = result.remainSec;
+
+  // UI 전환
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('main-screen').style.display = 'block';
+  document.getElementById('live-dot').classList.add('on');
+  document.getElementById('sess-lbl').textContent = `${result.date} · ${result.teacher || '담당자'}`;
+  document.getElementById('hist-date').value = result.date || new Date().toISOString().slice(0, 10);
+
+  buildQR();
+  startTimer();
+  refreshStats();
+  renderRecentList();
+  renderRoster();
+  startPolling();
+  toast('진행 중인 급식 세션이 복원됐어요 ✅', 'ok');
+}
 
 
 /* ══ 세션 시작 ══ */
