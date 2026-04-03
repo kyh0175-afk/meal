@@ -1,125 +1,38 @@
 <!DOCTYPE html>
+
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>야간 급식 확인</title>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap');
-
-:root {
-  --ink: #0e1117;
-  --card: rgba(255,255,255,0.05);
-  --card2: rgba(255,255,255,0.09);
-  --border: rgba(255,255,255,0.1);
-  --border2: rgba(255,255,255,0.18);
-  --accent: #f59e0b;
-  --accent2: #f97316;
-  --ok: #34d399;
-  --sky: #60a5fa;
-  --red: #f87171;
-  --text: #edf0f7;
-  --muted: #7a8499;
-  --r: 14px;
-  --r-sm: 10px;
-}
-
+:root{--ink:#0e1117;--card:rgba(255,255,255,0.05);--card2:rgba(255,255,255,0.09);--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);--accent:#f59e0b;--ok:#34d399;--sky:#60a5fa;--red:#f87171;--text:#edf0f7;--muted:#7a8499;--r:14px;--r-sm:10px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{background:#0e1117!important}
-body{
-  font-family:'Noto Sans KR',sans-serif;
-  background:#0e1117;color:#edf0f7;
-  min-height:100vh;font-size:16px;line-height:1.7;
-  -webkit-tap-highlight-color:transparent;
-}
-body::before{
-  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 0%,rgba(245,158,11,.08) 0%,transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 90%,rgba(249,115,22,.06) 0%,transparent 60%);
-}
+body{font-family:'Noto Sans KR',sans-serif;background:#0e1117;color:#edf0f7;min-height:100vh;font-size:16px;line-height:1.7;-webkit-tap-highlight-color:transparent}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 20% 0%,rgba(245,158,11,.08) 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 80% 90%,rgba(249,115,22,.06) 0%,transparent 60%)}
 .wrap{position:relative;z-index:1}
-
-/* topbar */
-.topbar{
-  display:flex;align-items:center;gap:12px;
-  padding:0 20px;height:56px;
-  background:rgba(14,17,23,.88);
-  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  border-bottom:1px solid var(--border);
-  position:sticky;top:0;z-index:200;
-}
-.logo{font-size:20px;font-weight:900;letter-spacing:-.5px;white-space:nowrap;color:var(--accent);cursor:pointer}
+.topbar{display:flex;align-items:center;gap:12px;padding:0 20px;height:56px;background:rgba(14,17,23,.88);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200}
+.logo{font-size:20px;font-weight:900;color:var(--accent);cursor:pointer}
 .topbar-right{display:flex;gap:8px;margin-left:auto;align-items:center}
-.live-dot{
-  width:7px;height:7px;border-radius:50%;
-  background:var(--ok);display:none;flex-shrink:0;
-  animation:pulse 1.4s ease-in-out infinite;
-}
-.live-dot.on{display:inline-block}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
-.sess-lbl{font-size:13px;color:var(--muted);font-weight:500}
-.timer-num{font-family:'DM Mono',monospace;font-size:14px;font-weight:600;padding:4px 10px;border-radius:6px}
-.t-ok{background:rgba(52,211,153,.15);color:var(--ok)}
-.t-warn{background:rgba(245,158,11,.15);color:var(--accent)}
-.t-end{background:rgba(248,113,113,.15);color:var(--red)}
-
-/* buttons */
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:7px;
-  padding:10px 20px;border:none;border-radius:var(--r-sm);
-  font-family:inherit;font-size:13px;font-weight:600;
-  cursor:pointer;transition:all .18s;
-}
+.sess-lbl{font-size:14px;color:var(--muted);font-weight:500}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 20px;border:none;border-radius:var(--r-sm);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .18s}
 .btn:active{transform:scale(.96)}
-.btn-amber{background:var(--accent);color:#000}
-.btn-amber:hover{background:#fbbf24}
-.btn-green{background:var(--ok);color:#000}
-.btn-green:hover{background:#6ee7b7}
+.btn-amber{background:var(--accent);color:#000}.btn-green{background:var(--ok);color:#000}
 .btn-red{background:var(--red);color:#000}
 .btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text)}
-.btn-ghost:hover{background:var(--card2)}
-.btn-sm{padding:7px 14px;font-size:12px}
-.btn-full{width:100%}
-
-/* card & field */
-.card{
-  background:var(--card);border:1px solid var(--border);
-  border-radius:var(--r);padding:22px;margin-bottom:14px;
-}
+.btn-ghost:hover{background:var(--card2)}.btn-sm{padding:7px 14px;font-size:12px}.btn-full{width:100%}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px;margin-bottom:14px}
 .card-head{font-size:13px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
 .field{margin-bottom:14px}
-.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;letter-spacing:.4px}
-.field input,.field select{
-  width:100%;background:rgba(255,255,255,.05);
-  border:1px solid var(--border);border-radius:var(--r-sm);
-  padding:10px 13px;color:var(--text);font-family:inherit;font-size:14px;
-  outline:none;transition:border-color .2s;
-  -webkit-appearance:none;appearance:none;
-}
-.field input:focus,.field select:focus{border-color:var(--accent);background:rgba(245,158,11,.04)}
-
-/* QR area */
-.qr-wrap{display:flex;gap:20px;flex-wrap:wrap}
-.qr-panel{
-  flex:0 0 auto;background:#fff;border-radius:12px;padding:14px;
-  display:flex;flex-direction:column;align-items:center;gap:8px;
-}
-.qr-hint{font-size:11px;color:var(--muted);text-align:center}
-.status-panel{flex:1;min-width:280px}
-
-/* stats row */
+.field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px}
+.field input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 13px;color:var(--text);font-family:inherit;font-size:14px;outline:none}
+.field input:focus{border-color:var(--accent)}
 .stats-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-.stat-box{
-  flex:1;min-width:80px;text-align:center;
-  background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);
-  padding:12px 8px;
-}
+.stat-box{flex:1;min-width:80px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 8px}
 .stat-num{font-size:28px;font-weight:900;font-family:'DM Mono',monospace;line-height:1.1}
 .stat-lbl{font-size:13px;color:var(--muted);margin-top:4px}
-
-/* table */
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th{font-size:13px;font-weight:600;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border2)}
 td{font-size:14px;padding:8px 10px;border-bottom:1px solid var(--border)}
@@ -129,102 +42,31 @@ tr:last-child td{border-bottom:none}
 .badge-wait{background:rgba(248,113,113,.12);color:var(--red)}
 .badge-qr{background:rgba(96,165,250,.12);color:var(--sky)}
 .badge-manual{background:rgba(167,139,250,.12);color:#a78bfa}
-
-/* roster list */
-.roster-search{
-  display:flex;gap:8px;margin-bottom:12px;
-}
-.roster-search input{
-  flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;
-  padding:8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;
-}
+.tab-bar{display:flex;gap:2px;margin-bottom:16px;flex-wrap:wrap}
+.tab-btn{padding:10px 18px;border:none;border-radius:8px;background:transparent;color:var(--muted);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .18s}
+.tab-btn:hover{background:var(--card2);color:var(--text)}.tab-btn.on{background:var(--card2);color:var(--text)}
+.tab-content{display:none}.tab-content.on{display:block}
+.roster-search{display:flex;gap:8px;margin-bottom:12px}
+.roster-search input{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none}
 .roster-search input:focus{border-color:var(--accent)}
-.roster-filter{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-.filter-chip{
-  padding:5px 12px;border-radius:16px;font-size:12px;font-weight:600;
-  border:1px solid var(--border);background:transparent;color:var(--muted);
-  cursor:pointer;transition:all .15s;
-}
-.filter-chip:hover{background:var(--card2);color:var(--text)}
-.filter-chip.on{background:var(--accent);color:#000;border-color:var(--accent)}
-
+.filter-chip{padding:5px 12px;border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.filter-chip:hover{background:var(--card2);color:var(--text)}.filter-chip.on{background:var(--accent);color:#000;border-color:var(--accent)}
+.filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.filter-bar select,.filter-bar input[type="date"]{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none}
 /* numpad */
-.numpad-wrap{
-  position:fixed;bottom:0;left:0;right:0;
-  background:rgba(14,17,23,.96);backdrop-filter:blur(16px);
-  border-top:1px solid var(--border2);
-  padding:16px 20px 28px;z-index:300;
-  display:none;flex-direction:column;align-items:center;gap:10px;
-}
-.numpad-display{
-  font-family:'DM Mono',monospace;font-size:28px;font-weight:500;
-  text-align:center;color:var(--text);letter-spacing:4px;
-  padding:8px 16px;width:100%;max-width:420px;
-  border:1px solid var(--border2);border-radius:var(--r-sm);
-  min-height:48px;
-}
+.numpad-wrap{position:fixed;bottom:0;left:0;right:0;background:rgba(14,17,23,.96);backdrop-filter:blur(16px);border-top:1px solid var(--border2);padding:16px 20px 28px;z-index:300;display:none;flex-direction:column;align-items:center;gap:10px}
+.numpad-display{font-family:'DM Mono',monospace;font-size:28px;font-weight:500;text-align:center;color:var(--text);letter-spacing:4px;padding:8px 16px;width:100%;max-width:420px;border:1px solid var(--border2);border-radius:var(--r-sm);min-height:48px}
 .numpad-display.full{color:var(--ok);border-color:rgba(52,211,153,.35)}
 .numpad-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:100%;max-width:420px}
-.npbtn{
-  padding:14px 0;border:none;border-radius:var(--r-sm);
-  font-family:'DM Mono',monospace;font-size:18px;font-weight:500;
-  background:var(--card2);color:var(--text);cursor:pointer;transition:all .15s;
-}
-.npbtn:active{transform:scale(.93);background:rgba(255,255,255,.15)}
-.npbtn-del{background:rgba(248,113,113,.15);color:var(--red)}
+.npbtn{padding:14px 0;border:none;border-radius:var(--r-sm);font-family:'DM Mono',monospace;font-size:18px;font-weight:500;background:var(--card2);color:var(--text);cursor:pointer;transition:all .15s}
+.npbtn:active{transform:scale(.93)}.npbtn-del{background:rgba(248,113,113,.15);color:var(--red)}
 .npbtn-ok{background:var(--ok);color:#000;font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:14px}
-
-/* tab system */
-.tab-bar{display:flex;gap:2px;margin-bottom:16px;flex-wrap:wrap}
-.tab-btn{
-  padding:10px 18px;border:none;border-radius:8px;
-  background:transparent;color:var(--muted);
-  font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .18s;
-}
-.tab-btn:hover{background:var(--card2);color:var(--text)}
-.tab-btn.on{background:var(--card2);color:var(--text)}
-.tab-content{display:none}
-.tab-content.on{display:block}
-
-/* filter */
-.filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-.filter-bar select,.filter-bar input[type="date"]{
-  background:var(--card);border:1px solid var(--border);border-radius:8px;
-  padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;
-  outline:none;-webkit-appearance:none;appearance:none;
-}
-
-/* modal */
-.modal-bg{
-  position:fixed;inset:0;z-index:400;
-  background:rgba(0,0,0,.65);backdrop-filter:blur(6px);
-  display:none;align-items:center;justify-content:center;padding:24px;
-}
-.modal-bg.on{display:flex}
-.modal{
-  background:#1a1f2e;border:1px solid var(--border2);border-radius:var(--r);
-  padding:28px;max-width:400px;width:100%;
-}
-.modal h3{font-size:16px;font-weight:800;margin-bottom:8px}
-.modal p{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px}
-
-/* student full-screen */
-.student-screen{
-  display:none;position:fixed;inset:0;z-index:500;
-  background:#0e1117;
-  flex-direction:column;align-items:center;justify-content:center;
-  padding:32px 24px;text-align:center;
-}
+/* student screen */
+.student-screen{display:none;position:fixed;inset:0;z-index:500;background:#0e1117;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
 .student-screen.on{display:flex}
 .s-title{font-size:24px;font-weight:900;margin-bottom:8px}
 .s-sub{font-size:14px;color:var(--muted);line-height:1.7;white-space:pre-line;margin-bottom:28px}
-.s-input{
-  font-family:'DM Mono',monospace;font-size:28px;font-weight:500;
-  text-align:center;letter-spacing:4px;
-  background:rgba(255,255,255,.05);border:2px solid var(--border2);border-radius:12px;
-  color:var(--text);padding:14px 20px;width:220px;outline:none;
-  transition:border-color .2s;
-}
+.s-input{font-family:'DM Mono',monospace;font-size:28px;font-weight:500;text-align:center;letter-spacing:4px;background:rgba(255,255,255,.05);border:2px solid var(--border2);border-radius:12px;color:var(--text);padding:14px 20px;width:220px;outline:none}
 .s-input:focus{border-color:var(--accent)}
 .s-err{color:var(--red);font-size:13px;margin-top:10px;display:none;white-space:pre-line}
 .s-ok{display:none;flex-direction:column;align-items:center;gap:10px}
@@ -232,214 +74,129 @@ tr:last-child td{border-bottom:none}
 @keyframes popIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
 .ok-name{font-size:22px;font-weight:800}
 .ok-meta{font-size:13px;color:var(--muted);white-space:pre-line;line-height:1.8}
-
-/* toast */
-.toast{
-  position:fixed;top:68px;left:50%;transform:translateX(-50%) translateY(-20px);
-  padding:10px 22px;border-radius:10px;font-size:13px;font-weight:600;
-  opacity:0;z-index:999;pointer-events:none;transition:all .3s;white-space:nowrap;
-}
+.toast{position:fixed;top:68px;left:50%;transform:translateX(-50%) translateY(-20px);padding:10px 22px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;z-index:999;pointer-events:none;transition:all .3s;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.ok{background:rgba(52,211,153,.18);color:var(--ok);border:1px solid rgba(52,211,153,.3)}
 .toast.err{background:rgba(248,113,113,.18);color:var(--red);border:1px solid rgba(248,113,113,.3)}
-
-@media(max-width:600px){
-  .qr-wrap{flex-direction:column;align-items:center}
-  .status-panel{min-width:auto;width:100%}
-  .stat-num{font-size:22px}
-}
+@media(max-width:600px){.stat-num{font-size:22px}}
 </style>
 </head>
 <body>
 <div class="wrap">
 <div class="toast" id="toast"></div>
 
-<!-- ══ 시작 화면 ══ -->
-<div id="start-screen" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center">
-  <div style="font-size:48px;margin-bottom:16px">🍱</div>
-  <div style="font-size:28px;font-weight:900;color:var(--accent);margin-bottom:6px">야간 급식 확인</div>
-  <div style="font-size:13px;color:var(--muted);line-height:1.8;margin-bottom:32px">
-    QR 코드를 생성하고<br>학생들의 식사를 확인하세요
-  </div>
-  <div class="card" style="max-width:400px;width:100%;text-align:left">
-    <div class="field">
-      <label>담당자 이름</label>
-      <input type="text" id="f-teacher" placeholder="예: 김선생님">
-    </div>
-    <button class="btn btn-amber btn-full" onclick="startMealSession()" style="padding:13px;font-size:15px">
-      🍱 급식 확인 시작
-    </button>
-  </div>
-  <div style="margin-top:20px">
-    <button class="btn btn-ghost btn-sm" onclick="goHistoryMode()">📋 지난 기록 보기</button>
-  </div>
-</div>
+<!-- ══ 교사 대시보드 ══ -->
 
-<!-- ══ 메인 화면 ══ -->
-<div id="main-screen" style="display:none">
+<div id="dashboard">
   <div class="topbar">
     <div class="logo" onclick="location.reload()">🍱 야간 급식</div>
     <div class="topbar-right">
-      <span class="live-dot" id="live-dot"></span>
-      <span class="sess-lbl" id="sess-lbl"></span>
-      <button class="btn btn-ghost btn-sm" id="btn-end" onclick="openEndModal()">종료</button>
+      <span class="sess-lbl" id="top-date"></span>
     </div>
   </div>
-
   <div style="padding:24px 20px;max-width:900px;margin:0 auto">
-    <div class="tab-bar" id="tab-bar">
-      <button class="tab-btn on" data-tab="live" onclick="goTab('live')">📡 실시간</button>
+    <div class="tab-bar">
+      <button class="tab-btn on" data-tab="today" onclick="goTab('today')">📡 오늘 현황</button>
       <button class="tab-btn" data-tab="roster" onclick="goTab('roster')">📋 명단</button>
       <button class="tab-btn" data-tab="manual" onclick="goTab('manual')">✏️ 수동 입력</button>
       <button class="tab-btn" data-tab="history" onclick="goTab('history')">📂 기록</button>
     </div>
 
-    <!-- ── 실시간 탭 ── -->
-    <div class="tab-content on" id="tab-live">
-      <div class="qr-wrap">
-        <div style="flex-shrink:0">
-          <div class="qr-panel">
-            <div id="qr-render" style="width:280px;height:280px"></div>
-          </div>
-          <div class="qr-hint" style="margin-top:8px;font-size:13px">스캔하면 학생 급식 확인 화면으로 이동</div>
-          <div style="text-align:center;margin-top:10px">
-            <span class="timer-num t-ok" id="timer-disp" style="font-size:18px;padding:5px 14px">30:00</span>
-          </div>
-          <div style="text-align:center;margin-top:8px">
-            <button class="btn btn-ghost btn-sm" onclick="refreshQR()">🔄 QR 갱신</button>
-          </div>
-          <div style="text-align:center;margin-top:6px">
-            <button class="btn btn-ghost btn-sm" id="btn-end2" onclick="openEndModal()" style="color:var(--red);border-color:rgba(248,113,113,.3)">⏹ 종료</button>
-          </div>
-        </div>
-        <div class="status-panel">
-          <div class="stats-row">
-            <div class="stat-box">
-              <div class="stat-num" id="st-total" style="color:var(--sky)">0</div>
-              <div class="stat-lbl">오늘 대상</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-num" id="st-done" style="color:var(--ok)">0</div>
-              <div class="stat-lbl">식사 완료</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-num" id="st-remain" style="color:var(--red)">0</div>
-              <div class="stat-lbl">식사 안함</div>
-            </div>
-            <div class="stat-box">
-              <div class="stat-num" id="st-rate" style="color:var(--accent)">0%</div>
-              <div class="stat-lbl">식사 비율</div>
-            </div>
-          </div>
-          <div style="font-size:15px;font-weight:700;color:var(--muted);margin-bottom:8px">금일 식사 인원</div>
-          <div id="recent-list" style="max-height:320px;overflow-y:auto">
-            <div style="font-size:14px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>
-          </div>
-        </div>
-      </div>
-    </div>
+```
+<!-- 오늘 현황 -->
+<div class="tab-content on" id="tab-today">
+  <div class="stats-row">
+    <div class="stat-box"><div class="stat-num" id="st-total" style="color:var(--sky)">0</div><div class="stat-lbl">오늘 대상</div></div>
+    <div class="stat-box"><div class="stat-num" id="st-done" style="color:var(--ok)">0</div><div class="stat-lbl">식사 완료</div></div>
+    <div class="stat-box"><div class="stat-num" id="st-remain" style="color:var(--red)">0</div><div class="stat-lbl">식사 안함</div></div>
+    <div class="stat-box"><div class="stat-num" id="st-rate" style="color:var(--accent)">0%</div><div class="stat-lbl">식사 비율</div></div>
+  </div>
+  <div style="font-size:15px;font-weight:700;color:var(--muted);margin-bottom:8px">금일 식사 인원</div>
+  <div id="today-list" style="max-height:500px;overflow-y:auto">
+    <div style="font-size:14px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>
+  </div>
+</div>
 
-    <!-- ── 명단 탭 (핵심 변경: 전체 명단 + 수령 상태 표시) ── -->
-    <div class="tab-content" id="tab-roster">
-      <div class="card">
-        <div class="card-head">오늘 급식 대상 명단</div>
-        <div class="roster-search">
-          <input type="text" id="roster-search" placeholder="학번 또는 이름 검색" oninput="renderRoster()">
-        </div>
-        <div class="roster-filter" id="roster-filter">
-          <button class="filter-chip on" data-filter="all" onclick="setRosterFilter('all')">전체</button>
-          <button class="filter-chip" data-filter="wait" onclick="setRosterFilter('wait')">🔴 식사 안함</button>
-          <button class="filter-chip" data-filter="done" onclick="setRosterFilter('done')">🟢 식사 완료</button>
-        </div>
-        <div id="roster-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
-        <div style="max-height:500px;overflow-y:auto">
-          <table>
-            <thead><tr><th>학번</th><th>이름</th><th>상태</th><th>식사 시각</th></tr></thead>
-            <tbody id="roster-tbody"></tbody>
-          </table>
-        </div>
-      </div>
+<!-- 명단 -->
+<div class="tab-content" id="tab-roster">
+  <div class="card">
+    <div class="card-head">오늘 급식 대상 명단</div>
+    <div class="roster-search"><input type="text" id="roster-search" placeholder="학번 또는 이름 검색" oninput="renderRoster()"></div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="filter-chip on" data-filter="all" onclick="setRosterFilter('all')">전체</button>
+      <button class="filter-chip" data-filter="wait" onclick="setRosterFilter('wait')">🔴 식사 안함</button>
+      <button class="filter-chip" data-filter="done" onclick="setRosterFilter('done')">🟢 식사 완료</button>
     </div>
-
-    <!-- ── 수동 입력 탭 ── -->
-    <div class="tab-content" id="tab-manual">
-      <div class="card">
-        <div class="card-head">수동 식사 확인</div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">QR 스캔 없이 학번을 직접 입력해 식사를 확인합니다.</p>
-        <div style="display:flex;gap:10px;align-items:flex-end">
-          <div class="field" style="flex:1;margin-bottom:0">
-            <label>학번</label>
-            <input type="text" id="manual-no" placeholder="학번 입력" inputmode="numeric" onkeydown="if(event.key==='Enter')manualConfirm()">
-          </div>
-          <button class="btn btn-green" onclick="manualConfirm()" style="height:42px">✓ 확인</button>
-        </div>
-        <div id="manual-result" style="margin-top:12px"></div>
-      </div>
-      <div class="card">
-        <div class="card-head">넘버패드</div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:10px">터치 화면에서 빠르게 입력할 수 있어요.</p>
-        <button class="btn btn-ghost btn-full" onclick="openNumpad()">🔢 넘버패드 열기</button>
-      </div>
-    </div>
-
-    <!-- ── 기록 탭 ── -->
-    <div class="tab-content" id="tab-history">
-      <div class="card">
-        <div class="card-head">날짜별 기록</div>
-        <div class="filter-bar">
-          <input type="date" id="hist-date" onchange="loadHistoryDate()">
-          <span id="hist-day" style="font-size:13px;color:var(--accent);font-weight:700"></span>
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="exportHistCSV()">📥 CSV</button>
-        </div>
-        <!-- 통계 -->
-        <div class="stats-row" id="hist-stats" style="display:none">
-          <div class="stat-box">
-            <div class="stat-num" id="hist-total" style="color:var(--sky)">0</div>
-            <div class="stat-lbl">대상</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-num" id="hist-done" style="color:var(--ok)">0</div>
-            <div class="stat-lbl">식사 완료</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-num" id="hist-miss" style="color:var(--red)">0</div>
-            <div class="stat-lbl">식사 안함</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-num" id="hist-rate" style="color:var(--accent)">0%</div>
-            <div class="stat-lbl">식사 비율</div>
-          </div>
-        </div>
-        <!-- 필터 칩 -->
-        <div class="roster-filter" id="hist-filter" style="display:none">
-          <button class="filter-chip on" data-hf="all" onclick="setHistFilter('all')">전체</button>
-          <button class="filter-chip" data-hf="done" onclick="setHistFilter('done')">🟢 식사 완료</button>
-          <button class="filter-chip" data-hf="miss" onclick="setHistFilter('miss')">🔴 식사 안함</button>
-        </div>
-        <div class="roster-search" id="hist-search-wrap" style="display:none">
-          <input type="text" id="hist-search" placeholder="학번 또는 이름 검색" oninput="renderHistTable()">
-        </div>
-        <div style="max-height:500px;overflow-y:auto">
-          <table>
-            <thead><tr><th>학번</th><th>이름</th><th>상태</th><th>시각</th></tr></thead>
-            <tbody id="hist-tbody"></tbody>
-          </table>
-        </div>
-        <div id="hist-empty" style="font-size:13px;color:var(--muted);padding:20px;text-align:center;display:none">해당 날짜의 기록이 없어요</div>
-      </div>
+    <div id="roster-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
+    <div style="max-height:500px;overflow-y:auto">
+      <table><thead><tr><th>학번</th><th>이름</th><th>상태</th><th>시각</th></tr></thead>
+      <tbody id="roster-tbody"></tbody></table>
     </div>
   </div>
 </div>
 
-<!-- ══ 학생 전체화면 (QR 스캔 진입) ══ -->
+<!-- 수동 입력 -->
+<div class="tab-content" id="tab-manual">
+  <div class="card">
+    <div class="card-head">수동 식사 확인</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">QR 없이 학번을 직접 입력합니다. (18:20~19:00 시간 제한 동일 적용)</p>
+    <div style="display:flex;gap:10px;align-items:flex-end">
+      <div class="field" style="flex:1;margin-bottom:0"><label>학번</label>
+        <input type="text" id="manual-no" placeholder="학번 입력" inputmode="numeric" onkeydown="if(event.key==='Enter')manualConfirm()">
+      </div>
+      <button class="btn btn-green" onclick="manualConfirm()" style="height:42px">✓ 확인</button>
+    </div>
+    <div id="manual-result" style="margin-top:12px"></div>
+  </div>
+  <div class="card">
+    <div class="card-head">넘버패드</div>
+    <button class="btn btn-ghost btn-full" onclick="openNumpad()">🔢 넘버패드 열기</button>
+  </div>
+</div>
+
+<!-- 기록 -->
+<div class="tab-content" id="tab-history">
+  <div class="card">
+    <div class="card-head">날짜별 기록</div>
+    <div class="filter-bar">
+      <input type="date" id="hist-date" onchange="loadHistoryDate()">
+      <span id="hist-day" style="font-size:13px;color:var(--accent);font-weight:700"></span>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="exportHistCSV()">📥 CSV</button>
+    </div>
+    <div class="stats-row" id="hist-stats" style="display:none">
+      <div class="stat-box"><div class="stat-num" id="hist-total" style="color:var(--sky)">0</div><div class="stat-lbl">대상</div></div>
+      <div class="stat-box"><div class="stat-num" id="hist-done" style="color:var(--ok)">0</div><div class="stat-lbl">식사 완료</div></div>
+      <div class="stat-box"><div class="stat-num" id="hist-miss" style="color:var(--red)">0</div><div class="stat-lbl">식사 안함</div></div>
+      <div class="stat-box"><div class="stat-num" id="hist-rate" style="color:var(--accent)">0%</div><div class="stat-lbl">식사 비율</div></div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="hist-filter" style="display:none">
+      <button class="filter-chip on" data-hf="all" onclick="setHistFilter('all')">전체</button>
+      <button class="filter-chip" data-hf="done" onclick="setHistFilter('done')">🟢 식사 완료</button>
+      <button class="filter-chip" data-hf="miss" onclick="setHistFilter('miss')">🔴 식사 안함</button>
+    </div>
+    <div class="roster-search" id="hist-search-wrap"><input type="text" id="hist-search" placeholder="학번 또는 이름 검색" oninput="renderHistTable()"></div>
+    <div style="max-height:500px;overflow-y:auto">
+      <table><thead><tr><th>학번</th><th>이름</th><th>상태</th><th>시각</th></tr></thead>
+      <tbody id="hist-tbody"></tbody></table>
+    </div>
+    <div id="hist-empty" style="font-size:14px;color:var(--muted);padding:20px;text-align:center;display:none">해당 날짜의 기록이 없어요</div>
+  </div>
+</div>
+```
+
+  </div>
+</div>
+
+<!-- ══ 학생 화면 (QR 스캔 진입) ══ -->
+
 <div class="student-screen" id="student-screen">
   <div id="sf-input-wrap" style="display:flex;flex-direction:column;align-items:center">
     <div style="font-size:48px;margin-bottom:12px">🍱</div>
     <div class="s-title">야간 급식 확인</div>
-    <div class="s-sub" id="sf-sub">학번을 입력하면 급식 식사가 확인돼요</div>
-    <input type="text" class="s-input" id="sf-no" inputmode="numeric" placeholder="학번" maxlength="5" onkeydown="if(event.key==='Enter')doMealConfirmFull()">
+    <div class="s-sub">학번을 입력하면 식사가 확인돼요<br><span style="color:var(--accent)">⏰ 18:20 ~ 19:00</span></div>
+    <input type="text" class="s-input" id="sf-no" inputmode="numeric" placeholder="학번" maxlength="5" onkeydown="if(event.key==='Enter')doStudentConfirm()">
     <div style="margin-top:16px">
-      <button class="btn btn-amber" style="padding:14px 48px;font-size:16px" id="sf-btn" onclick="doMealConfirmFull()">🍱 식사 확인</button>
+      <button class="btn btn-amber" style="padding:14px 48px;font-size:16px" id="sf-btn" onclick="doStudentConfirm()">🍱 식사 확인</button>
     </div>
     <div class="s-err" id="sf-err"></div>
   </div>
@@ -447,23 +204,12 @@ tr:last-child td{border-bottom:none}
     <div class="check">✅</div>
     <div class="ok-name" id="sf-ok-name"></div>
     <div class="ok-meta" id="sf-ok-meta"></div>
-    <button class="btn btn-ghost" style="margin-top:20px;padding:12px 36px" onclick="resetStudentScreen()">다른 학생 확인</button>
-  </div>
-</div>
-
-<!-- ══ 종료 모달 ══ -->
-<div class="modal-bg" id="modal-end">
-  <div class="modal">
-    <h3>급식 확인 종료</h3>
-    <p>QR이 비활성화되고 세션이 종료됩니다.</p>
-    <div style="display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn btn-ghost btn-sm" onclick="closeEndModal()">취소</button>
-      <button class="btn btn-red btn-sm" onclick="endMealSession()">종료하기</button>
-    </div>
+    <button class="btn btn-ghost" style="margin-top:20px;padding:12px 36px" onclick="resetStudent()">다른 학생 확인</button>
   </div>
 </div>
 
 <!-- ══ 넘버패드 ══ -->
+
 <div class="numpad-wrap" id="numpad">
   <div style="display:flex;justify-content:space-between;width:100%;max-width:420px;align-items:center">
     <span style="font-size:13px;font-weight:700;color:var(--muted)">학번 입력</span>
@@ -471,666 +217,237 @@ tr:last-child td{border-bottom:none}
   </div>
   <div class="numpad-display" id="np-display">—</div>
   <div class="numpad-grid">
-    <button class="npbtn" onclick="npInput('1')">1</button>
-    <button class="npbtn" onclick="npInput('2')">2</button>
-    <button class="npbtn" onclick="npInput('3')">3</button>
-    <button class="npbtn" onclick="npInput('4')">4</button>
-    <button class="npbtn" onclick="npInput('5')">5</button>
-    <button class="npbtn npbtn-del" onclick="npDelete()">⌫</button>
-    <button class="npbtn" onclick="npInput('6')">6</button>
-    <button class="npbtn" onclick="npInput('7')">7</button>
-    <button class="npbtn" onclick="npInput('8')">8</button>
-    <button class="npbtn" onclick="npInput('9')">9</button>
-    <button class="npbtn" onclick="npInput('0')">0</button>
-    <button class="npbtn" style="background:transparent;color:var(--muted)" onclick="npClear()">C</button>
+    <button class="npbtn" onclick="npInput('1')">1</button><button class="npbtn" onclick="npInput('2')">2</button>
+    <button class="npbtn" onclick="npInput('3')">3</button><button class="npbtn" onclick="npInput('4')">4</button>
+    <button class="npbtn" onclick="npInput('5')">5</button><button class="npbtn npbtn-del" onclick="npDelete()">⌫</button>
+    <button class="npbtn" onclick="npInput('6')">6</button><button class="npbtn" onclick="npInput('7')">7</button>
+    <button class="npbtn" onclick="npInput('8')">8</button><button class="npbtn" onclick="npInput('9')">9</button>
+    <button class="npbtn" onclick="npInput('0')">0</button><button class="npbtn" style="background:transparent;color:var(--muted)" onclick="npClear()">C</button>
   </div>
   <button class="npbtn npbtn-ok" id="np-ok" style="width:100%;max-width:420px;padding:14px" onclick="npConfirm()" disabled>🍱 식사 확인</button>
 </div>
-
 </div>
 
 <script>
-(function() {
+(function(){
 'use strict';
 
-/* ══ 상태 ══ */
-const S = {
-  session: null,
-  roster: [],        // 오늘 대상 명단
-  confirmed: [],     // 수령 완료 목록
-  pollInt: null,
-  timerInt: null,
-  timerRemain: 1800, // 30분 = 1800초
-  npVal: '',
-  rosterFilter: 'all',
-};
+const S = { roster:[], confirmed:[], pollInt:null, rosterFilter:'all', npVal:'' };
 
-/* ★★★ GAS URL ★★★ */
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwFIL1HitTOj8CruJU9uXoONyxP1XpE9ubK7nRfYR0iP0MmKr5FrLa2wwk-Rhq6b3Q/exec";
 
-async function gasPost(payload, retry = 2) {
-  for (let attempt = 0; attempt <= retry; attempt++) {
+async function gasPost(payload, retry=2) {
+  for (let a=0;a<=retry;a++) {
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 15000);
-      const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload), signal: ctrl.signal });
+      const c=new AbortController(), t=setTimeout(()=>c.abort(),15000);
+      const r=await fetch(GAS_URL,{method:"POST",body:JSON.stringify(payload),signal:c.signal});
       clearTimeout(t);
-      const text = await res.text();
-      try { return JSON.parse(text); }
-      catch(e) { if (attempt < retry) continue; return {ok:false, msg:'서버 응답 오류'}; }
-    } catch(e) {
-      if (attempt < retry && e.name !== 'AbortError') continue;
-      return {ok:false, msg: e.name==='AbortError' ? '응답 시간 초과' : '서버 연결 실패'};
-    }
+      try{return JSON.parse(await r.text())}catch(e){if(a<retry)continue;return{ok:false,msg:'서버 응답 오류'}}
+    }catch(e){if(a<retry&&e.name!=='AbortError')continue;return{ok:false,msg:e.name==='AbortError'?'응답 시간 초과':'서버 연결 실패'}}
   }
 }
 
-
-/* ══ 시간 포맷 유틸 ══ */
-function fmtTime(dateOrStr) {
-  let d;
-  if (dateOrStr instanceof Date) d = dateOrStr;
-  else if (typeof dateOrStr === 'string' && dateOrStr.includes(':')) {
-    // "HH:mm:ss" 또는 Date 문자열
-    const now = new Date();
-    const parts = dateOrStr.split(':');
-    d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), +parts[0], +parts[1], +parts[2]||0);
-  } else {
-    d = new Date(dateOrStr);
-  }
-  if (isNaN(d.getTime())) return dateOrStr; // 파싱 실패 시 원본 반환
-  const yy = String(d.getFullYear()).slice(2);
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const dd = String(d.getDate()).padStart(2,'0');
-  const hh = String(d.getHours()).padStart(2,'0');
-  const mi = String(d.getMinutes()).padStart(2,'0');
-  const ss = String(d.getSeconds()).padStart(2,'0');
-  return `${yy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
-}
-
-function fmtTimeShort(timeStr) {
-  if (!timeStr) return '';
-  // 이미 "HH:mm:ss" 형태 (8자)면 그대로
-  if (/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) return timeStr;
-  // "HH:mm" 형태 (5자)면 그대로
-  if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
-  // Date 문자열이 섞여 들어온 경우 → 파싱해서 HH:mm:ss만 추출
-  try {
-    const d = new Date(timeStr);
-    if (!isNaN(d.getTime())) {
-      return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0') + ':' + String(d.getSeconds()).padStart(2,'0');
-    }
-  } catch(e) {}
-  return timeStr;
-}
-
-function fmtNow() { return fmtTime(new Date()); }
-
-function fmtDate(dateStr) {
-  // 어떤 형태든 "26-04-02" 식으로 변환
-  if (!dateStr) return '';
-  let d;
-  if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
-    // "2026-04-02" 형태
-    const p = dateStr.trim().split('-');
-    return p[0].slice(2) + '-' + p[1] + '-' + p[2];
-  }
-  d = new Date(dateStr);
-  if (isNaN(d.getTime())) return String(dateStr).slice(0, 10);
-  const yy = String(d.getFullYear()).slice(2);
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const dd = String(d.getDate()).padStart(2,'0');
-  return `${yy}-${mm}-${dd}`;
-}
-
+function fmtDate(s){if(!s)return'';if(/^\d{4}-\d{2}-\d{2}$/.test(s.trim())){const p=s.trim().split('-');return p[0].slice(2)+'-'+p[1]+'-'+p[2]}const d=new Date(s);if(isNaN(d))return s;return String(d.getFullYear()).slice(2)+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function fmtTimeShort(t){if(!t)return'';if(/^\d{2}:\d{2}:\d{2}$/.test(t))return t;if(/^\d{2}:\d{2}$/.test(t))return t;try{const d=new Date(t);if(!isNaN(d))return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(e){}return t}
 
 /* ══ 초기화 ══ */
-(async function init() {
-  const p = new URLSearchParams(location.search);
-  if (p.get('mode') === 'student') {
-    document.getElementById('start-screen').style.display = 'none';
+(async function init(){
+  const p=new URLSearchParams(location.search);
+  if(p.get('mode')==='student'){
+    document.getElementById('dashboard').style.display='none';
     document.getElementById('student-screen').classList.add('on');
-    S.session = { id: p.get('sid') || '', teacher: '', date: '' };
     document.getElementById('sf-no').focus();
     return;
   }
-  if (p.get('mode') === 'history') { goHistoryMode(); return; }
-
-  // 교사 모드: 진행 중인 세션이 있으면 자동 복원
-  await restoreSession();
+  // 교사 대시보드
+  document.getElementById('top-date').textContent = fmtDate(new Date().toISOString().slice(0,10));
+  document.getElementById('hist-date').value = new Date().toISOString().slice(0,10);
+  await loadToday();
+  startPolling();
 })();
 
-async function restoreSession() {
-  const result = await gasPost({ action: 'getTeacherSession' });
-  if (!result.ok) return;
-  if (!result.sessionId || !result.remainSec || result.remainSec <= 0) return;
-
-  // 세션 복원
-  S.session = {
-    id: result.sessionId,
-    teacher: result.teacher || '',
-    date: result.date || ''
-  };
-
-  // 식사 현황 복원
-  S.confirmed = (result.confirmed || []).map(c => ({
-    ...c,
-    no: String(c.no).replace(/\.0$/, '')
-  }));
-
-  // 타이머 복원
-  S.timerRemain = result.remainSec;
-
-  // UI 즉시 전환
-  document.getElementById('start-screen').style.display = 'none';
-  document.getElementById('main-screen').style.display = 'block';
-  document.getElementById('live-dot').classList.add('on');
-  document.getElementById('sess-lbl').textContent = `${fmtDate(result.date)} · ${result.teacher || '담당자'}`;
-  document.getElementById('hist-date').value = result.date || new Date().toISOString().slice(0, 10);
-
-  buildQR();
-  startTimer();
-  refreshStats();
-  renderRecentList();
-  startPolling();
-  toast('진행 중인 급식 세션이 복원됐어요 ✅', 'ok');
-
-  // 명단은 백그라운드 로드
-  const rosterRes = await gasPost({ action: 'getRoster' });
-  if (rosterRes.ok) S.roster = rosterRes.students.filter(s => s.isToday);
-  refreshStats();
-  renderRoster();
+/* ══ 오늘 데이터 로드 ══ */
+async function loadToday(){
+  // 명단 + 오늘 현황 병렬 로드
+  const [rosterRes, statusRes] = await Promise.all([
+    gasPost({action:'getRoster'}),
+    gasPost({action:'getTodayStatus'})
+  ]);
+  if(rosterRes.ok) S.roster = rosterRes.students.filter(s=>s.isToday);
+  if(statusRes.ok) S.confirmed = statusRes.confirmed.map(c=>({...c, no:String(c.no).replace(/\.0$/,'')}));
+  refreshStats(); renderTodayList(); renderRoster();
 }
 
-
-/* ══ 세션 시작 ══ */
-async function startMealSession() {
-  const teacher = document.getElementById('f-teacher').value.trim() || '담당자';
-  const sessionId = Date.now().toString();
-  const btn = document.querySelector('#start-screen .btn-amber');
-  btn.disabled = true; btn.textContent = '세션 생성 중...';
-
-  // 1) 세션 먼저 생성
-  const res = await gasPost({ action: 'startMealSession', sessionId, teacher });
-  btn.disabled = false; btn.textContent = '🍱 급식 확인 시작';
-  if (!res.ok) { toast(res.msg || '세션 시작 실패', 'err'); return; }
-
-  S.session = { id: sessionId, teacher, date: res.date };
-
-  // 2) 화면 즉시 전환 + QR 즉시 표시
-  document.getElementById('start-screen').style.display = 'none';
-  document.getElementById('main-screen').style.display = 'block';
-  document.getElementById('live-dot').classList.add('on');
-  document.getElementById('sess-lbl').textContent = `${fmtDate(res.date)} · ${teacher}`;
-  document.getElementById('hist-date').value = res.date;
-
-  buildQR();
-  startTimer();
-  refreshStats();
-  renderRecentList();
-  startPolling();
-  toast('QR 생성 완료! 명단을 불러오는 중...', 'ok');
-
-  // 3) 명단은 백그라운드에서 로드
-  const rosterRes = await gasPost({action: 'getRoster'});
-  if (rosterRes.ok) S.roster = rosterRes.students.filter(s => s.isToday);
-  refreshStats();
-  renderRoster();
-  toast(`명단 로드 완료 (오늘 대상: ${S.roster.length}명)`, 'ok');
-}
-window.startMealSession = startMealSession;
-
-
-/* ══ 30분 타이머 ══ */
-function startTimer() {
-  S.timerRemain = 1800;
-  clearInterval(S.timerInt);
-  renderTimer();
-  S.timerInt = setInterval(() => {
-    S.timerRemain--;
-    if (S.timerRemain <= 0) {
-      S.timerRemain = 0;
-      clearInterval(S.timerInt);
-      renderTimer();
-      toast('QR 시간이 만료됐어요. 종료하거나 QR을 갱신하세요.', 'err');
-      return;
-    }
-    renderTimer();
-  }, 1000);
-}
-
-function renderTimer() {
-  const s = S.timerRemain;
-  const el = document.getElementById('timer-disp');
-  el.textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
-  el.className = 'timer-num ' + (s <= 60 ? 't-end' : s <= 300 ? 't-warn' : 't-ok');
-}
-
-
-/* ══ QR ══ */
-function buildQR() {
-  const box = document.getElementById('qr-render');
-  const url = location.origin + location.pathname + '?mode=student&sid=' + encodeURIComponent(S.session.id);
-  const tmp = document.createElement('div');
-  new QRCode(tmp, { text: url, width: 280, height: 280, colorDark: '#000', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M });
-  setTimeout(() => { box.innerHTML = ''; while (tmp.firstChild) box.appendChild(tmp.firstChild); }, 50);
-}
-function refreshQR() {
-  if (!S.session) return;
-  S.timerRemain = 1800; // 타이머도 리셋
-  startTimer();
-  buildQR();
-  toast('QR 갱신 + 타이머 리셋', 'ok');
-}
-window.refreshQR = refreshQR;
-
-
-/* ══ 폴링 ══ */
-function startPolling() {
-  stopPolling();
-  S.pollInt = setInterval(async () => {
-    if (!S.session) return stopPolling();
-    const r = await gasPost({ action: 'getTeacherSession', sessionId: S.session.id });
-    if (!r.ok) return;
-    let upd = false;
-    r.confirmed.forEach(c => {
-      const no = String(c.no).replace(/\.0$/, '');
-      if (!S.confirmed.find(x => String(x.no) === no)) {
-        S.confirmed.push({...c, no});
-        upd = true;
-      }
+/* ══ 폴링 (5초 간격) ══ */
+function startPolling(){
+  clearInterval(S.pollInt);
+  S.pollInt = setInterval(async()=>{
+    const r = await gasPost({action:'getTodayStatus'});
+    if(!r.ok) return;
+    let upd=false;
+    r.confirmed.forEach(c=>{
+      const no=String(c.no).replace(/\.0$/,'');
+      if(!S.confirmed.find(x=>String(x.no)===no)){S.confirmed.push({...c,no});upd=true}
     });
-    if (upd) { refreshStats(); renderRecentList(); renderRoster(); }
-  }, 3000);
+    if(upd){refreshStats();renderTodayList();renderRoster()}
+  },5000);
 }
-function stopPolling() { clearInterval(S.pollInt); S.pollInt = null; }
-
 
 /* ══ 통계 ══ */
-function refreshStats() {
-  const total = S.roster.length, done = S.confirmed.length;
-  const remain = Math.max(0, total - done);
-  document.getElementById('st-total').textContent = total;
-  document.getElementById('st-done').textContent = done;
-  document.getElementById('st-remain').textContent = remain;
-  document.getElementById('st-rate').textContent = (total > 0 ? Math.round(done/total*100) : 0) + '%';
+function refreshStats(){
+  const total=S.roster.length, done=S.confirmed.length, remain=Math.max(0,total-done);
+  document.getElementById('st-total').textContent=total;
+  document.getElementById('st-done').textContent=done;
+  document.getElementById('st-remain').textContent=remain;
+  document.getElementById('st-rate').textContent=(total>0?Math.round(done/total*100):0)+'%';
 }
 
-
-/* ══ 최근 수령 (실시간 탭) ══ */
-function renderRecentList() {
-  const el = document.getElementById('recent-list');
-  if (!S.confirmed.length) { el.innerHTML = '<div style="font-size:14px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>'; return; }
-  const list = [...S.confirmed].reverse().slice(0, 20);
-  el.innerHTML = '<table><thead><tr><th style="font-size:13px">학번</th><th style="font-size:13px">이름</th><th style="font-size:13px">시각</th><th style="font-size:13px">방법</th></tr></thead><tbody>'
-    + list.map(c => `<tr>
-      <td style="font-family:'DM Mono',monospace;font-size:14px">${c.no}</td><td style="font-size:14px">${c.name}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:13px">${fmtTimeShort(c.time)}</td>
-      <td><span class="badge ${c.method==='수동'?'badge-manual':'badge-qr'}">${c.method||'QR'}</span></td>
-    </tr>`).join('') + '</tbody></table>';
+/* ══ 오늘 식사 인원 목록 ══ */
+function renderTodayList(){
+  const el=document.getElementById('today-list');
+  if(!S.confirmed.length){el.innerHTML='<div style="font-size:14px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>';return}
+  const list=[...S.confirmed].reverse().slice(0,30);
+  el.innerHTML='<table><thead><tr><th>학번</th><th>이름</th><th>시각</th></tr></thead><tbody>'
+    +list.map(c=>`<tr><td style="font-family:'DM Mono',monospace;font-size:14px">${c.no}</td><td style="font-size:14px">${c.name}</td><td style="font-family:'DM Mono',monospace;font-size:13px">${fmtTimeShort(c.time)}</td></tr>`).join('')+'</tbody></table>';
 }
 
+/* ══ 명단 탭 ══ */
+function setRosterFilter(f){S.rosterFilter=f;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('on',b.dataset.filter===f));renderRoster()}
+window.setRosterFilter=setRosterFilter;
 
-/* ══ 명단 탭 (전체 명단 + 수령 상태) ══ */
-function setRosterFilter(f) {
-  S.rosterFilter = f;
-  document.querySelectorAll('.filter-chip').forEach(b => b.classList.toggle('on', b.dataset.filter === f));
-  renderRoster();
+function renderRoster(){
+  const doneSet=new Set(S.confirmed.map(c=>String(c.no)));
+  const q=(document.getElementById('roster-search').value||'').trim().toLowerCase();
+  let list=S.roster.map(s=>{const rec=S.confirmed.find(c=>String(c.no)===String(s.no));return{...s,isDone:!!rec,time:rec?rec.time:''}});
+  if(S.rosterFilter==='done')list=list.filter(s=>s.isDone);
+  else if(S.rosterFilter==='wait')list=list.filter(s=>!s.isDone);
+  if(q)list=list.filter(s=>String(s.no).includes(q)||s.name.toLowerCase().includes(q));
+  list.sort((a,b)=>{if(a.isDone!==b.isDone)return a.isDone?1:-1;return String(a.no).localeCompare(String(b.no))});
+  const doneCount=S.roster.filter(s=>doneSet.has(String(s.no))).length;
+  document.getElementById('roster-count').textContent=`표시: ${list.length}명 / 전체: ${S.roster.length}명 (식사 완료 ${doneCount}명)`;
+  const tbody=document.getElementById('roster-tbody');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';return}
+  tbody.innerHTML=list.map(s=>{
+    const badge=s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>';
+    const tc=s.isDone?fmtTimeShort(s.time):'<button class="btn btn-green btn-sm" onclick="manualConfirmNo(\''+s.no+'\')">수동 확인</button>';
+    return`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${badge}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${tc}</td></tr>`}).join('');
 }
-window.setRosterFilter = setRosterFilter;
-
-function renderRoster() {
-  const confirmedSet = new Set(S.confirmed.map(c => String(c.no)));
-  const searchVal = (document.getElementById('roster-search').value || '').trim().toLowerCase();
-
-  let list = S.roster.map(s => ({
-    ...s,
-    isDone: confirmedSet.has(String(s.no)),
-    time: (() => { const c = S.confirmed.find(c => String(c.no) === String(s.no)); return c ? c.time : ''; })()
-  }));
-
-  // 필터
-  if (S.rosterFilter === 'done') list = list.filter(s => s.isDone);
-  else if (S.rosterFilter === 'wait') list = list.filter(s => !s.isDone);
-
-  // 검색
-  if (searchVal) list = list.filter(s => String(s.no).includes(searchVal) || s.name.toLowerCase().includes(searchVal));
-
-  // 정렬: 미수령 먼저, 그 안에서 학번순
-  list.sort((a, b) => {
-    if (a.isDone !== b.isDone) return a.isDone ? 1 : -1;
-    return String(a.no).localeCompare(String(b.no));
-  });
-
-  const doneCount = S.roster.filter(s => confirmedSet.has(String(s.no))).length;
-  document.getElementById('roster-count').textContent = `표시: ${list.length}명 / 전체: ${S.roster.length}명 (식사 완료 ${doneCount}명)`;
-
-  const tbody = document.getElementById('roster-tbody');
-  if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = list.map(s => {
-    const statusBadge = s.isDone
-      ? '<span class="badge badge-ok">식사 완료</span>'
-      : '<span class="badge badge-wait">식사 안함</span>';
-    const timeCell = s.isDone ? fmtTimeShort(s.time) : '<button class="btn btn-green btn-sm" onclick="manualConfirmNo(\'' + s.no + '\')">수동 확인</button>';
-    return `<tr>
-      <td style="font-family:'DM Mono',monospace">${s.no}</td>
-      <td>${s.name}</td>
-      <td>${statusBadge}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:12px">${timeCell}</td>
-    </tr>`;
-  }).join('');
-}
-window.renderRoster = renderRoster;
-
+window.renderRoster=renderRoster;
 
 /* ══ 탭 전환 ══ */
-function goTab(tab) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
-  ['live','roster','manual','history'].forEach(t => document.getElementById('tab-'+t).classList.toggle('on', t === tab));
-  if (tab === 'roster') renderRoster();
-  if (tab === 'history') loadHistoryDate();
+function goTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
+  ['today','roster','manual','history'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('on',t===tab));
+  if(tab==='roster')renderRoster();
+  if(tab==='history')loadHistoryDate();
 }
-window.goTab = goTab;
+window.goTab=goTab;
 
-
-/* ══ 식사 확인 (공통 로직) ══ */
-async function tryMealConfirm(no, method) {
-  if (!no) return {ok:false, msg:'학번을 입력해주세요.'};
-  no = String(no).trim();
-  if (S.confirmed.find(c => String(c.no) === no)) return {ok:false, msg:'이미 식사 확인된 학생이에요.'};
-
-  const local = S.roster.find(s => String(s.no) === no);
-  const time = new Date().toTimeString().slice(0,8);
-  const tmp = { no, name: local ? local.name : no, time, method: method||'QR', _p:true };
-  S.confirmed.push(tmp);
-  refreshStats(); renderRecentList(); renderRoster();
-
-  const r = await gasPost({ action:'confirmMeal', sessionId: S.session ? S.session.id : '', studentNo: no, method: method||'QR' });
-  if (!r.ok) {
-    const idx = S.confirmed.indexOf(tmp);
-    if (idx !== -1) S.confirmed.splice(idx,1);
-    refreshStats(); renderRecentList(); renderRoster();
-    return {ok:false, msg:r.msg};
-  }
-  tmp.name = r.name; tmp.time = r.time; delete tmp._p;
-  refreshStats(); renderRecentList(); renderRoster();
-  return {ok:true, name:r.name, time:r.time};
+/* ══ 식사 확인 요청 ══ */
+async function tryConfirm(no,method){
+  if(!no)return{ok:false,msg:'학번을 입력해주세요.'};
+  no=String(no).trim();
+  if(S.confirmed.find(c=>String(c.no)===no))return{ok:false,msg:'이미 식사 확인된 학생이에요.'};
+  const local=S.roster.find(s=>String(s.no)===no);
+  const tmp={no,name:local?local.name:no,time:new Date().toTimeString().slice(0,8),method:method||'QR',_p:true};
+  S.confirmed.push(tmp);refreshStats();renderTodayList();renderRoster();
+  const r=await gasPost({action:'confirmMeal',studentNo:no,method:method||'QR'});
+  if(!r.ok){const idx=S.confirmed.indexOf(tmp);if(idx!==-1)S.confirmed.splice(idx,1);refreshStats();renderTodayList();renderRoster();return{ok:false,msg:r.msg}}
+  tmp.name=r.name;tmp.time=r.time;delete tmp._p;
+  refreshStats();renderTodayList();renderRoster();
+  return{ok:true,name:r.name,time:r.time};
 }
-
 
 /* ══ 학생 전체화면 ══ */
-async function doMealConfirmFull() {
-  const err = document.getElementById('sf-err');
-  err.style.display = 'none';
-  const btn = document.getElementById('sf-btn');
-  btn.disabled = true; btn.textContent = '확인 중...';
-  const r = await tryMealConfirm(document.getElementById('sf-no').value.trim(), 'QR');
-  btn.disabled = false; btn.textContent = '🍱 식사 확인';
-  if (!r.ok) { err.textContent = r.msg; err.style.display = 'block'; return; }
-  document.getElementById('sf-input-wrap').style.display = 'none';
-  document.getElementById('sf-ok').style.display = 'flex';
-  document.getElementById('sf-ok-name').textContent = r.name + ' 학생';
-  document.getElementById('sf-ok-meta').textContent = `식사 시각: ${fmtTimeShort(r.time)}`;
+async function doStudentConfirm(){
+  const err=document.getElementById('sf-err');err.style.display='none';
+  const btn=document.getElementById('sf-btn');btn.disabled=true;btn.textContent='확인 중...';
+  const r=await tryConfirm(document.getElementById('sf-no').value.trim(),'QR');
+  btn.disabled=false;btn.textContent='🍱 식사 확인';
+  if(!r.ok){err.textContent=r.msg;err.style.display='block';return}
+  document.getElementById('sf-input-wrap').style.display='none';
+  document.getElementById('sf-ok').style.display='flex';
+  document.getElementById('sf-ok-name').textContent=r.name+' 학생';
+  document.getElementById('sf-ok-meta').textContent='식사 시각: '+fmtTimeShort(r.time);
 }
-window.doMealConfirmFull = doMealConfirmFull;
-
-function resetStudentScreen() {
-  document.getElementById('sf-input-wrap').style.display = 'flex';
-  document.getElementById('sf-ok').style.display = 'none';
-  document.getElementById('sf-no').value = '';
-  document.getElementById('sf-err').style.display = 'none';
-  document.getElementById('sf-no').focus();
-}
-window.resetStudentScreen = resetStudentScreen;
-
+window.doStudentConfirm=doStudentConfirm;
+function resetStudent(){document.getElementById('sf-input-wrap').style.display='flex';document.getElementById('sf-ok').style.display='none';document.getElementById('sf-no').value='';document.getElementById('sf-err').style.display='none';document.getElementById('sf-no').focus()}
+window.resetStudent=resetStudent;
 
 /* ══ 수동 확인 ══ */
-async function manualConfirm() {
-  const no = document.getElementById('manual-no').value.trim();
-  const el = document.getElementById('manual-result');
-  el.innerHTML = '<span style="color:var(--muted)">처리 중...</span>';
-  const r = await tryMealConfirm(no, '수동');
-  if (!r.ok) { el.innerHTML = `<span style="color:var(--red)">${r.msg}</span>`; return; }
-  el.innerHTML = `<span style="color:var(--ok)">✓ ${r.name} 식사 확인 (${fmtTimeShort(r.time)})</span>`;
-  document.getElementById('manual-no').value = '';
+async function manualConfirm(){
+  const no=document.getElementById('manual-no').value.trim();
+  const el=document.getElementById('manual-result');
+  el.innerHTML='<span style="color:var(--muted)">처리 중...</span>';
+  const r=await tryConfirm(no,'수동');
+  if(!r.ok){el.innerHTML=`<span style="color:var(--red)">${r.msg}</span>`;return}
+  el.innerHTML=`<span style="color:var(--ok)">✓ ${r.name} 식사 확인 (${fmtTimeShort(r.time)})</span>`;
+  document.getElementById('manual-no').value='';
 }
-window.manualConfirm = manualConfirm;
-
-async function manualConfirmNo(no) {
-  const r = await tryMealConfirm(no, '수동');
-  if (r.ok) toast(`${r.name} 식사 확인!`, 'ok');
-  else toast(r.msg, 'err');
-}
-window.manualConfirmNo = manualConfirmNo;
-
+window.manualConfirm=manualConfirm;
+async function manualConfirmNo(no){const r=await tryConfirm(no,'수동');if(r.ok)toast(r.name+' 식사 확인!','ok');else toast(r.msg,'err')}
+window.manualConfirmNo=manualConfirmNo;
 
 /* ══ 넘버패드 ══ */
-function openNumpad() {
-  S.npVal = ''; npRefresh();
-  document.getElementById('numpad').style.display = 'flex';
-}
-window.openNumpad = openNumpad;
-function closeNumpad() { document.getElementById('numpad').style.display = 'none'; }
-window.closeNumpad = closeNumpad;
-function npInput(d) { if (S.npVal.length >= 5) return; S.npVal += d; npRefresh(); }
-window.npInput = npInput;
-function npDelete() { S.npVal = S.npVal.slice(0,-1); npRefresh(); }
-window.npDelete = npDelete;
-function npClear() { S.npVal = ''; npRefresh(); }
-window.npClear = npClear;
-function npRefresh() {
-  const d = document.getElementById('np-display');
-  d.textContent = S.npVal || '—';
-  d.classList.toggle('full', S.npVal.length >= 4);
-  document.getElementById('np-ok').disabled = S.npVal.length < 4;
-}
-async function npConfirm() {
-  if (S.npVal.length < 4) return;
-  const r = await tryMealConfirm(S.npVal, '수동');
-  if (r.ok) { toast(`${r.name} 식사 확인!`, 'ok'); S.npVal = ''; npRefresh(); }
-  else toast(r.msg, 'err');
-}
-window.npConfirm = npConfirm;
-
+function openNumpad(){S.npVal='';npRefresh();document.getElementById('numpad').style.display='flex'}
+window.openNumpad=openNumpad;
+function closeNumpad(){document.getElementById('numpad').style.display='none'}window.closeNumpad=closeNumpad;
+function npInput(d){if(S.npVal.length>=5)return;S.npVal+=d;npRefresh()}window.npInput=npInput;
+function npDelete(){S.npVal=S.npVal.slice(0,-1);npRefresh()}window.npDelete=npDelete;
+function npClear(){S.npVal='';npRefresh()}window.npClear=npClear;
+function npRefresh(){const d=document.getElementById('np-display');d.textContent=S.npVal||'—';d.classList.toggle('full',S.npVal.length>=4);document.getElementById('np-ok').disabled=S.npVal.length<4}
+async function npConfirm(){if(S.npVal.length<4)return;const r=await tryConfirm(S.npVal,'수동');if(r.ok){toast(r.name+' 식사 확인!','ok');S.npVal='';npRefresh()}else toast(r.msg,'err')}
+window.npConfirm=npConfirm;
 
 /* ══ 기록 탭 ══ */
-/* ══ 기록 탭 상태 ══ */
-var _histData = { roster: [], records: [], date: '', day: '' };
-var _histFilter = 'all';
-
-async function loadHistoryDate() {
-  const date = document.getElementById('hist-date').value;
-  if (!date) return;
-
-  const r = await gasPost({action:'getMealHistory', date});
-  const empty = document.getElementById('hist-empty');
-
-  if (!r.ok) {
-    _histData = { roster: [], records: [], date: date, day: '' };
-    document.getElementById('hist-stats').style.display = 'none';
-    document.getElementById('hist-filter').style.display = 'none';
-    document.getElementById('hist-search-wrap').style.display = 'none';
-    document.getElementById('hist-tbody').innerHTML = '';
-    empty.style.display = 'block';
-    return;
-  }
-
-  _histData = {
-    roster: r.roster || [],
-    records: r.records || [],
-    date: r.date || date,
-    day: r.day || ''
-  };
-
-  document.getElementById('hist-day').textContent = _histData.day ? `(${_histData.day}요일)` : '';
-  document.getElementById('hist-stats').style.display = 'flex';
-  document.getElementById('hist-filter').style.display = 'flex';
-  document.getElementById('hist-search-wrap').style.display = 'flex';
-  empty.style.display = 'none';
-
-  // 통계 갱신
-  const doneSet = new Set(_histData.records.map(r => String(r.no)));
-  const total = _histData.roster.length;
-  const done = _histData.roster.filter(s => doneSet.has(String(s.no))).length;
-  const miss = total - done;
-  const rate = total > 0 ? Math.round(done / total * 100) : 0;
-
-  document.getElementById('hist-total').textContent = total;
-  document.getElementById('hist-done').textContent = done;
-  document.getElementById('hist-miss').textContent = miss;
-  document.getElementById('hist-rate').textContent = rate + '%';
-
-  _histFilter = 'all';
-  document.querySelectorAll('[data-hf]').forEach(b => b.classList.toggle('on', b.dataset.hf === 'all'));
-  document.getElementById('hist-search').value = '';
-  renderHistTable();
+var _histData={roster:[],records:[],date:'',day:''}, _histFilter='all';
+async function loadHistoryDate(){
+  const date=document.getElementById('hist-date').value;if(!date)return;
+  const r=await gasPost({action:'getMealHistory',date});
+  if(!r.ok){_histData={roster:[],records:[],date:date,day:''};document.getElementById('hist-stats').style.display='none';document.getElementById('hist-tbody').innerHTML='';document.getElementById('hist-empty').style.display='block';return}
+  _histData={roster:r.roster||[],records:r.records||[],date:r.date||date,day:r.day||''};
+  document.getElementById('hist-day').textContent=_histData.day?'('+_histData.day+'요일)':'';
+  document.getElementById('hist-stats').style.display='flex';document.getElementById('hist-empty').style.display='none';
+  const doneSet=new Set(_histData.records.map(r=>String(r.no)));
+  const total=_histData.roster.length,done=_histData.roster.filter(s=>doneSet.has(String(s.no))).length,miss=total-done;
+  document.getElementById('hist-total').textContent=total;document.getElementById('hist-done').textContent=done;
+  document.getElementById('hist-miss').textContent=miss;document.getElementById('hist-rate').textContent=(total>0?Math.round(done/total*100):0)+'%';
+  _histFilter='all';document.querySelectorAll('[data-hf]').forEach(b=>b.classList.toggle('on',b.dataset.hf==='all'));
+  document.getElementById('hist-search').value='';renderHistTable();
 }
-window.loadHistoryDate = loadHistoryDate;
-
-function setHistFilter(f) {
-  _histFilter = f;
-  document.querySelectorAll('[data-hf]').forEach(b => b.classList.toggle('on', b.dataset.hf === f));
-  renderHistTable();
+window.loadHistoryDate=loadHistoryDate;
+function setHistFilter(f){_histFilter=f;document.querySelectorAll('[data-hf]').forEach(b=>b.classList.toggle('on',b.dataset.hf===f));renderHistTable()}
+window.setHistFilter=setHistFilter;
+function renderHistTable(){
+  const doneMap={};_histData.records.forEach(r=>{doneMap[String(r.no)]=r});
+  let list=_histData.roster.map(s=>{const rec=doneMap[String(s.no)];return{no:s.no,name:s.name,isDone:!!rec,time:rec?rec.time:''}});
+  if(_histFilter==='done')list=list.filter(s=>s.isDone);else if(_histFilter==='miss')list=list.filter(s=>!s.isDone);
+  const q=(document.getElementById('hist-search').value||'').trim().toLowerCase();
+  if(q)list=list.filter(s=>String(s.no).includes(q)||s.name.toLowerCase().includes(q));
+  list.sort((a,b)=>{if(a.isDone!==b.isDone)return a.isDone?1:-1;return String(a.no).localeCompare(String(b.no))});
+  const tbody=document.getElementById('hist-tbody');
+  if(!list.length&&!_histData.roster.length){tbody.innerHTML='';document.getElementById('hist-empty').style.display='block';return}
+  document.getElementById('hist-empty').style.display='none';
+  if(!list.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';return}
+  tbody.innerHTML=list.map(s=>`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>'}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${s.isDone?fmtTimeShort(s.time):'—'}</td></tr>`).join('');
 }
-window.setHistFilter = setHistFilter;
-
-function renderHistTable() {
-  const doneMap = {};
-  _histData.records.forEach(r => { doneMap[String(r.no)] = r; });
-
-  // 명단 기반 목록 생성
-  let list = _histData.roster.map(s => {
-    const rec = doneMap[String(s.no)];
-    return {
-      no: s.no,
-      name: s.name,
-      isDone: !!rec,
-      time: rec ? rec.time : '',
-      method: rec ? rec.method : ''
-    };
-  });
-
-  // 필터
-  if (_histFilter === 'done') list = list.filter(s => s.isDone);
-  else if (_histFilter === 'miss') list = list.filter(s => !s.isDone);
-
-  // 검색
-  const q = (document.getElementById('hist-search').value || '').trim().toLowerCase();
-  if (q) list = list.filter(s => String(s.no).includes(q) || s.name.toLowerCase().includes(q));
-
-  // 정렬: 미수령 먼저
-  list.sort((a, b) => {
-    if (a.isDone !== b.isDone) return a.isDone ? 1 : -1;
-    return String(a.no).localeCompare(String(b.no));
-  });
-
-  const tbody = document.getElementById('hist-tbody');
-  const empty = document.getElementById('hist-empty');
-
-  if (!list.length && !_histData.roster.length) {
-    tbody.innerHTML = '';
-    empty.style.display = 'block';
-    return;
-  }
-  empty.style.display = 'none';
-
-  if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = list.map(s => {
-    const badge = s.isDone
-      ? '<span class="badge badge-ok">식사 완료</span>'
-      : '<span class="badge badge-wait">식사 안함</span>';
-    const timeCell = s.isDone ? fmtTimeShort(s.time) : '—';
-    return `<tr>
-      <td style="font-family:'DM Mono',monospace">${s.no}</td>
-      <td>${s.name}</td>
-      <td>${badge}</td>
-      <td style="font-family:'DM Mono',monospace;font-size:12px">${timeCell}</td>
-    </tr>`;
-  }).join('');
+window.renderHistTable=renderHistTable;
+function exportHistCSV(){
+  const doneMap={};_histData.records.forEach(r=>{doneMap[String(r.no)]=r});
+  const list=_histData.roster.map(s=>{const rec=doneMap[String(s.no)];return{no:s.no,name:s.name,status:rec?'식사 완료':'식사 안함',time:rec?fmtTimeShort(rec.time):''}});
+  if(!list.length){toast('내보낼 데이터가 없어요','err');return}
+  list.sort((a,b)=>String(a.no).localeCompare(String(b.no)));
+  const csv='\uFEFF학번,이름,상태,식사시각\n'+list.map(c=>`${c.no},${c.name},${c.status},${c.time}`).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download='급식기록_'+_histData.date+'.csv';a.click();toast('CSV 다운로드 완료','ok');
 }
-window.renderHistTable = renderHistTable;
-
-function exportHistCSV() {
-  const doneMap = {};
-  _histData.records.forEach(r => { doneMap[String(r.no)] = r; });
-  const list = _histData.roster.map(s => {
-    const rec = doneMap[String(s.no)];
-    return { no: s.no, name: s.name, status: rec ? '식사 완료' : '식사 안함', time: rec ? fmtTimeShort(rec.time) : '' };
-  });
-  if (!list.length) { toast('내보낼 데이터가 없어요', 'err'); return; }
-  list.sort((a, b) => String(a.no).localeCompare(String(b.no)));
-  const csv = '\uFEFF학번,이름,상태,식사시각\n' + list.map(c => `${c.no},${c.name},${c.status},${c.time}`).join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
-  a.download = `급식기록_${_histData.date}.csv`;
-  a.click();
-  toast('CSV 다운로드 완료', 'ok');
-}
-window.exportHistCSV = exportHistCSV;
-
-
-/* ══ CSV 내보내기 ══ */
-function exportCSV() {
-  const data = S.confirmed.length ? S.confirmed : [];
-  if (!data.length) { toast('내보낼 데이터가 없어요', 'err'); return; }
-  const csv = '\uFEFF학번,이름,식사시각,방법\n' + data.map(c => `${c.no},${c.name},${fmtTimeShort(c.time)},${c.method}`).join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
-  a.download = `급식기록_${S.session ? S.session.date : 'data'}.csv`;
-  a.click();
-  toast('CSV 다운로드 완료', 'ok');
-}
-window.exportCSV = exportCSV;
-
-
-/* ══ 세션 종료 ══ */
-function openEndModal() { document.getElementById('modal-end').classList.add('on'); }
-function closeEndModal() { document.getElementById('modal-end').classList.remove('on'); }
-window.openEndModal = openEndModal;
-window.closeEndModal = closeEndModal;
-
-async function endMealSession() {
-  closeEndModal(); stopPolling(); clearInterval(S.timerInt);
-  if (S.session) await gasPost({action:'endMealSession', sessionId: S.session.id});
-  document.getElementById('live-dot').classList.remove('on');
-  toast('급식 확인이 종료됐어요.', 'ok');
-  setTimeout(() => location.reload(), 3000);
-}
-window.endMealSession = endMealSession;
-
-
-/* ══ 기록 보기 모드 ══ */
-function goHistoryMode() {
-  document.getElementById('start-screen').style.display = 'none';
-  document.getElementById('main-screen').style.display = 'block';
-  document.getElementById('btn-end').style.display = 'none';
-  document.getElementById('sess-lbl').textContent = '기록 조회';
-  goTab('history');
-  document.getElementById('hist-date').value = new Date().toISOString().slice(0,10);
-  loadHistoryDate();
-}
-window.goHistoryMode = goHistoryMode;
-
+window.exportHistCSV=exportHistCSV;
 
 /* ══ 토스트 ══ */
-function toast(msg, type) {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast ' + (type||'ok');
-  el.classList.add('show');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.remove('show'), 2800);
-}
+function toast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+(type||'ok');el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2800)}
 
 })();
 </script>
+
 </body>
 </html>
