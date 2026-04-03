@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>야간 급식 확인</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap');
 :root{--ink:#0e1117;--card:rgba(255,255,255,0.05);--card2:rgba(255,255,255,0.09);--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);--accent:#f59e0b;--ok:#34d399;--sky:#60a5fa;--red:#f87171;--text:#edf0f7;--muted:#7a8499;--r:14px;--r-sm:10px}
@@ -86,7 +86,6 @@ tr:last-child td{border-bottom:none}
 <div class="toast" id="toast"></div>
 
 <!-- ══ 교사 대시보드 ══ -->
-
 <div id="dashboard">
   <div class="topbar">
     <div class="logo" onclick="location.reload()">🍱 야간 급식</div>
@@ -102,93 +101,101 @@ tr:last-child td{border-bottom:none}
       <button class="tab-btn" data-tab="history" onclick="goTab('history')">📂 기록</button>
     </div>
 
-```
-<!-- 오늘 현황 -->
-<div class="tab-content on" id="tab-today">
-  <div class="stats-row">
-    <div class="stat-box"><div class="stat-num" id="st-total" style="color:var(--sky)">0</div><div class="stat-lbl">오늘 대상</div></div>
-    <div class="stat-box"><div class="stat-num" id="st-done" style="color:var(--ok)">0</div><div class="stat-lbl">식사 완료</div></div>
-    <div class="stat-box"><div class="stat-num" id="st-remain" style="color:var(--red)">0</div><div class="stat-lbl">식사 안함</div></div>
-    <div class="stat-box"><div class="stat-num" id="st-rate" style="color:var(--accent)">0%</div><div class="stat-lbl">식사 비율</div></div>
-  </div>
-  <div style="font-size:15px;font-weight:700;color:var(--muted);margin-bottom:8px">금일 식사 인원</div>
-  <div id="today-list" style="max-height:500px;overflow-y:auto">
-    <div style="font-size:14px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>
-  </div>
-</div>
-
-<!-- 명단 -->
-<div class="tab-content" id="tab-roster">
-  <div class="card">
-    <div class="card-head">오늘 급식 대상 명단</div>
-    <div class="roster-search"><input type="text" id="roster-search" placeholder="학번 또는 이름 검색" oninput="renderRoster()"></div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
-      <button class="filter-chip on" data-filter="all" onclick="setRosterFilter('all')">전체</button>
-      <button class="filter-chip" data-filter="wait" onclick="setRosterFilter('wait')">🔴 식사 안함</button>
-      <button class="filter-chip" data-filter="done" onclick="setRosterFilter('done')">🟢 식사 완료</button>
-    </div>
-    <div id="roster-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
-    <div style="max-height:500px;overflow-y:auto">
-      <table><thead><tr><th>학번</th><th>이름</th><th>상태</th><th>시각</th></tr></thead>
-      <tbody id="roster-tbody"></tbody></table>
-    </div>
-  </div>
-</div>
-
-<!-- 수동 입력 -->
-<div class="tab-content" id="tab-manual">
-  <div class="card">
-    <div class="card-head">수동 식사 확인</div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:14px">QR 없이 학번을 직접 입력합니다. (18:20~19:00 시간 제한 동일 적용)</p>
-    <div style="display:flex;gap:10px;align-items:flex-end">
-      <div class="field" style="flex:1;margin-bottom:0"><label>학번</label>
-        <input type="text" id="manual-no" placeholder="학번 입력" inputmode="numeric" onkeydown="if(event.key==='Enter')manualConfirm()">
+    <!-- 오늘 현황 -->
+    <div class="tab-content on" id="tab-today">
+      <div style="display:flex;gap:20px;flex-wrap:wrap">
+        <!-- QR -->
+        <div style="flex-shrink:0">
+          <div style="background:#fff;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:center">
+            <div id="qr-render" style="width:280px;height:280px"></div>
+          </div>
+          <div style="margin-top:8px;font-size:13px;color:var(--muted);text-align:center">스캔하면 학생 식사 확인 화면으로 이동</div>
+        </div>
+        <!-- 통계 + 목록 -->
+        <div style="flex:1;min-width:280px">
+          <div class="stats-row">
+            <div class="stat-box"><div class="stat-num" id="st-total" style="color:var(--sky)">0</div><div class="stat-lbl">오늘 대상</div></div>
+            <div class="stat-box"><div class="stat-num" id="st-done" style="color:var(--ok)">0</div><div class="stat-lbl">식사 완료</div></div>
+            <div class="stat-box"><div class="stat-num" id="st-remain" style="color:var(--red)">0</div><div class="stat-lbl">식사 안함</div></div>
+            <div class="stat-box"><div class="stat-num" id="st-rate" style="color:var(--accent)">0%</div><div class="stat-lbl">식사 비율</div></div>
+          </div>
+          <div style="font-size:15px;font-weight:700;color:var(--muted);margin-bottom:8px">금일 식사 인원</div>
+          <div id="today-list" style="max-height:500px;overflow-y:auto">
+            <div style="font-size:14px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>
+          </div>
+        </div>
       </div>
-      <button class="btn btn-green" onclick="manualConfirm()" style="height:42px">✓ 확인</button>
     </div>
-    <div id="manual-result" style="margin-top:12px"></div>
-  </div>
-  <div class="card">
-    <div class="card-head">넘버패드</div>
-    <button class="btn btn-ghost btn-full" onclick="openNumpad()">🔢 넘버패드 열기</button>
-  </div>
-</div>
 
-<!-- 기록 -->
-<div class="tab-content" id="tab-history">
-  <div class="card">
-    <div class="card-head">날짜별 기록</div>
-    <div class="filter-bar">
-      <input type="date" id="hist-date" onchange="loadHistoryDate()">
-      <span id="hist-day" style="font-size:13px;color:var(--accent);font-weight:700"></span>
-      <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="exportHistCSV()">📥 CSV</button>
+    <!-- 명단 -->
+    <div class="tab-content" id="tab-roster">
+      <div class="card">
+        <div class="card-head">오늘 급식 대상 명단</div>
+        <div class="roster-search"><input type="text" id="roster-search" placeholder="학번 또는 이름 검색" oninput="renderRoster()"></div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+          <button class="filter-chip on" data-filter="all" onclick="setRosterFilter('all')">전체</button>
+          <button class="filter-chip" data-filter="wait" onclick="setRosterFilter('wait')">🔴 식사 안함</button>
+          <button class="filter-chip" data-filter="done" onclick="setRosterFilter('done')">🟢 식사 완료</button>
+        </div>
+        <div id="roster-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
+        <div style="max-height:500px;overflow-y:auto">
+          <table><thead><tr><th>학번</th><th>이름</th><th>상태</th><th>시각</th></tr></thead>
+          <tbody id="roster-tbody"></tbody></table>
+        </div>
+      </div>
     </div>
-    <div class="stats-row" id="hist-stats" style="display:none">
-      <div class="stat-box"><div class="stat-num" id="hist-total" style="color:var(--sky)">0</div><div class="stat-lbl">대상</div></div>
-      <div class="stat-box"><div class="stat-num" id="hist-done" style="color:var(--ok)">0</div><div class="stat-lbl">식사 완료</div></div>
-      <div class="stat-box"><div class="stat-num" id="hist-miss" style="color:var(--red)">0</div><div class="stat-lbl">식사 안함</div></div>
-      <div class="stat-box"><div class="stat-num" id="hist-rate" style="color:var(--accent)">0%</div><div class="stat-lbl">식사 비율</div></div>
-    </div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="hist-filter" style="display:none">
-      <button class="filter-chip on" data-hf="all" onclick="setHistFilter('all')">전체</button>
-      <button class="filter-chip" data-hf="done" onclick="setHistFilter('done')">🟢 식사 완료</button>
-      <button class="filter-chip" data-hf="miss" onclick="setHistFilter('miss')">🔴 식사 안함</button>
-    </div>
-    <div class="roster-search" id="hist-search-wrap"><input type="text" id="hist-search" placeholder="학번 또는 이름 검색" oninput="renderHistTable()"></div>
-    <div style="max-height:500px;overflow-y:auto">
-      <table><thead><tr><th>학번</th><th>이름</th><th>상태</th><th>시각</th></tr></thead>
-      <tbody id="hist-tbody"></tbody></table>
-    </div>
-    <div id="hist-empty" style="font-size:14px;color:var(--muted);padding:20px;text-align:center;display:none">해당 날짜의 기록이 없어요</div>
-  </div>
-</div>
-```
 
+    <!-- 수동 입력 -->
+    <div class="tab-content" id="tab-manual">
+      <div class="card">
+        <div class="card-head">수동 식사 확인</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">QR 없이 학번을 직접 입력합니다. (18:20~19:00 시간 제한 동일 적용)</p>
+        <div style="display:flex;gap:10px;align-items:flex-end">
+          <div class="field" style="flex:1;margin-bottom:0"><label>학번</label>
+            <input type="text" id="manual-no" placeholder="학번 입력" inputmode="numeric" onkeydown="if(event.key==='Enter')manualConfirm()">
+          </div>
+          <button class="btn btn-green" onclick="manualConfirm()" style="height:42px">✓ 확인</button>
+        </div>
+        <div id="manual-result" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">넘버패드</div>
+        <button class="btn btn-ghost btn-full" onclick="openNumpad()">🔢 넘버패드 열기</button>
+      </div>
+    </div>
+
+    <!-- 기록 -->
+    <div class="tab-content" id="tab-history">
+      <div class="card">
+        <div class="card-head">날짜별 기록</div>
+        <div class="filter-bar">
+          <input type="date" id="hist-date" onchange="loadHistoryDate()">
+          <span id="hist-day" style="font-size:13px;color:var(--accent);font-weight:700"></span>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="exportHistCSV()">📥 CSV</button>
+        </div>
+        <div class="stats-row" id="hist-stats" style="display:none">
+          <div class="stat-box"><div class="stat-num" id="hist-total" style="color:var(--sky)">0</div><div class="stat-lbl">대상</div></div>
+          <div class="stat-box"><div class="stat-num" id="hist-done" style="color:var(--ok)">0</div><div class="stat-lbl">식사 완료</div></div>
+          <div class="stat-box"><div class="stat-num" id="hist-miss" style="color:var(--red)">0</div><div class="stat-lbl">식사 안함</div></div>
+          <div class="stat-box"><div class="stat-num" id="hist-rate" style="color:var(--accent)">0%</div><div class="stat-lbl">식사 비율</div></div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="hist-filter" style="display:none">
+          <button class="filter-chip on" data-hf="all" onclick="setHistFilter('all')">전체</button>
+          <button class="filter-chip" data-hf="done" onclick="setHistFilter('done')">🟢 식사 완료</button>
+          <button class="filter-chip" data-hf="miss" onclick="setHistFilter('miss')">🔴 식사 안함</button>
+        </div>
+        <div class="roster-search" id="hist-search-wrap"><input type="text" id="hist-search" placeholder="학번 또는 이름 검색" oninput="renderHistTable()"></div>
+        <div style="max-height:500px;overflow-y:auto">
+          <table><thead><tr><th>학번</th><th>이름</th><th>상태</th><th>시각</th><th style="width:50px"></th></tr></thead>
+          <tbody id="hist-tbody"></tbody></table>
+        </div>
+        <div id="hist-empty" style="font-size:14px;color:var(--muted);padding:20px;text-align:center;display:none">해당 날짜의 기록이 없어요</div>
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- ══ 학생 화면 (QR 스캔 진입) ══ -->
-
 <div class="student-screen" id="student-screen">
   <div id="sf-input-wrap" style="display:flex;flex-direction:column;align-items:center">
     <div style="font-size:48px;margin-bottom:12px">🍱</div>
@@ -209,7 +216,6 @@ tr:last-child td{border-bottom:none}
 </div>
 
 <!-- ══ 넘버패드 ══ -->
-
 <div class="numpad-wrap" id="numpad">
   <div style="display:flex;justify-content:space-between;width:100%;max-width:420px;align-items:center">
     <span style="font-size:13px;font-weight:700;color:var(--muted)">학번 입력</span>
@@ -262,9 +268,19 @@ function fmtTimeShort(t){if(!t)return'';if(/^\d{2}:\d{2}:\d{2}$/.test(t))return 
   // 교사 대시보드
   document.getElementById('top-date').textContent = fmtDate(new Date().toISOString().slice(0,10));
   document.getElementById('hist-date').value = new Date().toISOString().slice(0,10);
+  buildQR();
   await loadToday();
   startPolling();
 })();
+
+/* ══ 고정 QR 코드 (학생 페이지로 이동) ══ */
+function buildQR(){
+  const box=document.getElementById('qr-render');
+  const url=location.origin+location.pathname+'?mode=student';
+  const tmp=document.createElement('div');
+  new QRCode(tmp,{text:url,width:280,height:280,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+  setTimeout(()=>{box.innerHTML='';while(tmp.firstChild)box.appendChild(tmp.firstChild)},50);
+}
 
 /* ══ 오늘 데이터 로드 ══ */
 async function loadToday(){
@@ -428,10 +444,32 @@ function renderHistTable(){
   const tbody=document.getElementById('hist-tbody');
   if(!list.length&&!_histData.roster.length){tbody.innerHTML='';document.getElementById('hist-empty').style.display='block';return}
   document.getElementById('hist-empty').style.display='none';
-  if(!list.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';return}
-  tbody.innerHTML=list.map(s=>`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>'}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${s.isDone?fmtTimeShort(s.time):'—'}</td></tr>`).join('');
+  if(!list.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';return}
+  tbody.innerHTML=list.map(s=>{
+    const delBtn=s.isDone?`<button class="btn btn-ghost btn-sm" onclick="deleteRecord('${s.no}','${_histData.date}')" style="color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:4px 8px">삭제</button>`:'';
+    return`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>'}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${s.isDone?fmtTimeShort(s.time):'—'}</td><td>${delBtn}</td></tr>`
+  }).join('');
 }
 window.renderHistTable=renderHistTable;
+
+async function deleteRecord(no, date){
+  if(!confirm(no+' 학생의 '+date+' 식사 기록을 삭제할까요?'))return;
+  const r=await gasPost({action:'deleteMealRecord',no:no,date:date});
+  if(!r.ok){toast(r.msg,'err');return}
+  toast(r.msg,'ok');
+  // 로컬에서도 제거
+  _histData.records=_histData.records.filter(rec=>!(String(rec.no)===no));
+  // 오늘 현황에서도 제거 (오늘 날짜인 경우)
+  const today=new Date().toISOString().slice(0,10);
+  if(date===today){S.confirmed=S.confirmed.filter(c=>String(c.no)!==no);refreshStats();renderTodayList();renderRoster()}
+  // 통계 재계산 + 테이블 재렌더
+  const doneSet=new Set(_histData.records.map(r=>String(r.no)));
+  const total=_histData.roster.length,done=_histData.roster.filter(s=>doneSet.has(String(s.no))).length,miss=total-done;
+  document.getElementById('hist-total').textContent=total;document.getElementById('hist-done').textContent=done;
+  document.getElementById('hist-miss').textContent=miss;document.getElementById('hist-rate').textContent=(total>0?Math.round(done/total*100):0)+'%';
+  renderHistTable();
+}
+window.deleteRecord=deleteRecord;
 function exportHistCSV(){
   const doneMap={};_histData.records.forEach(r=>{doneMap[String(r.no)]=r});
   const list=_histData.roster.map(s=>{const rec=doneMap[String(s.no)];return{no:s.no,name:s.name,status:rec?'식사 완료':'식사 안함',time:rec?fmtTimeShort(rec.time):''}});
@@ -448,6 +486,5 @@ function toast(msg,type){const el=document.getElementById('toast');el.textConten
 
 })();
 </script>
-
 </body>
 </html>
