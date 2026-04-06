@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>야간 급식 확인</title>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap');
 :root{--ink:#0e1117;--card:rgba(255,255,255,0.05);--card2:rgba(255,255,255,0.09);--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);--accent:#f59e0b;--ok:#34d399;--sky:#60a5fa;--red:#f87171;--text:#edf0f7;--muted:#7a8499;--r:14px;--r-sm:10px}
@@ -99,6 +100,7 @@ tr:last-child td{border-bottom:none}
       <button class="tab-btn" data-tab="roster" onclick="goTab('roster')">📋 명단</button>
       <button class="tab-btn" data-tab="manual" onclick="goTab('manual')">✏️ 수동 입력</button>
       <button class="tab-btn" data-tab="history" onclick="goTab('history')">📂 기록</button>
+      <button class="tab-btn" data-tab="analysis" onclick="goTab('analysis')">📈 분석</button>
     </div>
 
     <!-- 오늘 현황 -->
@@ -190,6 +192,40 @@ tr:last-child td{border-bottom:none}
           <tbody id="hist-tbody"></tbody></table>
         </div>
         <div id="hist-empty" style="font-size:14px;color:var(--muted);padding:20px;text-align:center;display:none">해당 날짜의 기록이 없어요</div>
+      </div>
+    </div>
+
+    <!-- 분석 -->
+    <div class="tab-content" id="tab-analysis">
+      <div class="card">
+        <div class="card-head">기간별 식사 분석</div>
+        <!-- 컨트롤 -->
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+          <select id="ana-grade" onchange="renderAnalysis()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
+            <option value="">전체 학년</option>
+            <option value="1">1학년</option>
+            <option value="2">2학년</option>
+            <option value="3">3학년</option>
+          </select>
+          <select id="ana-cls" onchange="renderAnalysis()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
+            <option value="">전체 반</option>
+          </select>
+          <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <button id="ana-view-week" onclick="setAnalysisView('week')" style="padding:7px 14px;border:none;background:var(--accent);color:#000;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">주별</button>
+            <button id="ana-view-month" onclick="setAnalysisView('month')" style="padding:7px 14px;border:none;background:transparent;color:var(--muted);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">월별</button>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="downloadAnalysisExcel()">📥 엑셀</button>
+        </div>
+        <!-- 네비게이션 -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:16px">
+          <button class="btn btn-ghost btn-sm" onclick="navAnalysis(-1)">← 이전</button>
+          <div id="ana-period" style="font-size:15px;font-weight:700;min-width:200px;text-align:center">—</div>
+          <button class="btn btn-ghost btn-sm" onclick="navAnalysis(1)">다음 →</button>
+        </div>
+        <!-- 콘텐츠 -->
+        <div id="ana-content">
+          <div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -353,9 +389,10 @@ window.renderRoster=renderRoster;
 /* ══ 탭 전환 ══ */
 function goTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
-  ['today','roster','manual','history'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('on',t===tab));
+  ['today','roster','manual','history','analysis'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('on',t===tab));
   if(tab==='roster')renderRoster();
   if(tab==='history')loadHistoryDate();
+  if(tab==='analysis')loadAnalysis();
 }
 window.goTab=goTab;
 
@@ -480,6 +517,373 @@ function exportHistCSV(){
   a.download='급식기록_'+_histData.date+'.csv';a.click();toast('CSV 다운로드 완료','ok');
 }
 window.exportHistCSV=exportHistCSV;
+
+/* ══ 분석 탭 ══ */
+const ANA_DAYS_KR = ['일','월','화','수','목','금','토'];
+const ANA_MIN_DATE = new Date(2026, 3, 6); // 2026-04-06 기준일
+var _anaView = 'week';
+var _anaDate = new Date(2026, 3, 6); // 2026-04-06으로 초기화
+var _anaData = { students: [], records: [] };
+
+function setAnalysisView(v){
+  _anaView = v;
+  document.getElementById('ana-view-week').style.background = v==='week'?'var(--accent)':'transparent';
+  document.getElementById('ana-view-week').style.color = v==='week'?'#000':'var(--muted)';
+  document.getElementById('ana-view-month').style.background = v==='month'?'var(--accent)':'transparent';
+  document.getElementById('ana-view-month').style.color = v==='month'?'#000':'var(--muted)';
+  loadAnalysis();
+}
+window.setAnalysisView = setAnalysisView;
+
+function navAnalysis(dir){
+  const d = new Date(_anaDate);
+  if (_anaView==='week') d.setDate(d.getDate() + dir*7);
+  else d.setMonth(d.getMonth() + dir);
+  // 하한 체크
+  if (_anaView==='week'){
+    const weekEnd = new Date(d); weekEnd.setDate(d.getDate()+6);
+    if (weekEnd < ANA_MIN_DATE) return;
+  } else {
+    if (d.getFullYear() < 2026 || (d.getFullYear()===2026 && d.getMonth() < 3)) return;
+  }
+  _anaDate = d;
+  loadAnalysis();
+}
+window.navAnalysis = navAnalysis;
+
+function getAnaPeriod(){
+  // 현재 _anaView, _anaDate에 따른 시작일~종료일 반환
+  if (_anaView==='week'){
+    const d = new Date(_anaDate);
+    const day = d.getDay();
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - (day===0 ? 6 : day-1));
+    const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
+    return { start: monday, end: sunday };
+  } else {
+    const y = _anaDate.getFullYear(), m = _anaDate.getMonth();
+    const start = new Date(y, m, 1);
+    const end = new Date(y, m+1, 0);
+    return { start, end };
+  }
+}
+
+function fmtAnaDate(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+async function loadAnalysis(){
+  const el = document.getElementById('ana-content');
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>';
+  const period = getAnaPeriod();
+  const r = await gasPost({ action:'getMealAnalysisData', startDate: fmtAnaDate(period.start), endDate: fmtAnaDate(period.end) });
+  if (!r.ok){
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);font-size:14px">데이터 로드 실패: '+(r.msg||'')+'</div>';
+    return;
+  }
+  _anaData.students = r.students || [];
+  _anaData.records = r.records || [];
+  // 반 필터 옵션 생성
+  const classes = [...new Set(_anaData.students.map(s=>s.cls).filter(Boolean))].sort();
+  const clsSel = document.getElementById('ana-cls');
+  const cur = clsSel.value;
+  clsSel.innerHTML = '<option value="">전체 반</option>' + classes.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}반</option>`).join('');
+  renderAnalysis();
+}
+window.loadAnalysis = loadAnalysis;
+
+function getFilteredStudents(){
+  const gf = document.getElementById('ana-grade').value;
+  const cf = document.getElementById('ana-cls').value;
+  let list = [..._anaData.students];
+  if (gf) list = list.filter(s => String(s.grade) === gf);
+  if (cf) list = list.filter(s => String(s.cls) === cf);
+  list.sort((a,b)=>String(a.no).localeCompare(String(b.no), undefined, {numeric:true}));
+  return list;
+}
+
+function buildAttendMap(){
+  const m = {};
+  _anaData.records.forEach(r=>{
+    if (!m[r.no]) m[r.no] = new Set();
+    m[r.no].add(r.date);
+  });
+  return m;
+}
+
+function renderAnalysis(){
+  if (_anaView==='week') renderAnaWeek();
+  else renderAnaMonth();
+}
+window.renderAnalysis = renderAnalysis;
+
+/* ── 주별 뷰 ── */
+function renderAnaWeek(){
+  const period = getAnaPeriod();
+  const start = period.start;
+  const dates = Array.from({length:7}, (_,i)=>{ const d = new Date(start); d.setDate(start.getDate()+i); return d; });
+  document.getElementById('ana-period').textContent = `${fmtAnaDate(dates[0])} ~ ${fmtAnaDate(dates[6])}`;
+
+  const students = getFilteredStudents();
+  const el = document.getElementById('ana-content');
+  if (!students.length){ el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당하는 학생이 없어요</div>'; return; }
+
+  const attendMap = buildAttendMap();
+  const today = new Date(); today.setHours(23,59,59,999);
+
+  // 헤더
+  const colHeaders = dates.map(d=>{
+    const dow = d.getDay();
+    const isToday = fmtAnaDate(d) === fmtAnaDate(new Date());
+    const color = dow===0?'#ff7096':dow===6?'#5eb8ff':'var(--muted)';
+    return `<th style="text-align:center;padding:8px 6px;font-size:12px;font-weight:700;color:${color};border-bottom:1px solid var(--border2);${isToday?'background:rgba(245,158,11,.08)':''}">${ANA_DAYS_KR[dow]}<br><span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:400">${d.getDate()}</span></th>`;
+  }).join('');
+
+  const rows = students.map(st=>{
+    const days = String(st.days||'매일');
+    const isAllDays = days==='매일' || days==='';
+    const cells = dates.map(d=>{
+      const dateStr = fmtAnaDate(d);
+      const dow = d.getDay();
+      const dayKr = ANA_DAYS_KR[dow];
+      const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
+      const isFuture = d > today;
+      const isBefore = d < ANA_MIN_DATE;
+      const attended = attendMap[st.no] && attendMap[st.no].has(dateStr);
+      const isToday = dateStr === fmtAnaDate(new Date());
+      let cell;
+      if (isBefore) cell = '<span style="color:rgba(255,255,255,.15)">·</span>';
+      else if (isFuture) cell = '<span style="color:rgba(255,255,255,.4);font-size:16px">-</span>';
+      else if (attended && isTarget) cell = '<span style="color:var(--ok);font-size:18px;line-height:1">●</span>';
+      else if (!isTarget) cell = '<span style="color:rgba(255,255,255,.3);font-size:18px">·</span>';
+      else cell = '<span style="color:var(--red);font-weight:700">X</span>';
+      return `<td style="text-align:center;padding:8px 4px;border-bottom:1px solid var(--border);${isToday?'background:rgba(245,158,11,.08)':''}">${cell}</td>`;
+    }).join('');
+
+    // 식사율 계산
+    let total=0, done=0;
+    dates.forEach(d=>{
+      if (d > today || d < ANA_MIN_DATE) return;
+      const dayKr = ANA_DAYS_KR[d.getDay()];
+      const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
+      if (!isTarget) return;
+      total++;
+      if (attendMap[st.no] && attendMap[st.no].has(fmtAnaDate(d))) done++;
+    });
+    const rate = total ? Math.round(done/total*100) : 0;
+    const rColor = rate>=80?'var(--ok)':rate>=50?'var(--accent)':'var(--red)';
+
+    return `<tr>
+      <td style="padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap">
+        <div style="font-weight:600;font-size:14px">${st.name}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${st.no} · ${st.grade}-${st.cls}</div>
+      </td>
+      ${cells}
+      <td style="text-align:center;padding:8px;border-bottom:1px solid var(--border);white-space:nowrap">
+        <div style="font-family:'DM Mono',monospace;font-size:13px;color:${rColor};font-weight:700">${rate}%</div>
+        <div style="font-size:10px;color:var(--muted)">${done}/${total}</div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:600px">
+        <thead><tr>
+          <th style="text-align:left;padding:8px 12px;font-size:12px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border2)">학생</th>
+          ${colHeaders}
+          <th style="text-align:center;padding:8px;font-size:12px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border2)">식사율</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:var(--muted);text-align:center">
+      <span style="color:var(--ok)">●</span> 식사 완료 &nbsp;·&nbsp;
+      <span style="color:var(--red)">X</span> 식사 안함 &nbsp;·&nbsp;
+      · 비신청일 &nbsp;·&nbsp; - 미래
+    </div>`;
+}
+
+/* ── 월별 뷰 ── */
+function renderAnaMonth(){
+  const y = _anaDate.getFullYear(), m = _anaDate.getMonth();
+  document.getElementById('ana-period').textContent = `${y}년 ${m+1}월`;
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const startDay = (y===2026 && m===3) ? 6 : 1; // 2026-04는 6일부터
+  const allDates = Array.from({length: daysInMonth - startDay + 1}, (_,i)=>{
+    const d = new Date(y, m, startDay+i);
+    return { date: d, str: fmtAnaDate(d), dayKr: ANA_DAYS_KR[d.getDay()] };
+  });
+
+  const students = getFilteredStudents();
+  const el = document.getElementById('ana-content');
+  if (!students.length){ el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당하는 학생이 없어요</div>'; return; }
+
+  const attendMap = buildAttendMap();
+  const today = new Date(); today.setHours(23,59,59,999);
+
+  const cards = students.map(st=>{
+    const days = String(st.days||'매일');
+    const isAllDays = days==='매일' || days==='';
+
+    // 식사율 계산
+    const targetDates = allDates.filter(d=>{
+      if (d.date > today || d.date < ANA_MIN_DATE) return false;
+      return isAllDays || days.indexOf(d.dayKr) >= 0;
+    });
+    const attendedDates = targetDates.filter(d => attendMap[st.no] && attendMap[st.no].has(d.str));
+    const rate = targetDates.length ? Math.round(attendedDates.length/targetDates.length*100) : 0;
+    const rColor = rate>=80?'var(--ok)':rate>=50?'var(--accent)':'var(--red)';
+
+    // 미니 달력
+    const weeks = [];
+    let week = [];
+    const firstDay = new Date(y, m, startDay).getDay();
+    for (let i=0; i<firstDay; i++) week.push(null);
+    allDates.forEach(d=>{
+      week.push(d);
+      if (week.length===7){ weeks.push(week); week=[]; }
+    });
+    if (week.length) weeks.push(week);
+
+    const calRows = weeks.map(w=>
+      `<tr>${w.map(d=>{
+        if (!d) return '<td style="padding:2px"></td>';
+        const isTarget = isAllDays || days.indexOf(d.dayKr) >= 0;
+        const attended = attendMap[st.no] && attendMap[st.no].has(d.str);
+        const isFuture = d.date > today;
+        const isBefore = d.date < ANA_MIN_DATE;
+        const isToday = d.str === fmtAnaDate(new Date());
+        let bg = '', text = 'var(--muted)';
+        if (isToday) bg = 'rgba(245,158,11,.15)';
+        if (!isFuture && !isBefore && attended && isTarget){ bg = 'rgba(52,211,153,.25)'; text = 'var(--ok)'; }
+        else if (!isFuture && !isBefore && isTarget){ bg = 'rgba(248,113,113,.15)'; text = 'var(--red)'; }
+        return `<td style="padding:2px;text-align:center">
+          <div style="width:26px;height:26px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:11px;color:${text};margin:auto;${(!isFuture&&!isBefore&&(attended||isTarget))?'font-weight:700':''}">${d.date.getDate()}</div>
+        </td>`;
+      }).join('')}</tr>`
+    ).join('');
+
+    return `
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div>
+            <div style="font-weight:700;font-size:15px">${st.name}
+              <span style="font-weight:400;color:var(--muted);font-size:12px;margin-left:6px;font-family:'DM Mono',monospace">${st.no} · ${st.grade}-${st.cls}</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px">신청 요일: ${days}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:${rColor}">${rate}%</div>
+            <div style="font-size:11px;color:var(--muted)">${attendedDates.length}/${targetDates.length}일</div>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>${['일','월','화','수','목','금','토'].map((d,i)=>
+            `<th style="text-align:center;font-size:11px;color:${i===0?'#ff7096':i===6?'#5eb8ff':'var(--muted)'};padding:3px;font-weight:600">${d}</th>`
+          ).join('')}</tr></thead>
+          <tbody>${calRows}</tbody>
+        </table>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = cards;
+}
+
+/* ── 엑셀 다운로드 ── */
+function downloadAnalysisExcel(){
+  if (!_anaData.students.length){ toast('데이터가 없어요','err'); return; }
+  const students = getFilteredStudents();
+  if (!students.length){ toast('해당하는 학생이 없어요','err'); return; }
+  const attendMap = buildAttendMap();
+  const today = new Date(); today.setHours(23,59,59,999);
+  const wb = XLSX.utils.book_new();
+
+  if (_anaView==='week'){
+    const period = getAnaPeriod();
+    const dates = Array.from({length:7}, (_,i)=>{ const d = new Date(period.start); d.setDate(period.start.getDate()+i); return d; });
+    const label = `${fmtAnaDate(dates[0])}_${fmtAnaDate(dates[6])}`;
+    const header = ['학번','이름','학년','반','신청요일',
+      ...dates.map(d=>`${d.getMonth()+1}/${d.getDate()}(${ANA_DAYS_KR[d.getDay()]})`),
+      '식사','대상','식사율'];
+    const rows = [header];
+
+    students.forEach(st=>{
+      const days = String(st.days||'매일');
+      const isAllDays = days==='매일' || days==='';
+      const cells = dates.map(d=>{
+        const dateStr = fmtAnaDate(d);
+        const dayKr = ANA_DAYS_KR[d.getDay()];
+        const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
+        const attended = attendMap[st.no] && attendMap[st.no].has(dateStr);
+        const isFuture = d > today;
+        const isBefore = d < ANA_MIN_DATE;
+        if (isBefore) return '';
+        if (isFuture) return '-';
+        if (attended && isTarget) return 'O';
+        if (!isTarget) return '';
+        return 'X';
+      });
+      let total=0, done=0;
+      dates.forEach(d=>{
+        if (d > today || d < ANA_MIN_DATE) return;
+        const dayKr = ANA_DAYS_KR[d.getDay()];
+        const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
+        if (!isTarget) return;
+        total++;
+        if (attendMap[st.no] && attendMap[st.no].has(fmtAnaDate(d))) done++;
+      });
+      const rate = total ? Math.round(done/total*100)+'%' : '-';
+      rows.push([st.no, st.name, st.grade, st.cls, days, ...cells, done, total, rate]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:8},{wch:10},{wch:6},{wch:6},{wch:14}, ...dates.map(()=>({wch:8})), {wch:6},{wch:6},{wch:8}];
+    XLSX.utils.book_append_sheet(wb, ws, '주별식사');
+    XLSX.writeFile(wb, `급식분석_주별_${label}.xlsx`);
+  } else {
+    const y = _anaDate.getFullYear(), m = _anaDate.getMonth();
+    const daysInMonth = new Date(y, m+1, 0).getDate();
+    const startDay = (y===2026 && m===3) ? 6 : 1;
+    const allDates = Array.from({length: daysInMonth - startDay + 1}, (_,i)=>{
+      const d = new Date(y, m, startDay+i);
+      return { date: d, str: fmtAnaDate(d), dayKr: ANA_DAYS_KR[d.getDay()] };
+    });
+    const label = `${y}년${m+1}월`;
+    const header = ['학번','이름','학년','반','신청요일',
+      ...allDates.map(d=>`${d.date.getDate()}(${d.dayKr})`),
+      '식사','대상','식사율'];
+    const rows = [header];
+
+    students.forEach(st=>{
+      const days = String(st.days||'매일');
+      const isAllDays = days==='매일' || days==='';
+      const cells = allDates.map(d=>{
+        const isTarget = isAllDays || days.indexOf(d.dayKr) >= 0;
+        const attended = attendMap[st.no] && attendMap[st.no].has(d.str);
+        const isFuture = d.date > today;
+        if (isFuture) return '-';
+        if (attended && isTarget) return 'O';
+        if (!isTarget) return '';
+        return 'X';
+      });
+      const targetDates = allDates.filter(d=>{
+        if (d.date > today) return false;
+        return isAllDays || days.indexOf(d.dayKr) >= 0;
+      });
+      const attendedDates = targetDates.filter(d => attendMap[st.no] && attendMap[st.no].has(d.str));
+      const rate = targetDates.length ? Math.round(attendedDates.length/targetDates.length*100)+'%' : '-';
+      rows.push([st.no, st.name, st.grade, st.cls, days, ...cells, attendedDates.length, targetDates.length, rate]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:8},{wch:10},{wch:6},{wch:6},{wch:14}, ...allDates.map(()=>({wch:5})), {wch:6},{wch:6},{wch:8}];
+    XLSX.utils.book_append_sheet(wb, ws, '월별식사');
+    XLSX.writeFile(wb, `급식분석_${label}.xlsx`);
+  }
+  toast('엑셀 다운로드 완료','ok');
+}
+window.downloadAnalysisExcel = downloadAnalysisExcel;
 
 /* ══ 토스트 ══ */
 function toast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+(type||'ok');el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2800)}
