@@ -185,12 +185,12 @@ function isTargetDay(date, daysStr) {
 }
 
 function getWeekDates(baseDate) {
-  // 월~일 7일
+  // 월~금 5일
   const d = new Date(baseDate);
   const day = d.getDay();
   const monday = new Date(d);
   monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-  return Array.from({length:7}, (_,i) => {
+  return Array.from({length:5}, (_,i) => {
     const dd = new Date(monday);
     dd.setDate(monday.getDate() + i);
     return dd;
@@ -251,7 +251,7 @@ function render() {
 function renderWeek(days) {
   const dates = getWeekDates(state.refDate);
   const today = new Date(); today.setHours(23,59,59,999);
-  const periodLabel = `${fmtDate(dates[0])} ~ ${fmtDate(dates[6])}`;
+  const periodLabel = `${fmtDate(dates[0])} ~ ${fmtDate(dates[4])}`;
 
   // 통계
   let target = 0, done = 0;
@@ -282,10 +282,7 @@ function renderWeek(days) {
     </div>
     <table class="week-table">
       <thead><tr>
-        ${['월','화','수','목','금','토','일'].map(d => {
-          const cls = d==='일'?'sun':d==='토'?'sat':'';
-          return `<th class="${cls}">${d}</th>`;
-        }).join('')}
+        ${['월','화','수','목','금'].map(d => `<th>${d}</th>`).join('')}
       </tr></thead>
       <tbody><tr>
         ${dates.map(d => {
