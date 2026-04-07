@@ -98,6 +98,7 @@ tr:last-child td{border-bottom:none}
     <div class="tab-bar">
       <button class="tab-btn on" data-tab="today" onclick="goTab('today')">📡 오늘 현황</button>
       <button class="tab-btn" data-tab="roster" onclick="goTab('roster')">📋 명단</button>
+      <button class="tab-btn" data-tab="manage" onclick="goTab('manage')">👥 학생 관리</button>
       <button class="tab-btn" data-tab="manual" onclick="goTab('manual')">✏️ 수동 입력</button>
       <button class="tab-btn" data-tab="history" onclick="goTab('history')">📂 기록</button>
       <button class="tab-btn" data-tab="analysis" onclick="goTab('analysis')">📈 분석</button>
@@ -143,6 +144,64 @@ tr:last-child td{border-bottom:none}
         <div style="max-height:500px;overflow-y:auto">
           <table><thead><tr><th>학번</th><th>이름</th><th>상태</th><th>시각</th></tr></thead>
           <tbody id="roster-tbody"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 학생 관리 -->
+    <div class="tab-content" id="tab-manage">
+      <div class="card">
+        <div class="card-head">학생 관리</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer">
+            📂 엑셀 업로드
+            <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelUpload(event)">
+          </label>
+          <button class="btn btn-ghost btn-sm" onclick="downloadTemplate()">📥 양식 다운로드</button>
+          <button class="btn btn-amber btn-sm" onclick="toggleAddForm()" style="margin-left:auto">+ 학생 추가</button>
+        </div>
+
+        <!-- 추가 폼 -->
+        <div id="add-form" style="display:none;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="field" style="margin-bottom:0"><label>학번</label><input type="text" id="add-no" inputmode="numeric" maxlength="5" placeholder="10101"></div>
+            <div class="field" style="margin-bottom:0"><label>이름</label><input type="text" id="add-name" placeholder="홍길동"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="field" style="margin-bottom:0"><label>학년</label><input type="text" id="add-grade" inputmode="numeric" placeholder="1"></div>
+            <div class="field" style="margin-bottom:0"><label>반</label><input type="text" id="add-cls" inputmode="numeric" placeholder="1"></div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px">신청 요일 (모두 선택 = 매일)</label>
+            <div id="add-days" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+          </div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn btn-ghost btn-sm" onclick="toggleAddForm()">취소</button>
+            <button class="btn btn-green btn-sm" onclick="confirmAddStudent()">등록</button>
+          </div>
+        </div>
+
+        <!-- 필터 -->
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+          <input type="text" id="manage-search" placeholder="학번 또는 이름 검색" oninput="renderManageList()" style="flex:1;min-width:160px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
+          <select id="manage-grade" onchange="renderManageList()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
+            <option value="">전체 학년</option>
+            <option value="1">1학년</option>
+            <option value="2">2학년</option>
+            <option value="3">3학년</option>
+          </select>
+          <select id="manage-cls" onchange="renderManageList()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
+            <option value="">전체 반</option>
+          </select>
+        </div>
+        <div id="manage-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
+
+        <!-- 업로드 결과 -->
+        <div id="upload-result" style="display:none;padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:12px"></div>
+
+        <!-- 학생 목록 -->
+        <div style="max-height:600px;overflow-y:auto" id="manage-list-wrap">
+          <div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">학생 명단을 불러오는 중...</div>
         </div>
       </div>
     </div>
@@ -299,6 +358,7 @@ function fmtTimeShort(t){if(!t)return'';if(/^\d{2}:\d{2}:\d{2}$/.test(t))return 
     document.getElementById('dashboard').style.display='none';
     document.getElementById('student-screen').classList.add('on');
     document.getElementById('sf-no').focus();
+    startStudentTimeGate();
     return;
   }
   // 교사 대시보드
@@ -308,6 +368,39 @@ function fmtTimeShort(t){if(!t)return'';if(/^\d{2}:\d{2}:\d{2}$/.test(t))return 
   await loadToday();
   startPolling();
 })();
+
+/* ══ 학생 화면 시간대 사전 안내 ══ */
+function startStudentTimeGate(){
+  // 매 5초마다 시간 체크 — 18:20~19:00 외엔 입력 비활성화 + 안내
+  function check(){
+    const now = new Date();
+    const cur = now.getHours()*60 + now.getMinutes();
+    const inWindow = cur >= 1100 && cur < 1140; // 18:20~19:00
+    const input = document.getElementById('sf-no');
+    const btn = document.getElementById('sf-btn');
+    const sub = document.querySelector('#sf-input-wrap .s-sub');
+    if(!input || !btn) return;
+    if(inWindow){
+      input.disabled = false;
+      btn.disabled = false;
+      btn.style.opacity = '';
+      if(sub && sub.dataset.gated==='1'){
+        sub.innerHTML = '학번을 입력하면 식사가 확인돼요<br><span style="color:var(--accent)">⏰ 18:20 ~ 19:00</span>';
+        sub.dataset.gated = '0';
+      }
+    } else {
+      input.disabled = true;
+      btn.disabled = true;
+      btn.style.opacity = '0.4';
+      const hh = String(now.getHours()).padStart(2,'0');
+      const mm = String(now.getMinutes()).padStart(2,'0');
+      const msg = cur < 1100 ? `⏰ 18:20부터 시작돼요<br><span style="color:var(--muted);font-size:12px">현재 ${hh}:${mm}</span>` : `⏰ 식사 시간이 종료됐어요<br><span style="color:var(--muted);font-size:12px">현재 ${hh}:${mm}</span>`;
+      if(sub){ sub.innerHTML = msg; sub.dataset.gated = '1'; }
+    }
+  }
+  check();
+  setInterval(check, 5000);
+}
 
 /* ══ 고정 QR 코드 (학생 페이지로 이동) ══ */
 function buildQR(){
@@ -333,7 +426,19 @@ async function loadToday(){
 /* ══ 폴링 (5초 간격) ══ */
 function startPolling(){
   clearInterval(S.pollInt);
+  S.currentDate = new Date().toISOString().slice(0,10);
   S.pollInt = setInterval(async()=>{
+    // 자정 넘김 감지
+    const nowDate = new Date().toISOString().slice(0,10);
+    if (nowDate !== S.currentDate) {
+      S.currentDate = nowDate;
+      document.getElementById('top-date').textContent = fmtDate(nowDate);
+      document.getElementById('hist-date').value = nowDate;
+      S.confirmed = []; // 어제 캐시 비우기
+      await loadToday();
+      toast('날짜가 바뀌었어요. 오늘 데이터로 새로고침됨','ok');
+      return;
+    }
     const r = await gasPost({action:'getTodayStatus'});
     if(!r.ok) return;
     let upd=false;
@@ -389,8 +494,9 @@ window.renderRoster=renderRoster;
 /* ══ 탭 전환 ══ */
 function goTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
-  ['today','roster','manual','history','analysis'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('on',t===tab));
+  ['today','roster','manage','manual','history','analysis'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('on',t===tab));
   if(tab==='roster')renderRoster();
+  if(tab==='manage')loadManageList();
   if(tab==='history')loadHistoryDate();
   if(tab==='analysis')loadAnalysis();
 }
@@ -517,6 +623,274 @@ function exportHistCSV(){
   a.download='급식기록_'+_histData.date+'.csv';a.click();toast('CSV 다운로드 완료','ok');
 }
 window.exportHistCSV=exportHistCSV;
+
+/* ══ 학생 관리 탭 ══ */
+const MANAGE_DAYS = ['월','화','수','목','금','토','일'];
+var _manageStudents = [];
+
+async function loadManageList(){
+  const wrap = document.getElementById('manage-list-wrap');
+  wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">불러오는 중...</div>';
+  const r = await gasPost({action:'getRoster'});
+  if (!r.ok) {
+    wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">'+(r.msg||'로드 실패')+'</div>';
+    return;
+  }
+  _manageStudents = r.students || [];
+  // 반 필터 옵션 생성
+  const classes = [...new Set(_manageStudents.map(s=>s.cls).filter(Boolean))].sort();
+  const clsSel = document.getElementById('manage-cls');
+  const cur = clsSel.value;
+  clsSel.innerHTML = '<option value="">전체 반</option>' + classes.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}반</option>`).join('');
+  renderManageList();
+  // 추가 폼의 요일 버튼 초기화
+  buildAddDayButtons();
+}
+window.loadManageList = loadManageList;
+
+function parseDays(str){
+  // "매일" 또는 "월,수,금" → ['월','수','금']
+  if (!str || str === '매일') return [...MANAGE_DAYS];
+  return String(str).split(/[,，]/).map(s=>s.trim()).filter(d => MANAGE_DAYS.indexOf(d)>=0);
+}
+
+function renderManageList(){
+  const q = (document.getElementById('manage-search').value||'').trim().toLowerCase();
+  const gf = document.getElementById('manage-grade').value;
+  const cf = document.getElementById('manage-cls').value;
+  let list = [..._manageStudents];
+  if (gf) list = list.filter(s => String(s.grade) === gf);
+  if (cf) list = list.filter(s => String(s.cls) === cf);
+  if (q)  list = list.filter(s => String(s.no).includes(q) || (s.name||'').toLowerCase().includes(q));
+  list.sort((a,b)=>String(a.no).localeCompare(String(b.no), undefined, {numeric:true}));
+
+  document.getElementById('manage-count').textContent = `표시: ${list.length}명 / 전체: ${_manageStudents.length}명`;
+
+  const wrap = document.getElementById('manage-list-wrap');
+  if (!list.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">해당하는 학생이 없어요</div>';
+    return;
+  }
+
+  wrap.innerHTML = list.map(s => {
+    const days = parseDays(s.days);
+    const dayBtns = MANAGE_DAYS.map(d => {
+      const active = days.indexOf(d) >= 0;
+      return `<button onclick="toggleManageDay('${s.no}','${d}',this)" data-active="${active}" style="width:30px;height:30px;border-radius:50%;border:1px solid ${active?'var(--ok)':'var(--border)'};background:${active?'rgba(52,211,153,.18)':'transparent'};color:${active?'var(--ok)':'var(--muted)'};font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;flex-shrink:0">${d}</button>`;
+    }).join('');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 8px;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <div style="min-width:130px">
+        <div style="font-weight:700;font-size:14px">${s.name||'(이름없음)'}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${s.no} · ${s.grade||'-'}-${s.cls||'-'}</div>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">${dayBtns}</div>
+      <button class="btn btn-ghost btn-sm" onclick="deleteManageStudent('${s.no}')" style="margin-left:auto;color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:5px 10px">삭제</button>
+    </div>`;
+  }).join('');
+}
+window.renderManageList = renderManageList;
+
+async function toggleManageDay(no, day, btn){
+  const st = _manageStudents.find(s => String(s.no) === String(no));
+  if (!st) return;
+  let days = parseDays(st.days);
+  const idx = days.indexOf(day);
+  if (idx >= 0) days.splice(idx, 1);
+  else days.push(day);
+
+  // 즉시 UI 반영
+  const active = days.indexOf(day) >= 0;
+  btn.dataset.active = active;
+  btn.style.borderColor = active ? 'var(--ok)' : 'var(--border)';
+  btn.style.background = active ? 'rgba(52,211,153,.18)' : 'transparent';
+  btn.style.color = active ? 'var(--ok)' : 'var(--muted)';
+
+  // 로컬 상태 갱신 (매일 처리 포함)
+  const newDaysStr = days.length === 7 ? '매일' : days.join(',');
+  st.days = newDaysStr;
+
+  // 서버 저장
+  const r = await gasPost({action:'saveStudentDays', no:no, days:days});
+  if (!r.ok) { toast('저장 실패: '+r.msg, 'err'); return; }
+  // 오늘 현황/명단 캐시 동기화
+  await syncRosterAfterChange();
+}
+window.toggleManageDay = toggleManageDay;
+
+async function deleteManageStudent(no){
+  const st = _manageStudents.find(s => String(s.no) === String(no));
+  if (!st) return;
+  if (!confirm(`${st.name||no} 학생을 명단에서 삭제할까요?`)) return;
+  const r = await gasPost({action:'deleteStudent', no:no});
+  if (!r.ok) { toast(r.msg||'삭제 실패','err'); return; }
+  toast('삭제됨','ok');
+  _manageStudents = _manageStudents.filter(s => String(s.no) !== String(no));
+  renderManageList();
+  // 오늘 현황/명단 캐시 동기화
+  await syncRosterAfterChange();
+}
+window.deleteManageStudent = deleteManageStudent;
+
+// 학생 관리 탭에서 변경 발생 시 오늘 현황 캐시도 갱신
+async function syncRosterAfterChange(){
+  const r = await gasPost({action:'getRoster'});
+  if (!r.ok) return;
+  S.roster = r.students.filter(s => s.isToday);
+  refreshStats();
+  renderTodayList();
+  renderRoster();
+}
+
+/* ── 학생 추가 ── */
+function buildAddDayButtons(){
+  const wrap = document.getElementById('add-days');
+  if (wrap.children.length) return; // 이미 생성됨
+  wrap.innerHTML = MANAGE_DAYS.map(d =>
+    `<button type="button" onclick="toggleAddDay(this)" data-day="${d}" data-active="false" style="width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer">${d}</button>`
+  ).join('');
+}
+
+function toggleAddDay(btn){
+  const active = btn.dataset.active === 'true';
+  btn.dataset.active = active ? 'false' : 'true';
+  btn.style.borderColor = active ? 'var(--border)' : 'var(--ok)';
+  btn.style.background = active ? 'transparent' : 'rgba(52,211,153,.18)';
+  btn.style.color = active ? 'var(--muted)' : 'var(--ok)';
+}
+window.toggleAddDay = toggleAddDay;
+
+function toggleAddForm(){
+  const f = document.getElementById('add-form');
+  if (f.style.display === 'none') {
+    f.style.display = 'block';
+    buildAddDayButtons();
+    document.getElementById('add-no').value = '';
+    document.getElementById('add-name').value = '';
+    document.getElementById('add-grade').value = '';
+    document.getElementById('add-cls').value = '';
+    document.querySelectorAll('#add-days button').forEach(b => {
+      b.dataset.active = 'false';
+      b.style.borderColor = 'var(--border)';
+      b.style.background = 'transparent';
+      b.style.color = 'var(--muted)';
+    });
+  } else {
+    f.style.display = 'none';
+  }
+}
+window.toggleAddForm = toggleAddForm;
+
+async function confirmAddStudent(){
+  const no    = document.getElementById('add-no').value.trim();
+  const name  = document.getElementById('add-name').value.trim();
+  const grade = document.getElementById('add-grade').value.trim();
+  const cls   = document.getElementById('add-cls').value.trim();
+  if (!no || !name) { toast('학번과 이름은 필수예요','err'); return; }
+  if (!/^\d{4,5}$/.test(no)) { toast('학번은 4~5자리 숫자여야 해요','err'); return; }
+  const days = [...document.querySelectorAll('#add-days button')]
+    .filter(b => b.dataset.active === 'true').map(b => b.dataset.day);
+
+  const r = await gasPost({action:'saveStudent', no, name, grade, cls, days});
+  if (!r.ok) { toast(r.msg||'저장 실패','err'); return; }
+  toast(r.updated ? '업데이트됨':'추가됨','ok');
+  toggleAddForm();
+  await loadManageList();
+  await syncRosterAfterChange();
+}
+window.confirmAddStudent = confirmAddStudent;
+
+/* ── 엑셀 양식 다운로드 ── */
+function downloadTemplate(){
+  const header = ['학번','이름','학년','반','월','화','수','목','금','토','일','비고'];
+  const rows = [
+    header,
+    ['10101','홍길동','1','1','O','O','O','O','O','',''],
+    ['10102','김철수','1','1','O','','O','','O','',''],
+    ['20305','이영희','2','3','O','O','O','O','O','O','O','매일'],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:8},{wch:10},{wch:6},{wch:6},{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:14}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '급식신청명단');
+  XLSX.writeFile(wb, '급식신청명단_양식.xlsx');
+  toast('양식 다운로드 완료','ok');
+}
+window.downloadTemplate = downloadTemplate;
+
+/* ── 엑셀 업로드 ── */
+const DAY_TRUE = ['o','○','◯','✓','✔','v','y','yes','true','1'];
+function isDayMarked(val){
+  if (val === 1 || val === true) return true;
+  const s = String(val||'').trim().toLowerCase();
+  return DAY_TRUE.indexOf(s) >= 0;
+}
+
+function handleExcelUpload(event){
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(e){
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if (!rows.length) { toast('파일에 데이터가 없어요','err'); return; }
+
+      // 헤더 검증
+      const keys = Object.keys(rows[0]);
+      const hasRequired = ['학번','이름'].every(k => keys.indexOf(k) >= 0);
+      if (!hasRequired) { toast('헤더 확인: 학번/이름 열이 필요해요','err'); return; }
+
+      // 파싱
+      const students = [];
+      let skipped = 0;
+      rows.forEach(row => {
+        const no = String(row['학번']||'').replace(/\.0$/,'').replace(/[^0-9]/g,'').trim();
+        const name = String(row['이름']||'').trim();
+        if (!no || !name) { skipped++; return; }
+        const grade = String(row['학년']||'').trim();
+        const cls = String(row['반']||'').trim();
+        const note = String(row['비고']||'').trim();
+
+        // 요일 파싱: 월~일 컬럼 또는 비고 "매일"
+        let days = MANAGE_DAYS.filter(d => isDayMarked(row[d]));
+        if (!days.length && (note === '매일' || String(row['신청요일']||'').trim() === '매일')) {
+          days = [...MANAGE_DAYS];
+        }
+        students.push({no, name, grade, cls, days, note: note === '매일' ? '' : note});
+      });
+
+      const resultEl = document.getElementById('upload-result');
+      resultEl.style.display = 'block';
+      resultEl.style.background = 'rgba(96,165,250,.12)';
+      resultEl.style.color = 'var(--sky)';
+      resultEl.style.border = '1px solid rgba(96,165,250,.3)';
+      resultEl.textContent = `⏳ ${students.length}명 저장 중...`;
+
+      const r = await gasPost({action:'bulkUpsertStudents', students});
+      if (!r.ok) {
+        resultEl.style.background = 'rgba(248,113,113,.12)';
+        resultEl.style.color = 'var(--red)';
+        resultEl.style.border = '1px solid rgba(248,113,113,.3)';
+        resultEl.textContent = '❌ '+(r.msg||'저장 실패');
+        return;
+      }
+      resultEl.style.background = 'rgba(52,211,153,.12)';
+      resultEl.style.color = 'var(--ok)';
+      resultEl.style.border = '1px solid rgba(52,211,153,.3)';
+      resultEl.textContent = `✅ 추가 ${r.added}명, 업데이트 ${r.updated}명${r.skipped?`, 건너뜀 ${r.skipped}명`:''}${skipped?` (파싱 오류 ${skipped}건)`:''}`;
+      setTimeout(() => { resultEl.style.display = 'none'; }, 6000);
+      await loadManageList();
+      await syncRosterAfterChange();
+    } catch(err) {
+      toast('파일 읽기 오류: '+err.message,'err');
+    }
+    event.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
+window.handleExcelUpload = handleExcelUpload;
+
 
 /* ══ 분석 탭 ══ */
 const ANA_DAYS_KR = ['일','월','화','수','목','금','토'];
