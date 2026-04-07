@@ -163,18 +163,17 @@ tr:last-child td{border-bottom:none}
 
         <!-- 추가 폼 -->
         <div id="add-form" style="display:none;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div class="field" style="margin-bottom:0"><label>학번</label><input type="text" id="add-no" inputmode="numeric" maxlength="5" placeholder="10101"></div>
-            <div class="field" style="margin-bottom:0"><label>이름</label><input type="text" id="add-name" placeholder="홍길동"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="field" style="margin-bottom:0"><label>학년</label><input type="text" id="add-grade" inputmode="numeric" maxlength="1" placeholder="1"></div>
+            <div class="field" style="margin-bottom:0"><label>반</label><input type="text" id="add-cls" inputmode="numeric" maxlength="2" placeholder="1"></div>
+            <div class="field" style="margin-bottom:0"><label>번호</label><input type="text" id="add-num" inputmode="numeric" maxlength="2" placeholder="1"></div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div class="field" style="margin-bottom:0"><label>학년</label><input type="text" id="add-grade" inputmode="numeric" placeholder="1"></div>
-            <div class="field" style="margin-bottom:0"><label>반</label><input type="text" id="add-cls" inputmode="numeric" placeholder="1"></div>
-          </div>
+          <div class="field" style="margin-bottom:10px"><label>이름</label><input type="text" id="add-name" placeholder="홍길동"></div>
           <div style="margin-bottom:10px">
             <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px">신청 요일 (모두 선택 = 매일)</label>
             <div id="add-days" style="display:flex;gap:6px;flex-wrap:wrap"></div>
           </div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:10px">학번은 학년·반·번호로 자동 생성됩니다 (예: 1학년 1반 1번 → <span style="font-family:'DM Mono',monospace;color:var(--text)">10101</span>)</div>
           <div style="display:flex;gap:8px;justify-content:flex-end">
             <button class="btn btn-ghost btn-sm" onclick="toggleAddForm()">취소</button>
             <button class="btn btn-green btn-sm" onclick="confirmAddStudent()">등록</button>
@@ -625,7 +624,7 @@ function exportHistCSV(){
 window.exportHistCSV=exportHistCSV;
 
 /* ══ 학생 관리 탭 ══ */
-const MANAGE_DAYS = ['월','화','수','목','금','토','일'];
+const MANAGE_DAYS = ['월','화','수','목','금'];
 var _manageStudents = [];
 
 async function loadManageList(){
@@ -706,7 +705,7 @@ async function toggleManageDay(no, day, btn){
   btn.style.color = active ? 'var(--ok)' : 'var(--muted)';
 
   // 로컬 상태 갱신 (매일 처리 포함)
-  const newDaysStr = days.length === 7 ? '매일' : days.join(',');
+  const newDaysStr = days.length === 5 ? '매일' : days.join(',');
   st.days = newDaysStr;
 
   // 서버 저장
@@ -764,10 +763,10 @@ function toggleAddForm(){
   if (f.style.display === 'none') {
     f.style.display = 'block';
     buildAddDayButtons();
-    document.getElementById('add-no').value = '';
-    document.getElementById('add-name').value = '';
     document.getElementById('add-grade').value = '';
     document.getElementById('add-cls').value = '';
+    document.getElementById('add-num').value = '';
+    document.getElementById('add-name').value = '';
     document.querySelectorAll('#add-days button').forEach(b => {
       b.dataset.active = 'false';
       b.style.borderColor = 'var(--border)';
@@ -780,19 +779,32 @@ function toggleAddForm(){
 }
 window.toggleAddForm = toggleAddForm;
 
+// 학년/반/번호 → 5자리 학번 합성
+function buildStudentNo(grade, cls, num){
+  const g = String(grade||'').replace(/[^0-9]/g,'');
+  const c = String(cls||'').replace(/[^0-9]/g,'');
+  const n = String(num||'').replace(/[^0-9]/g,'');
+  if (!g || !c || !n) return '';
+  return g + c.padStart(2,'0') + n.padStart(2,'0');
+}
+
 async function confirmAddStudent(){
-  const no    = document.getElementById('add-no').value.trim();
-  const name  = document.getElementById('add-name').value.trim();
   const grade = document.getElementById('add-grade').value.trim();
   const cls   = document.getElementById('add-cls').value.trim();
-  if (!no || !name) { toast('학번과 이름은 필수예요','err'); return; }
-  if (!/^\d{4,5}$/.test(no)) { toast('학번은 4~5자리 숫자여야 해요','err'); return; }
+  const num   = document.getElementById('add-num').value.trim();
+  const name  = document.getElementById('add-name').value.trim();
+  if (!grade || !cls || !num || !name) { toast('학년·반·번호·이름은 필수예요','err'); return; }
+  if (!/^[1-9]$/.test(grade))      { toast('학년은 1~9 사이 숫자','err'); return; }
+  if (!/^\d{1,2}$/.test(cls))      { toast('반은 1~2자리 숫자','err'); return; }
+  if (!/^\d{1,2}$/.test(num))      { toast('번호는 1~2자리 숫자','err'); return; }
+  const no = buildStudentNo(grade, cls, num);
+  if (!no) { toast('학번 생성 실패','err'); return; }
   const days = [...document.querySelectorAll('#add-days button')]
     .filter(b => b.dataset.active === 'true').map(b => b.dataset.day);
 
   const r = await gasPost({action:'saveStudent', no, name, grade, cls, days});
   if (!r.ok) { toast(r.msg||'저장 실패','err'); return; }
-  toast(r.updated ? '업데이트됨':'추가됨','ok');
+  toast(r.updated ? `${name} (${no}) 업데이트됨`:`${name} (${no}) 추가됨`,'ok');
   toggleAddForm();
   await loadManageList();
   await syncRosterAfterChange();
@@ -801,15 +813,15 @@ window.confirmAddStudent = confirmAddStudent;
 
 /* ── 엑셀 양식 다운로드 ── */
 function downloadTemplate(){
-  const header = ['학번','이름','학년','반','월','화','수','목','금','토','일','비고'];
+  const header = ['학년','반','번호','이름','월','화','수','목','금','비고'];
   const rows = [
     header,
-    ['10101','홍길동','1','1','O','O','O','O','O','',''],
-    ['10102','김철수','1','1','O','','O','','O','',''],
-    ['20305','이영희','2','3','O','O','O','O','O','O','O','매일'],
+    ['1','1','1','홍길동','O','O','O','O','O',''],
+    ['1','1','2','김철수','O','','O','','O',''],
+    ['2','3','5','이영희','O','O','O','O','O','매일'],
   ];
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{wch:8},{wch:10},{wch:6},{wch:6},{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:14}];
+  ws['!cols'] = [{wch:6},{wch:6},{wch:6},{wch:10},{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:14}];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '급식신청명단');
   XLSX.writeFile(wb, '급식신청명단_양식.xlsx');
@@ -836,23 +848,36 @@ function handleExcelUpload(event){
       const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
       if (!rows.length) { toast('파일에 데이터가 없어요','err'); return; }
 
-      // 헤더 검증
+      // 헤더 검증 — 학년/반/번호/이름 필수, 또는 학번/이름 (구버전 호환)
       const keys = Object.keys(rows[0]);
-      const hasRequired = ['학번','이름'].every(k => keys.indexOf(k) >= 0);
-      if (!hasRequired) { toast('헤더 확인: 학번/이름 열이 필요해요','err'); return; }
+      const hasNew = ['학년','반','번호','이름'].every(k => keys.indexOf(k) >= 0);
+      const hasOld = ['학번','이름'].every(k => keys.indexOf(k) >= 0);
+      if (!hasNew && !hasOld) { toast('헤더 확인: 학년/반/번호/이름 열이 필요해요','err'); return; }
 
       // 파싱
       const students = [];
       let skipped = 0;
       rows.forEach(row => {
-        const no = String(row['학번']||'').replace(/\.0$/,'').replace(/[^0-9]/g,'').trim();
         const name = String(row['이름']||'').trim();
-        if (!no || !name) { skipped++; return; }
-        const grade = String(row['학년']||'').trim();
-        const cls = String(row['반']||'').trim();
+        if (!name) { skipped++; return; }
+
+        let no, grade, cls;
+        if (hasNew) {
+          grade = String(row['학년']||'').replace(/[^0-9]/g,'').trim();
+          cls   = String(row['반']  ||'').replace(/[^0-9]/g,'').trim();
+          const num = String(row['번호']||'').replace(/[^0-9]/g,'').trim();
+          if (!grade || !cls || !num) { skipped++; return; }
+          no = buildStudentNo(grade, cls, num);
+        } else {
+          // 구버전: 학번 직접 입력
+          no = String(row['학번']||'').replace(/\.0$/,'').replace(/[^0-9]/g,'').trim();
+          grade = String(row['학년']||'').trim();
+          cls = String(row['반']||'').trim();
+        }
+        if (!no) { skipped++; return; }
         const note = String(row['비고']||'').trim();
 
-        // 요일 파싱: 월~일 컬럼 또는 비고 "매일"
+        // 요일 파싱: 월~금 컬럼 또는 비고 "매일"
         let days = MANAGE_DAYS.filter(d => isDayMarked(row[d]));
         if (!days.length && (note === '매일' || String(row['신청요일']||'').trim() === '매일')) {
           days = [...MANAGE_DAYS];
@@ -995,8 +1020,9 @@ window.renderAnalysis = renderAnalysis;
 function renderAnaWeek(){
   const period = getAnaPeriod();
   const start = period.start;
-  const dates = Array.from({length:7}, (_,i)=>{ const d = new Date(start); d.setDate(start.getDate()+i); return d; });
-  document.getElementById('ana-period').textContent = `${fmtAnaDate(dates[0])} ~ ${fmtAnaDate(dates[6])}`;
+  // 월~금 5일만 표시
+  const dates = Array.from({length:5}, (_,i)=>{ const d = new Date(start); d.setDate(start.getDate()+i); return d; });
+  document.getElementById('ana-period').textContent = `${fmtAnaDate(dates[0])} ~ ${fmtAnaDate(dates[4])}`;
 
   const students = getFilteredStudents();
   const el = document.getElementById('ana-content');
@@ -1175,8 +1201,8 @@ function downloadAnalysisExcel(){
 
   if (_anaView==='week'){
     const period = getAnaPeriod();
-    const dates = Array.from({length:7}, (_,i)=>{ const d = new Date(period.start); d.setDate(period.start.getDate()+i); return d; });
-    const label = `${fmtAnaDate(dates[0])}_${fmtAnaDate(dates[6])}`;
+    const dates = Array.from({length:5}, (_,i)=>{ const d = new Date(period.start); d.setDate(period.start.getDate()+i); return d; });
+    const label = `${fmtAnaDate(dates[0])}_${fmtAnaDate(dates[4])}`;
     const header = ['학번','이름','학년','반','신청요일',
       ...dates.map(d=>`${d.getMonth()+1}/${d.getDate()}(${ANA_DAYS_KR[d.getDay()]})`),
       '식사','대상','식사율'];
