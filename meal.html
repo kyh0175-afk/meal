@@ -1203,7 +1203,7 @@ function downloadAnalysisExcel(){
     const period = getAnaPeriod();
     const dates = Array.from({length:5}, (_,i)=>{ const d = new Date(period.start); d.setDate(period.start.getDate()+i); return d; });
     const label = `${fmtAnaDate(dates[0])}_${fmtAnaDate(dates[4])}`;
-    const header = ['학번','이름','학년','반','신청요일',
+    const header = ['학년','반','번호','이름','신청요일',
       ...dates.map(d=>`${d.getMonth()+1}/${d.getDate()}(${ANA_DAYS_KR[d.getDay()]})`),
       '식사','대상','식사율'];
     const rows = [header];
@@ -1234,11 +1234,12 @@ function downloadAnalysisExcel(){
         if (attendMap[st.no] && attendMap[st.no].has(fmtAnaDate(d))) done++;
       });
       const rate = total ? Math.round(done/total*100)+'%' : '-';
-      rows.push([st.no, st.name, st.grade, st.cls, days, ...cells, done, total, rate]);
+      const num = String(st.no).slice(-2).replace(/^0/,'');
+      rows.push([st.grade, st.cls, num, st.name, days, ...cells, done, total, rate]);
     });
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{wch:8},{wch:10},{wch:6},{wch:6},{wch:14}, ...dates.map(()=>({wch:8})), {wch:6},{wch:6},{wch:8}];
+    ws['!cols'] = [{wch:6},{wch:6},{wch:6},{wch:10},{wch:14}, ...dates.map(()=>({wch:8})), {wch:6},{wch:6},{wch:8}];
     XLSX.utils.book_append_sheet(wb, ws, '주별식사');
     XLSX.writeFile(wb, `급식분석_주별_${label}.xlsx`);
   } else {
@@ -1250,7 +1251,7 @@ function downloadAnalysisExcel(){
       return { date: d, str: fmtAnaDate(d), dayKr: ANA_DAYS_KR[d.getDay()] };
     });
     const label = `${y}년${m+1}월`;
-    const header = ['학번','이름','학년','반','신청요일',
+    const header = ['학년','반','번호','이름','신청요일',
       ...allDates.map(d=>`${d.date.getDate()}(${d.dayKr})`),
       '식사','대상','식사율'];
     const rows = [header];
@@ -1273,11 +1274,12 @@ function downloadAnalysisExcel(){
       });
       const attendedDates = targetDates.filter(d => attendMap[st.no] && attendMap[st.no].has(d.str));
       const rate = targetDates.length ? Math.round(attendedDates.length/targetDates.length*100)+'%' : '-';
-      rows.push([st.no, st.name, st.grade, st.cls, days, ...cells, attendedDates.length, targetDates.length, rate]);
+      const num = String(st.no).slice(-2).replace(/^0/,'');
+      rows.push([st.grade, st.cls, num, st.name, days, ...cells, attendedDates.length, targetDates.length, rate]);
     });
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{wch:8},{wch:10},{wch:6},{wch:6},{wch:14}, ...allDates.map(()=>({wch:5})), {wch:6},{wch:6},{wch:8}];
+    ws['!cols'] = [{wch:6},{wch:6},{wch:6},{wch:10},{wch:14}, ...allDates.map(()=>({wch:5})), {wch:6},{wch:6},{wch:8}];
     XLSX.utils.book_append_sheet(wb, ws, '월별식사');
     XLSX.writeFile(wb, `급식분석_${label}.xlsx`);
   }
