@@ -300,8 +300,7 @@ select option{background:#fff;color:#000}
         <div class="card-head">총 식사 인원 추이</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
           <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-            <button id="tr-unit-day" onclick="setTrendUnit('day')" style="padding:7px 14px;border:none;background:var(--accent);color:#000;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">일별</button>
-            <button id="tr-unit-week" onclick="setTrendUnit('week')" style="padding:7px 14px;border:none;background:transparent;color:var(--muted);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">주별</button>
+            <button id="tr-unit-week" onclick="setTrendUnit('week')" style="padding:7px 14px;border:none;background:var(--accent);color:#000;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">주별</button>
             <button id="tr-unit-month" onclick="setTrendUnit('month')" style="padding:7px 14px;border:none;background:transparent;color:var(--muted);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">월별</button>
           </div>
           <select id="tr-range" onchange="loadTrend()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
@@ -1450,12 +1449,12 @@ function downloadAnalysisExcel(){
 window.downloadAnalysisExcel = downloadAnalysisExcel;
 
 /* ══ 추이 탭 ══ */
-var _trUnit = 'day';
+var _trUnit = 'week';
 var _trData = { students: [], records: [], startDate: '', endDate: '' };
 
 function setTrendUnit(u){
   _trUnit = u;
-  ['day','week','month'].forEach(x=>{
+  ['week','month'].forEach(x=>{
     const b = document.getElementById('tr-unit-'+x);
     b.style.background = x===u ? 'var(--accent)' : 'transparent';
     b.style.color = x===u ? '#000' : 'var(--muted)';
@@ -1564,13 +1563,20 @@ function renderTrend(){
   // 요약 통계
   const total = records.length;
   // 평일 평균: 기간 내 평일(월~금) 일수로 나눔. 단위 토글과 무관.
+  // 오늘은 식사 시작 시각(18:20) 이후일 때만 카운트
   let weekdayCount = 0;
   if (_trData.startDate && _trData.endDate) {
     const sd = new Date(_trData.startDate + 'T00:00:00');
     const ed = new Date(_trData.endDate + 'T00:00:00');
-    const today = new Date(); today.setHours(23,59,59,999);
-    const limit = ed < today ? ed : today;
-    for (let d = new Date(sd); d <= limit; d.setDate(d.getDate()+1)) {
+    const now = new Date();
+    const todayStr = fmtAnaDate(now);
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const todayCounted = nowMin >= 1100; // 18:20 이후만 오늘 인정
+    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+    const limit = todayCounted ? now : yesterday;
+    const limitDate = new Date(limit.getFullYear(), limit.getMonth(), limit.getDate());
+    const endLimit = ed < limitDate ? ed : limitDate;
+    for (let d = new Date(sd); d <= endLimit; d.setDate(d.getDate()+1)) {
       const dow = d.getDay();
       if (dow >= 1 && dow <= 5) weekdayCount++;
     }
@@ -1659,7 +1665,7 @@ function renderTrend(){
       </svg>
     </div>
     <div style="margin-top:8px;font-size:12px;color:var(--muted);text-align:center">
-      ${_trData.startDate} ~ ${_trData.endDate} · ${_trUnit==='day'?'일별':_trUnit==='week'?'주별 (월요일 시작)':'월별'}
+      ${_trData.startDate} ~ ${_trData.endDate} · ${_trUnit==='week'?'주별 (월요일 시작)':'월별'}
     </div>
   `;
 }
@@ -1669,7 +1675,7 @@ function downloadTrendCSV(){
   const records = getTrendFilteredRecords();
   const aggData = aggregateTrend(records, _trUnit);
   if (!aggData.length){ toast('내보낼 데이터가 없어요','err'); return; }
-  const unitLabel = _trUnit==='day' ? '날짜' : _trUnit==='week' ? '주(월요일)' : '월';
+  const unitLabel = _trUnit==='week' ? '주(월요일)' : '월';
   const csv = '\uFEFF'+unitLabel+',식사 인원\n' + aggData.map(d=>`${d.label},${d.count}`).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
