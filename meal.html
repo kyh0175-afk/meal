@@ -1556,22 +1556,24 @@ function fmtTrendLabel(key, unit){
 
 function renderTrend(){
   const records = getTrendFilteredRecords();
-  const aggData = aggregateTrend(records, _trUnit);
   const targetStudents = getTrendFilteredStudents();
   const targetCount = targetStudents.length;
 
-  // 요약 통계
-  const total = records.length;
-  // 평일 평균: 기간 내 평일(월~금) 일수로 나눔. 단위 토글과 무관.
+  // 일별 집계 (그래프용 — 항상 일별)
+  const dailyData = aggregateTrend(records, 'day');
+  // 단위별 집계 (통계 카드용)
+  const unitData = aggregateTrend(records, _trUnit);
+
+  // 평일 평균 계산 (단위 토글 무관)
   // 오늘은 식사 시작 시각(18:20) 이후일 때만 카운트
+  const total = records.length;
   let weekdayCount = 0;
   if (_trData.startDate && _trData.endDate) {
     const sd = new Date(_trData.startDate + 'T00:00:00');
     const ed = new Date(_trData.endDate + 'T00:00:00');
     const now = new Date();
-    const todayStr = fmtAnaDate(now);
     const nowMin = now.getHours() * 60 + now.getMinutes();
-    const todayCounted = nowMin >= 1100; // 18:20 이후만 오늘 인정
+    const todayCounted = nowMin >= 1100;
     const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
     const limit = todayCounted ? now : yesterday;
     const limitDate = new Date(limit.getFullYear(), limit.getMonth(), limit.getDate());
@@ -1581,25 +1583,34 @@ function renderTrend(){
       if (dow >= 1 && dow <= 5) weekdayCount++;
     }
   }
-  const avg = weekdayCount ? Math.round(total / weekdayCount) : 0;
-  const max = aggData.length ? Math.max(...aggData.map(d=>d.count)) : 0;
-  const min = aggData.length ? Math.min(...aggData.map(d=>d.count)) : 0;
+  const weekdayAvg = weekdayCount ? Math.round(total / weekdayCount) : 0;
+
+  // 단위별 통계 (주/월 합계 평균/최대/최소)
+  const unitAvg = unitData.length ? Math.round(unitData.reduce((s,d)=>s+d.count,0) / unitData.length) : 0;
+  const unitMax = unitData.length ? Math.max(...unitData.map(d=>d.count)) : 0;
+  const unitMin = unitData.length ? Math.min(...unitData.map(d=>d.count)) : 0;
+  const unitLabel = _trUnit==='week' ? '주' : '월';
+
   document.getElementById('tr-summary').innerHTML = `
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
       <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--sky)">${total}</div>
       <div style="font-size:11px;color:var(--muted);margin-top:2px">총 식사 횟수</div>
     </div>
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--ok)">${avg}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--ok)">${weekdayAvg}</div>
       <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 평균</div>
     </div>
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--accent)">${max}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">최대</div>
+      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--ok)">${unitAvg}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${unitLabel} 평균</div>
     </div>
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--red)">${min}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">최소</div>
+      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--accent)">${unitMax}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${unitLabel} 최대</div>
+    </div>
+    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--red)">${unitMin}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${unitLabel} 최소</div>
     </div>
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
       <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:#a78bfa">${targetCount}</div>
@@ -1608,49 +1619,45 @@ function renderTrend(){
   `;
 
   const el = document.getElementById('tr-content');
-  if (!aggData.length) {
+  if (!dailyData.length) {
     el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당 기간 식사 기록이 없어요</div>';
     return;
   }
 
-  // SVG 막대그래프
+  // SVG 막대그래프 — 항상 일별
   const W = 800, H = 320;
   const padL = 40, padR = 20, padT = 20, padB = 60;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
-  const n = aggData.length;
+  const n = dailyData.length;
   const barGap = Math.max(2, Math.floor(innerW / n * 0.15));
   const barW = Math.max(1, Math.floor(innerW / n) - barGap);
-  const yMax = Math.max(max, 1);
-  // Y축 눈금 (5단계)
+  const dailyMax = Math.max(...dailyData.map(d=>d.count), 1);
   const yTicks = [];
-  for (let i=0; i<=5; i++) yTicks.push(Math.round(yMax * i / 5));
+  for (let i=0; i<=5; i++) yTicks.push(Math.round(dailyMax * i / 5));
 
   let bars = '';
   let labels = '';
   let valueLabels = '';
-  aggData.forEach((d, i)=>{
+  dailyData.forEach((d, i)=>{
     const x = padL + i * (innerW / n) + barGap/2;
-    const h = (d.count / yMax) * innerH;
+    const h = (d.count / dailyMax) * innerH;
     const y = padT + innerH - h;
     bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" fill="#f59e0b">
       <title>${d.label}: ${d.count}명</title>
     </rect>`;
-    // X축 라벨 — 너무 많으면 일부만
     const showEvery = n > 20 ? Math.ceil(n/15) : 1;
     if (i % showEvery === 0) {
-      labels += `<text x="${x + barW/2}" y="${padT + innerH + 18}" text-anchor="middle" font-size="10" fill="#7a8499">${fmtTrendLabel(d.label, _trUnit)}</text>`;
+      labels += `<text x="${x + barW/2}" y="${padT + innerH + 18}" text-anchor="middle" font-size="10" fill="#7a8499">${fmtTrendLabel(d.label, 'day')}</text>`;
     }
-    // 값 라벨 — 막대 위에
     if (d.count > 0 && (n <= 20 || i % showEvery === 0)) {
       valueLabels += `<text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" font-size="9" fill="#edf0f7" font-weight="600">${d.count}</text>`;
     }
   });
 
-  // Y축 그리드 + 눈금
   let grid = '';
   yTicks.forEach(v => {
-    const y = padT + innerH - (v / yMax) * innerH;
+    const y = padT + innerH - (v / dailyMax) * innerH;
     grid += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>`;
     grid += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="10" fill="#7a8499">${v}</text>`;
   });
@@ -1665,7 +1672,7 @@ function renderTrend(){
       </svg>
     </div>
     <div style="margin-top:8px;font-size:12px;color:var(--muted);text-align:center">
-      ${_trData.startDate} ~ ${_trData.endDate} · ${_trUnit==='week'?'주별 (월요일 시작)':'월별'}
+      ${_trData.startDate} ~ ${_trData.endDate} · 일별 식사 인원
     </div>
   `;
 }
