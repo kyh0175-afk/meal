@@ -1557,17 +1557,14 @@ function fmtTrendLabel(key, unit){
 function renderTrend(){
   const records = getTrendFilteredRecords();
   const targetStudents = getTrendFilteredStudents();
-  const targetCount = targetStudents.length;
 
-  // 일별 집계 (그래프용 — 항상 일별)
+  // 일별 집계 (그래프 + 일 최대/최소용)
   const dailyData = aggregateTrend(records, 'day');
-  // 단위별 집계 (통계 카드용)
-  const unitData = aggregateTrend(records, _trUnit);
 
-  // 평일 평균 계산 (단위 토글 무관)
-  // 오늘은 식사 시작 시각(18:20) 이후일 때만 카운트
-  const total = records.length;
+  // 평일 일수 계산 (총 식사 횟수 카드 = 평일 수)
+  // 오늘은 18:20 이후일 때만 카운트
   let weekdayCount = 0;
+  const weekdayDates = []; // 평일 날짜 목록
   if (_trData.startDate && _trData.endDate) {
     const sd = new Date(_trData.startDate + 'T00:00:00');
     const ed = new Date(_trData.endDate + 'T00:00:00');
@@ -1580,41 +1577,96 @@ function renderTrend(){
     const endLimit = ed < limitDate ? ed : limitDate;
     for (let d = new Date(sd); d <= endLimit; d.setDate(d.getDate()+1)) {
       const dow = d.getDay();
-      if (dow >= 1 && dow <= 5) weekdayCount++;
+      if (dow >= 1 && dow <= 5) {
+        weekdayCount++;
+        weekdayDates.push(fmtAnaDate(d));
+      }
     }
   }
+  const total = records.length;
+  // 평일 평균 (식사 인원)
   const weekdayAvg = weekdayCount ? Math.round(total / weekdayCount) : 0;
+  // 일 최대/최소 (실제 식사 데이터가 있는 평일 중)
+  const validDaily = dailyData.filter(d => weekdayDates.indexOf(d.label) >= 0);
+  const dayMax = validDaily.length ? Math.max(...validDaily.map(d=>d.count)) : 0;
+  const dayMin = validDaily.length ? Math.min(...validDaily.map(d=>d.count)) : 0;
 
-  // 단위별 통계 (주/월 합계 평균/최대/최소)
-  const unitAvg = unitData.length ? Math.round(unitData.reduce((s,d)=>s+d.count,0) / unitData.length) : 0;
-  const unitMax = unitData.length ? Math.max(...unitData.map(d=>d.count)) : 0;
-  const unitMin = unitData.length ? Math.min(...unitData.map(d=>d.count)) : 0;
-  const unitLabel = _trUnit==='week' ? '주' : '월';
+  // 결석 평균 — 평일별로 (신청 대상 - 식사) 합산 후 평균
+  // 신청 대상: 학생의 신청 요일에 해당하는 평일만
+  function isStudentTarget(st, dateStr){
+    const days = String(st.days||'매일');
+    if (!days || days==='매일') return true;
+    const d = new Date(dateStr+'T00:00:00');
+    const dayKr = ANA_DAYS_KR[d.getDay()];
+    return days.indexOf(dayKr) >= 0;
+  }
+  // 학번 → 학생 매핑
+  const stMap = {};
+  targetStudents.forEach(s => { stMap[String(s.no)] = s; });
+  // 식사 기록을 (날짜 → Set<학번>)으로 매핑
+  const dayAttendMap = {};
+  records.forEach(r => {
+    if (!dayAttendMap[r.date]) dayAttendMap[r.date] = new Set();
+    dayAttendMap[r.date].add(String(r.no));
+  });
+  let absentTotal = 0;
+  weekdayDates.forEach(dateStr => {
+    let targetN = 0;
+    targetStudents.forEach(st => { if (isStudentTarget(st, dateStr)) targetN++; });
+    const attendedN = dayAttendMap[dateStr] ? dayAttendMap[dateStr].size : 0;
+    const absent = Math.max(0, targetN - attendedN);
+    absentTotal += absent;
+  });
+  const absentAvg = weekdayCount ? Math.round(absentTotal / weekdayCount) : 0;
+
+  // 단위별 총 식사 인원 (고유 학생) — 가장 최근 단위 기준
+  const unitLabel = _trUnit==='week' ? '주간' : '월간';
+  let unitUniqueCount = 0;
+  if (_trData.endDate) {
+    const ed = new Date(_trData.endDate + 'T00:00:00');
+    let unitStart;
+    if (_trUnit==='week') {
+      // 가장 최근 월요일
+      const day = ed.getDay();
+      unitStart = new Date(ed);
+      unitStart.setDate(ed.getDate() - (day===0 ? 6 : day-1));
+    } else {
+      // 해당 월 1일
+      unitStart = new Date(ed.getFullYear(), ed.getMonth(), 1);
+    }
+    const unitStartStr = fmtAnaDate(unitStart);
+    const unitEndStr = fmtAnaDate(ed);
+    const uniqueSet = new Set();
+    records.forEach(r => {
+      if (r.date >= unitStartStr && r.date <= unitEndStr) uniqueSet.add(String(r.no));
+    });
+    unitUniqueCount = uniqueSet.size;
+  }
 
   document.getElementById('tr-summary').innerHTML = `
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--sky)">${total}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">총 식사 횟수</div>
+      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--sky)">${weekdayCount}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 수</div>
     </div>
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
       <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--ok)">${weekdayAvg}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 평균</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 평균 식사</div>
     </div>
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--ok)">${unitAvg}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">${unitLabel} 평균</div>
+      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--red)">${absentAvg}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 평균 결석</div>
     </div>
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--accent)">${unitMax}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">${unitLabel} 최대</div>
+      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--accent)">${dayMax}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">일 최대</div>
     </div>
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--red)">${unitMin}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">${unitLabel} 최소</div>
+      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--accent)">${dayMin}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">일 최소</div>
     </div>
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:#a78bfa">${targetCount}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">대상 학생</div>
+      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:#a78bfa">${unitUniqueCount}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${unitLabel} 식사 인원</div>
     </div>
   `;
 
