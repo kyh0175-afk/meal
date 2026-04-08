@@ -1563,7 +1563,19 @@ function renderTrend(){
 
   // 요약 통계
   const total = records.length;
-  const avg = aggData.length ? Math.round(total / aggData.length) : 0;
+  // 평일 평균: 기간 내 평일(월~금) 일수로 나눔. 단위 토글과 무관.
+  let weekdayCount = 0;
+  if (_trData.startDate && _trData.endDate) {
+    const sd = new Date(_trData.startDate + 'T00:00:00');
+    const ed = new Date(_trData.endDate + 'T00:00:00');
+    const today = new Date(); today.setHours(23,59,59,999);
+    const limit = ed < today ? ed : today;
+    for (let d = new Date(sd); d <= limit; d.setDate(d.getDate()+1)) {
+      const dow = d.getDay();
+      if (dow >= 1 && dow <= 5) weekdayCount++;
+    }
+  }
+  const avg = weekdayCount ? Math.round(total / weekdayCount) : 0;
   const max = aggData.length ? Math.max(...aggData.map(d=>d.count)) : 0;
   const min = aggData.length ? Math.min(...aggData.map(d=>d.count)) : 0;
   document.getElementById('tr-summary').innerHTML = `
@@ -1573,7 +1585,7 @@ function renderTrend(){
     </div>
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
       <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--ok)">${avg}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">${_trUnit==='day'?'일':_trUnit==='week'?'주':'월'} 평균</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 평균</div>
     </div>
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
       <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--accent)">${max}</div>
