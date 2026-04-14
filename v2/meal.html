@@ -2194,7 +2194,7 @@ function renderTrend(){
     const x = padL + i * (innerW / n) + barGap/2;
     const h = (d.count / dailyMax) * innerH;
     const y = padT + innerH - h;
-    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" fill="#f59e0b">
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="#0a84ff">
       <title>${d.label}: ${d.count}명</title>
     </rect>`;
     const showEvery = n > 20 ? Math.ceil(n/15) : 1;
