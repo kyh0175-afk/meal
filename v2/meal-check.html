@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>야간 급식 확인 조회</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#111827;--bg2:#1a2236;--card:#1e293b;--card2:#263044;--border:#334155;--border2:#475569;--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--amber:#f59e0b;--amber2:#fbbf24;--green:#34d399;--green-bg:rgba(52,211,153,.12);--red:#f87171;--red-bg:rgba(248,113,113,.10);--blue:#60a5fa;--radius:12px;--radius-sm:8px}
+html{font-size:15px}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;-webkit-tap-highlight-color:transparent}
+.container{max-width:520px;margin:0 auto;padding:0 16px}
+button{font-family:inherit;cursor:pointer;border:none;outline:none;transition:all .2s}
+button:active{transform:scale(.97)}
+input{font-family:inherit;outline:none;border:none}
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 0;position:sticky;top:0;z-index:100}
+.header-inner{max-width:520px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:10px}
+.header-icon{font-size:24px}
+.header-title{font-size:17px;font-weight:800;color:var(--amber)}
+.header-sub{font-size:11px;color:var(--text3);margin-left:auto}
+.search-area{padding:24px 0 16px}
+.search-box{display:flex;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:6px 6px 6px 16px;align-items:center}
+.search-box input{flex:1;background:transparent;color:var(--text);font-size:16px;padding:8px 0}
+.search-box input::placeholder{color:var(--text3)}
+.search-btn{background:var(--amber);color:#000;font-size:13px;font-weight:700;padding:10px 20px;border-radius:var(--radius-sm)}
+.profile-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.profile-top{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.profile-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--amber),var(--amber2));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#000}
+.profile-name{font-size:18px;font-weight:800}
+.profile-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.profile-info{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info-item{background:var(--bg2);border-radius:var(--radius-sm);padding:12px;text-align:center}
+.info-label{font-size:11px;color:var(--text3);margin-bottom:4px}
+.info-value{font-size:15px;font-weight:700}
+.section-title{font-size:13px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;padding:0 4px;display:flex;align-items:center;justify-content:space-between}
+.view-toggle{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.view-toggle button{padding:6px 14px;background:transparent;color:var(--text3);font-size:12px;font-weight:700;cursor:pointer}
+.view-toggle button.on{background:var(--amber);color:#000}
+.nav-bar{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:14px}
+.nav-bar button{padding:6px 14px;border:1px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-size:12px;font-weight:600}
+.nav-bar .period{font-size:14px;font-weight:700;min-width:160px;text-align:center}
+.stat-bar{display:flex;gap:8px;margin-bottom:16px}
+.stat-chip{flex:1;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px}
+.stat-chip .num{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
+.stat-chip .lbl{font-size:10px;color:var(--text3);margin-top:2px}
+/* 주간 뷰 */
+.week-table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.week-table th{font-size:12px;color:var(--text3);font-weight:700;padding:10px 4px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.week-table th.sun{color:#ff7096}
+.week-table th.sat{color:var(--blue)}
+.week-table td{text-align:center;padding:14px 4px;font-size:13px}
+.week-table td .day-num{font-size:11px;color:var(--text3);margin-bottom:4px}
+.week-cell{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;font-weight:700}
+.cell-done{background:rgba(52,211,153,.25);color:var(--green)}
+.cell-miss{background:rgba(248,113,113,.18);color:var(--red)}
+.cell-future{color:var(--text3);font-size:14px}
+.cell-empty{color:var(--text3);font-size:18px}
+/* 월간 미니 달력 */
+.cal-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.cal-table{width:100%;border-collapse:collapse}
+.cal-table th{font-size:11px;font-weight:600;padding:6px 2px;color:var(--text3)}
+.cal-table th.sun{color:#ff7096}
+.cal-table th.sat{color:var(--blue)}
+.cal-table td{padding:3px;text-align:center}
+.cal-day{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text3);margin:auto}
+.cal-day.done{background:rgba(52,211,153,.25);color:var(--green);font-weight:700}
+.cal-day.miss{background:rgba(248,113,113,.15);color:var(--red);font-weight:700}
+.cal-day.today{outline:2px solid var(--amber);outline-offset:1px}
+.cal-legend{display:flex;justify-content:center;gap:14px;margin-top:12px;font-size:11px;color:var(--text3)}
+.cal-legend .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+.empty-state .msg{font-size:14px;line-height:1.8}
+.loading{text-align:center;padding:40px;color:var(--text3)}
+.spinner{display:inline-block;width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--amber);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-msg{background:var(--red-bg);border:1px solid rgba(248,113,113,.2);border-radius:var(--radius-sm);padding:12px 16px;color:var(--red);font-size:13px;text-align:center;margin-bottom:16px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <span class="header-icon">🍱</span>
+    <span class="header-title">야간 급식 확인</span>
+    <span class="header-sub">내 식사 조회</span>
+  </div>
+</div>
+
+<div class="container" style="padding-top:8px;padding-bottom:40px">
+  <div class="search-area">
+    <div class="search-box">
+      <input type="text" id="search-input" placeholder="학번 입력" inputmode="numeric" maxlength="5" onkeydown="if(event.key==='Enter')doSearch()">
+      <button class="search-btn" onclick="doSearch()">조회</button>
+    </div>
+  </div>
+  <div id="result-area">
+    <div class="empty-state">
+      <div class="icon">🔍</div>
+      <div class="msg">학번을 입력하면<br>식사 내역을 확인할 수 있어요</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+'use strict';
+
+// ── Supabase 설정 ──
+const SUPABASE_URL = 'https://mvuxbngxpmdmxdkxohoc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_h6vVNV3t-b2JSZAH2wuZ3g_bBq3_GwI';
+const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const MIN_DATE = new Date(2026, 3, 6); // 2026-04-06 기준일
+const DAY_NAMES = ['일','월','화','수','목','금','토'];
+
+const state = {
+  no: '',
+  data: null,         // { name, grade, cls, days, attendSet }
+  view: 'week',       // 'week' | 'month'
+  refDate: new Date() // 현재 보고 있는 기준 날짜
+};
+
+// gasPost 어댑터 — getStudentMealInfo만 처리
+async function gasPost(payload) {
+  try {
+    if(payload.action === 'getStudentMealInfo'){
+      const no = String(payload.no || '').trim();
+      // 학생 정보
+      const {data:s, error:e1} = await sbClient.from('meal_students').select('*').eq('학번',no).limit(1);
+      if(e1) throw e1;
+      if(!s || !s.length) return {ok:false, msg:'명단에서 학번을 찾을 수 없어요'};
+      const student = s[0];
+      // 식사 기록
+      const {data:recs, error:e2} = await sbClient.from('meal_records').select('날짜,원래시각,방법').eq('학번',no).order('날짜',{ascending:false});
+      if(e2) throw e2;
+      const days = Array.isArray(student.출석요일) ? student.출석요일 : [];
+      return {
+        ok: true,
+        // 평탄화 (기존 호출 사이트 호환)
+        no: student.학번,
+        name: student.이름,
+        grade: student.학년 || '',
+        cls: student.반 || '',
+        days: days.join(','),
+        records: (recs || []).map(r => ({
+          date: r.날짜,
+          time: (r.원래시각 || '').slice(0,8),
+          method: r.방법 || 'QR',
+        })),
+      };
+    }
+    return {ok:false, msg:'알 수 없는 액션'};
+  } catch(e) {
+    console.error(e);
+    return { ok: false, msg: '조회 실패: '+(e.message || '오류') };
+  }
+}
+
+const area = document.getElementById('result-area');
+
+function fmtDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+async function doSearch() {
+  const no = document.getElementById('search-input').value.trim();
+  if (!no) return;
+  area.innerHTML = '<div class="loading"><div class="spinner"></div><div style="margin-top:10px">조회 중...</div></div>';
+
+  const r = await gasPost({ action: 'getStudentMealInfo', no });
+  if (!r.ok) {
+    area.innerHTML = `<div class="error-msg">${r.msg}</div><div class="empty-state"><div class="icon">😢</div><div class="msg">급식 신청 명단에서<br>해당 학번을 찾을 수 없어요</div></div>`;
+    return;
+  }
+  state.no = no;
+  state.data = r;
+  state.attendSet = new Set((r.records || []).map(rec => rec.date));
+  // 처음 진입 시 오늘이 기준
+  state.refDate = new Date();
+  render();
+}
+window.doSearch = doSearch;
+
+function setView(v) {
+  state.view = v;
+  render();
+}
+window.setView = setView;
+
+function navPeriod(dir) {
+  const d = new Date(state.refDate);
+  if (state.view === 'week') d.setDate(d.getDate() + dir * 7);
+  else d.setMonth(d.getMonth() + dir);
+  // 하한 체크
+  if (state.view === 'week') {
+    const weekEnd = new Date(d); weekEnd.setDate(d.getDate() + 6);
+    if (weekEnd < MIN_DATE) return;
+  } else {
+    if (d.getFullYear() < 2026 || (d.getFullYear() === 2026 && d.getMonth() < 3)) return;
+  }
+  state.refDate = d;
+  render();
+}
+window.navPeriod = navPeriod;
+
+function isTargetDay(date, daysStr) {
+  const isAll = !daysStr || daysStr === '매일';
+  if (isAll) return true;
+  const dayKr = DAY_NAMES[date.getDay()];
+  return daysStr.indexOf(dayKr) >= 0;
+}
+
+function getWeekDates(baseDate) {
+  // 월~금 5일
+  const d = new Date(baseDate);
+  const day = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  return Array.from({length:5}, (_,i) => {
+    const dd = new Date(monday);
+    dd.setDate(monday.getDate() + i);
+    return dd;
+  });
+}
+
+function render() {
+  const data = state.data;
+  if (!data) return;
+  const today = new Date();
+  const todayStr = fmtDate(today);
+  const todayDone = state.attendSet.has(todayStr);
+  const days = data.days || '매일';
+
+  // 프로필 카드
+  let html = `
+    <div class="profile-card">
+      <div class="profile-top">
+        <div class="profile-avatar">${data.name.charAt(0)}</div>
+        <div>
+          <div class="profile-name">${data.name}</div>
+          <div class="profile-meta">${data.grade}학년 ${data.cls}반 · ${state.no}</div>
+        </div>
+      </div>
+      <div class="profile-info">
+        <div class="info-item">
+          <div class="info-label">신청 요일</div>
+          <div class="info-value" style="color:var(--amber)">${days}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">오늘 식사</div>
+          <div class="info-value" style="color:${todayDone ? 'var(--green)' : 'var(--red)'}">
+            ${todayDone ? '✓ 완료' : '✗ 안함'}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // 토글
+  html += `
+    <div class="section-title">
+      <span>식사 현황</span>
+      <div class="view-toggle">
+        <button class="${state.view==='week'?'on':''}" onclick="setView('week')">주간</button>
+        <button class="${state.view==='month'?'on':''}" onclick="setView('month')">월간</button>
+      </div>
+    </div>
+  `;
+
+  if (state.view === 'week') html += renderWeek(days);
+  else html += renderMonth(days);
+
+  area.innerHTML = html;
+}
+
+/* ── 주간 뷰 ── */
+function renderWeek(days) {
+  const dates = getWeekDates(state.refDate);
+  const today = new Date(); today.setHours(23,59,59,999);
+  const periodLabel = `${fmtDate(dates[0])} ~ ${fmtDate(dates[4])}`;
+
+  // 통계
+  let target = 0, done = 0;
+  dates.forEach(d => {
+    if (d > today || d < MIN_DATE) return;
+    if (!isTargetDay(d, days)) return;
+    target++;
+    if (state.attendSet.has(fmtDate(d))) done++;
+  });
+  const rate = target ? Math.round(done/target*100) : 0;
+  const rateColor = rate>=80?'var(--green)':rate>=50?'var(--amber)':'var(--red)';
+
+  let html = `
+    <div class="nav-bar">
+      <button onclick="navPeriod(-1)">←</button>
+      <div class="period">${periodLabel}</div>
+      <button onclick="navPeriod(1)">→</button>
+    </div>
+    <div class="stat-bar">
+      <div class="stat-chip">
+        <div class="num" style="color:${rateColor}">${rate}%</div>
+        <div class="lbl">주간 식사율</div>
+      </div>
+      <div class="stat-chip">
+        <div class="num" style="color:var(--green)">${done}<span style="font-size:13px;color:var(--text3)">/${target}</span></div>
+        <div class="lbl">식사 / 대상</div>
+      </div>
+    </div>
+    <table class="week-table">
+      <thead><tr>
+        ${['월','화','수','목','금'].map(d => `<th>${d}</th>`).join('')}
+      </tr></thead>
+      <tbody><tr>
+        ${dates.map(d => {
+          const dateStr = fmtDate(d);
+          const isTarget = isTargetDay(d, days);
+          const isFuture = d > today;
+          const isBefore = d < MIN_DATE;
+          const attended = state.attendSet.has(dateStr);
+          let cell;
+          if (isBefore) cell = '<span class="cell-empty">·</span>';
+          else if (isFuture) cell = '<span class="cell-future">-</span>';
+          else if (attended) cell = '<span class="week-cell cell-done">●</span>';
+          else if (!isTarget) cell = '<span class="cell-empty">·</span>';
+          else cell = '<span class="week-cell cell-miss">✕</span>';
+          return `<td><div class="day-num">${d.getDate()}</div>${cell}</td>`;
+        }).join('')}
+      </tr></tbody>
+    </table>
+    <div class="cal-legend" style="margin-top:14px">
+      <span><span class="dot" style="background:var(--green)"></span>식사 완료</span>
+      <span><span class="dot" style="background:var(--red)"></span>식사 안함</span>
+      <span><span style="color:var(--text3)">·</span> 비신청일</span>
+    </div>
+  `;
+  return html;
+}
+
+/* ── 월간 뷰 ── */
+function renderMonth(days) {
+  const y = state.refDate.getFullYear();
+  const m = state.refDate.getMonth();
+  const today = new Date(); today.setHours(23,59,59,999);
+
+  const startDay = (y===2026 && m===3) ? 6 : 1; // 2026-04는 6일부터
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const allDates = [];
+  for (let dd = startDay; dd <= daysInMonth; dd++) {
+    allDates.push(new Date(y, m, dd));
+  }
+
+  // 통계
+  let target = 0, done = 0;
+  allDates.forEach(d => {
+    if (d > today) return;
+    if (!isTargetDay(d, days)) return;
+    target++;
+    if (state.attendSet.has(fmtDate(d))) done++;
+  });
+  const rate = target ? Math.round(done/target*100) : 0;
+  const rateColor = rate>=80?'var(--green)':rate>=50?'var(--amber)':'var(--red)';
+
+  // 달력 빌드 (월~일 주간 시작)
+  const firstDay = new Date(y, m, startDay).getDay();
+  const leadEmpty = firstDay === 0 ? 6 : firstDay - 1; // 월요일 시작
+  const weeks = [];
+  let week = new Array(leadEmpty).fill(null);
+  allDates.forEach(d => {
+    week.push(d);
+    if (week.length === 7) { weeks.push(week); week = []; }
+  });
+  if (week.length) {
+    while (week.length < 7) week.push(null);
+    weeks.push(week);
+  }
+
+  const todayStr = fmtDate(new Date());
+
+  let html = `
+    <div class="nav-bar">
+      <button onclick="navPeriod(-1)">←</button>
+      <div class="period">${y}년 ${m+1}월</div>
+      <button onclick="navPeriod(1)">→</button>
+    </div>
+    <div class="stat-bar">
+      <div class="stat-chip">
+        <div class="num" style="color:${rateColor}">${rate}%</div>
+        <div class="lbl">월간 식사율</div>
+      </div>
+      <div class="stat-chip">
+        <div class="num" style="color:var(--green)">${done}<span style="font-size:13px;color:var(--text3)">/${target}</span></div>
+        <div class="lbl">식사 / 대상</div>
+      </div>
+    </div>
+    <div class="cal-card">
+      <table class="cal-table">
+        <thead><tr>
+          ${['월','화','수','목','금','토','일'].map(d => {
+            const cls = d==='일'?'sun':d==='토'?'sat':'';
+            return `<th class="${cls}">${d}</th>`;
+          }).join('')}
+        </tr></thead>
+        <tbody>
+          ${weeks.map(w => `<tr>${w.map(d => {
+            if (!d) return '<td></td>';
+            const dateStr = fmtDate(d);
+            const isTarget = isTargetDay(d, days);
+            const isFuture = d > today;
+            const attended = state.attendSet.has(dateStr);
+            const isToday = dateStr === todayStr;
+            let cls = 'cal-day';
+            if (attended) cls += ' done';
+            else if (!isFuture && isTarget) cls += ' miss';
+            if (isToday) cls += ' today';
+            return `<td><div class="${cls}">${d.getDate()}</div></td>`;
+          }).join('')}</tr>`).join('')}
+        </tbody>
+      </table>
+      <div class="cal-legend">
+        <span><span class="dot" style="background:var(--green)"></span>식사 완료</span>
+        <span><span class="dot" style="background:var(--red)"></span>식사 안함</span>
+      </div>
+    </div>
+  `;
+  return html;
+}
+
+// URL 파라미터로 학번 자동 검색
+const autoNo = new URLSearchParams(location.search).get('no');
+if (autoNo) { document.getElementById('search-input').value = autoNo; doSearch(); }
+
+})();
+</script>
+</body>
+</html>
