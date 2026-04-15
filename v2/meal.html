@@ -1054,7 +1054,8 @@ async function tryConfirm(no,method){
   no=String(no).trim();
   // 세션 ID: 학생 화면이면 studentSessionId, 교사 화면이면 sessionId
   const sid = S.studentSessionId || S.sessionId || '';
-  if(!sid) return{ok:false,msg:'먼저 QR을 생성해주세요.'};
+  // 수동 입력은 세션 없어도 OK (QR 방식만 세션 필수)
+  if(method !== '수동' && !sid) return{ok:false,msg:'먼저 QR을 생성해주세요.'};
   if(S.confirmed.find(c=>String(c.no)===no))return{ok:false,msg:'이미 식사 확인된 학생이에요.'};
   const local=S.roster.find(s=>String(s.no)===no);
   const tmp={no,name:local?local.name:no,time:new Date().toTimeString().slice(0,8),method:method||'QR',_p:true};
