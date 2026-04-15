@@ -609,10 +609,11 @@ async function gasPost(payload, retry=2) {
       const no = String(payload.studentNo || '').trim();
       if(!/^\d{5}$/.test(no)) return {ok:false, msg:'학번 5자리를 입력해주세요'};
 
-      // 시간 검증 (18:20~18:50)
+      // 시간 검증 (18:20~18:50) — manual:true 또는 수동 입력은 우회
       const now = new Date();
       const cur = now.getHours()*60 + now.getMinutes();
-      if(cur < 1100 || cur >= 1130){
+      const skipTimeCheck = payload.manual || payload.method === '수동';
+      if(!skipTimeCheck && (cur < 1100 || cur >= 1130)){
         const hh = String(now.getHours()).padStart(2,'0');
         const mm = String(now.getMinutes()).padStart(2,'0');
         return {ok:false, msg:'식사 확인 가능 시간이 아닙니다.\n현재: '+hh+':'+mm+'\n가능: 18:20 ~ 18:50'};
