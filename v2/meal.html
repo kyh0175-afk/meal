@@ -1172,9 +1172,9 @@ function renderHistTable(){
   if(!list.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';return}
   tbody.innerHTML=list.map(s=>{
     const actBtn = s.isDone
-      ? `<button class="btn btn-ghost btn-sm" onclick="deleteRecord('${s.no}','${_histData.date}')" style="color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:4px 8px">삭제</button>`
-      : `<button class="btn btn-ghost btn-sm" onclick="addRecord('${s.no}','${_histData.date}')" style="color:var(--ok);border-color:rgba(52,211,153,.3);font-size:11px;padding:4px 8px">추가</button>`;
-    return`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>'}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${s.isDone?fmtTimeShort(s.time):'—'}</td><td>${actBtn}</td></tr>`
+      ? `<button class="btn btn-ghost btn-sm" onclick="deleteRecord('${s.no}','${_histData.date}')" style="color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:4px 10px;white-space:nowrap">삭제</button>`
+      : `<button class="btn btn-ghost btn-sm" onclick="addRecord('${s.no}','${_histData.date}')" style="color:var(--ok);border-color:rgba(52,211,153,.3);font-size:11px;padding:4px 10px;white-space:nowrap">추가</button>`;
+    return`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>'}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${s.isDone?fmtTimeShort(s.time):'—'}</td><td style="white-space:nowrap">${actBtn}</td></tr>`
   }).join('');
 }
 window.renderHistTable=renderHistTable;
