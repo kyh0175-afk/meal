@@ -702,6 +702,38 @@ async function gasPost(payload, retry=2) {
       return {ok:true};
     }
 
+    if(action === 'addMealRecord'){
+      // 과거/오늘 날짜에 직접 식사 기록 추가 (관리자용)
+      const no = String(payload.no || '').trim();
+      const date = payload.date;
+      if(!/^\d{5}$/.test(no)) return {ok:false, msg:'학번 5자리 필요'};
+      if(!date) return {ok:false, msg:'날짜 필요'};
+
+      const student = await sb.students.byNo(no);
+      if(!student) return {ok:false, msg:'명단에 없는 학번입니다.'};
+
+      // 중복 체크
+      const recs = await sb.records.byDate(date);
+      if(recs.find(r => r.학번 === no)){
+        return {ok:false, msg:student.이름+' 학생은 이미 식사 확인됨'};
+      }
+
+      const result = await sb.records.add({
+        sessionId: 'manual',
+        no,
+        name: student.이름,
+        grade: student.학년,
+        cls: student.반,
+        date: date,
+        time: nowTimeStr(),
+        method: '수동',
+      });
+      if(result.alreadyDone){
+        return {ok:false, msg:student.이름+' 학생은 이미 식사 확인됨'};
+      }
+      return {ok:true, name:student.이름, time:nowTimeStr()};
+    }
+
     if(action === 'getStudentMealInfo'){
       const no = String(payload.studentNo || '').trim();
       const student = await sb.students.byNo(no);
@@ -1139,11 +1171,35 @@ function renderHistTable(){
   document.getElementById('hist-empty').style.display='none';
   if(!list.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';return}
   tbody.innerHTML=list.map(s=>{
-    const delBtn=s.isDone?`<button class="btn btn-ghost btn-sm" onclick="deleteRecord('${s.no}','${_histData.date}')" style="color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:4px 8px">삭제</button>`:'';
-    return`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>'}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${s.isDone?fmtTimeShort(s.time):'—'}</td><td>${delBtn}</td></tr>`
+    const actBtn = s.isDone
+      ? `<button class="btn btn-ghost btn-sm" onclick="deleteRecord('${s.no}','${_histData.date}')" style="color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:4px 8px">삭제</button>`
+      : `<button class="btn btn-ghost btn-sm" onclick="addRecord('${s.no}','${_histData.date}')" style="color:var(--ok);border-color:rgba(52,211,153,.3);font-size:11px;padding:4px 8px">추가</button>`;
+    return`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>'}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${s.isDone?fmtTimeShort(s.time):'—'}</td><td>${actBtn}</td></tr>`
   }).join('');
 }
 window.renderHistTable=renderHistTable;
+
+async function addRecord(no, date){
+  if(!confirm(no+' 학생의 '+date+' 식사 기록을 추가할까요?'))return;
+  const r=await gasPost({action:'addMealRecord',no:no,date:date});
+  if(!r.ok){toast(r.msg,'err');return}
+  toast(r.name+' 추가됨','ok');
+  // 로컬에도 추가
+  _histData.records.push({no:no, name:r.name, time:r.time, method:'수동'});
+  // 오늘이면 오늘 현황도 업데이트
+  const today=new Date().toISOString().slice(0,10);
+  if(date===today){
+    S.confirmed.push({no:no, name:r.name, time:r.time, method:'수동'});
+    refreshStats();renderTodayList();renderRoster();
+  }
+  // 통계 재계산
+  const doneSet=new Set(_histData.records.map(r=>String(r.no)));
+  const total=_histData.roster.length,done=_histData.roster.filter(s=>doneSet.has(String(s.no))).length,miss=total-done;
+  document.getElementById('hist-total').textContent=total;document.getElementById('hist-done').textContent=done;
+  document.getElementById('hist-miss').textContent=miss;document.getElementById('hist-rate').textContent=(total>0?Math.round(done/total*100):0)+'%';
+  renderHistTable();
+}
+window.addRecord=addRecord;
 
 async function deleteRecord(no, date){
   if(!confirm(no+' 학생의 '+date+' 식사 기록을 삭제할까요?'))return;
