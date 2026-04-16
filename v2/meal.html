@@ -217,6 +217,18 @@ select option{background:#fff;color:#000}
           <div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">학생 명단을 불러오는 중...</div>
         </div>
       </div>
+
+      <!-- 석식 미운영일 관리 -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-head">📅 석식 미운영일 관리</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">미운영일은 분석·추이 통계 계산에서 자동 제외됩니다.</p>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+          <input type="date" id="holiday-date" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
+          <input type="text" id="holiday-reason" placeholder="사유 (선택)" style="flex:1;min-width:120px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
+          <button class="btn btn-amber btn-sm" onclick="addHoliday()">추가</button>
+        </div>
+        <div id="holiday-list" style="font-size:13px;color:var(--muted)">불러오는 중...</div>
+      </div>
     </div>
 
     <!-- 수동 입력 -->
@@ -551,6 +563,32 @@ const sb = {
       return {ok:true};
     },
   },
+  holidays: {
+    async list(){
+      const {data,error} = await sb.client().from('meal_holidays').select('*').order('날짜',{ascending:true});
+      if(error) throw error;
+      return data || [];
+    },
+    async add(date, reason){
+      const {error} = await sb.client().from('meal_holidays').upsert({날짜:date, 사유:reason||''},{onConflict:'날짜'});
+      if(error) throw error;
+    },
+    async remove(date){
+      const {error} = await sb.client().from('meal_holidays').delete().eq('날짜',date);
+      if(error) throw error;
+    },
+    _cache: null,
+    _cacheTime: 0,
+    async getSet(){
+      // 5분 캐시
+      if(this._cache && Date.now() - this._cacheTime < 300000) return this._cache;
+      const list = await this.list();
+      this._cache = new Set(list.map(h => h.날짜));
+      this._cacheTime = Date.now();
+      return this._cache;
+    },
+    clearCache(){ this._cache = null; this._cacheTime = 0; },
+  },
 };
 window.sb = sb;
 
@@ -731,6 +769,23 @@ async function gasPost(payload, retry=2) {
         return {ok:false, msg:student.이름+' 학생은 이미 식사 확인됨'};
       }
       return {ok:true, name:student.이름, time:nowTimeStr()};
+    }
+
+    if(action === 'getHolidays'){
+      const list = await sb.holidays.list();
+      return {ok:true, holidays: list.map(h => ({date:h.날짜, reason:h.사유||''}))};
+    }
+
+    if(action === 'addHoliday'){
+      await sb.holidays.add(payload.date, payload.reason);
+      sb.holidays.clearCache();
+      return {ok:true};
+    }
+
+    if(action === 'removeHoliday'){
+      await sb.holidays.remove(payload.date);
+      sb.holidays.clearCache();
+      return {ok:true};
     }
 
     if(action === 'getStudentMealInfo'){
@@ -1072,7 +1127,7 @@ function goTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
   ['today','roster','manage','manual','history','analysis','trend'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('on',t===tab));
   if(tab==='roster')renderRoster();
-  if(tab==='manage')loadManageList();
+  if(tab==='manage'){loadManageList();loadHolidays();}
   if(tab==='history')loadHistoryDate();
   if(tab==='analysis')loadAnalysis();
   if(tab==='trend')loadTrend();
@@ -1346,6 +1401,49 @@ async function syncRosterAfterChange(){
   renderRoster();
 }
 
+/* ══ 석식 미운영일 관리 ══ */
+async function loadHolidays(){
+  const el = document.getElementById('holiday-list');
+  try {
+    const r = await gasPost({action:'getHolidays'});
+    if(!r.ok){el.textContent='로드 실패';return}
+    const list = r.holidays || [];
+    if(!list.length){el.innerHTML='<div style="padding:12px;color:var(--muted)">등록된 미운영일이 없어요</div>';return}
+    el.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
+      list.map(h => `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px 12px;font-family:'DM Mono',monospace;font-size:13px">${h.date}</td>
+        <td style="padding:8px 12px;font-size:13px;color:var(--text)">${h.reason || '—'}</td>
+        <td style="padding:8px 4px;text-align:right">
+          <button class="btn btn-ghost btn-sm" onclick="removeHoliday('${h.date}')" style="color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:4px 10px;white-space:nowrap">삭제</button>
+        </td>
+      </tr>`).join('') + '</table>';
+  } catch(e){ el.textContent='로드 실패: '+e.message; }
+}
+window.loadHolidays = loadHolidays;
+
+async function addHoliday(){
+  const dateInput = document.getElementById('holiday-date');
+  const reasonInput = document.getElementById('holiday-reason');
+  const date = dateInput.value;
+  if(!date){toast('날짜를 선택해주세요','err');return}
+  const r = await gasPost({action:'addHoliday', date:date, reason:reasonInput.value.trim()});
+  if(!r.ok){toast(r.msg||'추가 실패','err');return}
+  toast(date+' 미운영일 추가됨','ok');
+  dateInput.value = '';
+  reasonInput.value = '';
+  loadHolidays();
+}
+window.addHoliday = addHoliday;
+
+async function removeHoliday(date){
+  if(!confirm(date+' 미운영일을 삭제할까요?'))return;
+  const r = await gasPost({action:'removeHoliday', date:date});
+  if(!r.ok){toast(r.msg||'삭제 실패','err');return}
+  toast(date+' 미운영일 삭제됨','ok');
+  loadHolidays();
+}
+window.removeHoliday = removeHoliday;
+
 /* ── 학생 추가 ── */
 function buildAddDayButtons(){
   const wrap = document.getElementById('add-days');
@@ -1589,6 +1687,8 @@ async function loadAnalysis(){
   el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>';
   const period = getAnaPeriod();
   const r = await gasPost({ action:'getMealAnalysisData', startDate: fmtAnaDate(period.start), endDate: fmtAnaDate(period.end) });
+  // 미운영일도 함께 로드
+  _holidaySet = await sb.holidays.getSet();
   if (!r.ok){
     el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);font-size:14px">데이터 로드 실패: '+(r.msg||'')+'</div>';
     return;
@@ -1657,7 +1757,10 @@ function renderAnaTrend(){
     for (let dd = startDay; dd <= daysInMonth; dd++){
       const d = new Date(y, m, dd);
       const dow = d.getDay();
-      if (dow >= 1 && dow <= 5) dates.push(d); // 평일만
+      if (dow >= 1 && dow <= 5) {
+        const dateStr = fmtAnaDate(d);
+        if (!_holidaySet.has(dateStr)) dates.push(d); // 평일 + 미운영일 제외
+      }
     }
     document.getElementById('ana-period').textContent = `${y}년 ${m+1}월`;
   }
@@ -1668,19 +1771,22 @@ function renderAnaTrend(){
   // 날짜별 식사 인원 계산
   const counts = dates.map(d => {
     const dateStr = fmtAnaDate(d);
-    if (d > today || d < ANA_MIN_DATE) return { date: d, count: 0, isPast: false };
+    const isHoliday = _holidaySet.has(dateStr);
+    if (isHoliday) return { date: d, count: 0, isPast: true, isHoliday: true };
+    if (d > today || d < ANA_MIN_DATE) return { date: d, count: 0, isPast: false, isHoliday: false };
     let count = 0;
     studentNoSet.forEach(no => {
       if (attendMap[no] && attendMap[no].has(dateStr)) count++;
     });
-    return { date: d, count, isPast: true };
+    return { date: d, count, isPast: true, isHoliday: false };
   });
 
   const maxCount = Math.max(1, ...counts.map(c => c.count));
-  const totalAttend = counts.reduce((s,c) => s+c.count, 0);
-  const pastDays = counts.filter(c => c.isPast).length;
+  const activeCounts = counts.filter(c => c.isPast && !c.isHoliday);
+  const totalAttend = activeCounts.reduce((s,c) => s+c.count, 0);
+  const pastDays = activeCounts.length;
   const avg = pastDays ? Math.round(totalAttend/pastDays*10)/10 : 0;
-  const peak = counts.reduce((m,c) => c.count > m.count ? c : m, counts[0] || {count:0});
+  const peak = activeCounts.reduce((m,c) => c.count > m.count ? c : m, activeCounts[0] || {count:0});
 
   // 막대 너비 동적 계산
   const isMonth = _anaView === 'month';
@@ -1701,8 +1807,9 @@ function renderAnaTrend(){
     const dateStr = fmtAnaDate(c.date);
     const isFuture = c.date > today;
     const isBefore = c.date < ANA_MIN_DATE;
-    const fill = isFuture || isBefore ? 'rgba(255,255,255,.08)' : 'var(--ok)';
+    const fill = c.isHoliday ? 'rgba(0,0,0,.06)' : isFuture || isBefore ? 'rgba(0,0,0,.04)' : 'var(--ok)';
     const label = isMonth ? `${c.date.getDate()}` : `${c.date.getDate()}\n${dow}`;
+    const holidayMark = c.isHoliday ? `<text x="${x + barW/2}" y="${padTop + innerH/2}" text-anchor="middle" fill="var(--muted)" font-size="10">미운영</text>` : '';
     const labelLines = isMonth
       ? `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="rgba(255,255,255,.55)" font-size="10" font-family="DM Mono, monospace">${c.date.getDate()}</text>`
       : `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="rgba(255,255,255,.7)" font-size="11" font-family="DM Mono, monospace">${c.date.getMonth()+1}/${c.date.getDate()}</text>
@@ -1713,8 +1820,9 @@ function renderAnaTrend(){
     return `
       <g>
         <rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${fill}" rx="3">
-          <title>${dateStr} (${dow}): ${c.count}명</title>
+          <title>${dateStr} (${dow}): ${c.isHoliday ? '미운영일' : c.count+'명'}</title>
         </rect>
+        ${holidayMark}
         ${valueLabel}
         ${labelLines}
       </g>`;
@@ -1768,10 +1876,12 @@ function renderAnaWeek(){
       const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
       const isFuture = d > today;
       const isBefore = d < ANA_MIN_DATE;
+      const isHoliday = _holidaySet.has(dateStr);
       const attended = attendMap[st.no] && attendMap[st.no].has(dateStr);
       const isToday = dateStr === fmtAnaDate(new Date());
       let cell;
-      if (isBefore) cell = '<span style="color:rgba(255,255,255,.15)">·</span>';
+      if (isHoliday) cell = '<span style="color:var(--muted);font-size:10px">미운영</span>';
+      else if (isBefore) cell = '<span style="color:rgba(255,255,255,.15)">·</span>';
       else if (isFuture) cell = '<span style="color:rgba(255,255,255,.4);font-size:16px">-</span>';
       else if (attended && isTarget) cell = '<span style="color:var(--ok);font-size:18px;line-height:1">●</span>';
       else if (!isTarget) cell = '<span style="color:rgba(255,255,255,.3);font-size:18px">·</span>';
@@ -1779,10 +1889,11 @@ function renderAnaWeek(){
       return `<td style="text-align:center;padding:8px 4px;border-bottom:1px solid var(--border);${isToday?'background:rgba(245,158,11,.08)':''}">${cell}</td>`;
     }).join('');
 
-    // 식사율 계산
+    // 식사율 계산 (미운영일 제외)
     let total=0, done=0;
     dates.forEach(d=>{
       if (d > today || d < ANA_MIN_DATE) return;
+      if (_holidaySet.has(fmtAnaDate(d))) return; // 미운영일 제외
       const dayKr = ANA_DAYS_KR[d.getDay()];
       const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
       if (!isTarget) return;
@@ -2009,6 +2120,7 @@ window.downloadAnalysisExcel = downloadAnalysisExcel;
 /* ══ 추이 탭 ══ */
 var _trUnit = 'week';
 var _trData = { students: [], records: [], startDate: '', endDate: '' };
+var _holidaySet = new Set(); // 석식 미운영일
 // 추이 네비게이션 앵커 (주별: 월요일, 월별: 1일)
 var _trAnchor = (function(){
   const now = new Date();
@@ -2085,6 +2197,8 @@ async function loadTrend(){
   const startStr = fmtAnaDate(start);
   const endStr = fmtAnaDate(end);
   const r = await gasPost({action:'getMealAnalysisData', startDate:startStr, endDate:endStr});
+  // 미운영일도 함께 로드
+  _holidaySet = await sb.holidays.getSet();
   if (!r.ok) {
     el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);font-size:14px">로드 실패: '+(r.msg||'')+'</div>';
     return;
@@ -2188,9 +2302,10 @@ function renderTrend(){
     const endLimit = ed < limitDate ? ed : limitDate;
     for (let d = new Date(sd); d <= endLimit; d.setDate(d.getDate()+1)) {
       const dow = d.getDay();
-      if (dow >= 1 && dow <= 5) {
+      const dateStr = fmtAnaDate(d);
+      if (dow >= 1 && dow <= 5 && !_holidaySet.has(dateStr)) {
         weekdayCount++;
-        weekdayDates.push(fmtAnaDate(d));
+        weekdayDates.push(dateStr);
       }
     }
   }
