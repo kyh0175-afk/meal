@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>야간 급식 - 테스트 모드</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#fbfbfd;--card:#fff;--border:#e5e5ea;--text:#1d1d1f;--muted:#86868b;--accent:#0a84ff;--ok:#30d158;--red:#ff3b30}
+html,body{height:100%}
+body{font-family:'Pretendard',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.banner{background:#fff3cd;border:1px solid #ffd966;color:#664d03;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:24px;text-align:center;max-width:420px;width:100%}
+.icon{font-size:56px;margin-bottom:12px}
+.title{font-size:24px;font-weight:800;margin-bottom:6px;text-align:center}
+.sub{font-size:14px;color:var(--muted);margin-bottom:28px;text-align:center}
+.input{width:100%;max-width:320px;background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:18px 24px;font-size:24px;font-weight:700;text-align:center;font-family:'Pretendard',-apple-system,sans-serif;outline:none;color:var(--text);letter-spacing:2px}
+.input:focus{border-color:var(--accent)}
+.input::placeholder{color:#c7c7cc;letter-spacing:normal}
+.btn{margin-top:18px;padding:16px 56px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.err{color:var(--red);font-size:14px;margin-top:14px;text-align:center;white-space:pre-line;display:none;font-weight:600}
+.ok-screen{display:none;flex-direction:column;align-items:center;text-align:center}
+.ok-check{font-size:80px;margin-bottom:12px}
+.ok-name{font-size:28px;font-weight:800;margin-bottom:6px}
+.ok-meta{font-size:14px;color:var(--muted);margin-bottom:24px}
+.again{padding:12px 32px;background:transparent;border:1.5px solid var(--border);border-radius:12px;font-size:14px;font-weight:700;color:var(--text);cursor:pointer;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="banner">🧪 테스트 모드 — 시간 제한 없음</div>
+
+<div id="input-screen" style="display:flex;flex-direction:column;align-items:center;width:100%">
+  <div class="icon">🍱</div>
+  <div class="title">야간 급식 확인</div>
+  <div class="sub">학번을 입력해주세요 (테스트)</div>
+  <input type="text" class="input" id="no-input" inputmode="numeric" placeholder="학번 5자리" maxlength="5" autocomplete="off">
+  <button class="btn" id="confirm-btn" onclick="doConfirm()">🍱 식사 확인</button>
+  <div class="err" id="err-msg"></div>
+</div>
+
+<div class="ok-screen" id="ok-screen">
+  <div class="ok-check">✅</div>
+  <div class="ok-name" id="ok-name"></div>
+  <div class="ok-meta" id="ok-meta"></div>
+  <button class="again" onclick="resetForm()">다시 테스트</button>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://mvuxbngxpmdmxdkxohoc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_h6vVNV3t-b2JSZAH2wuZ3g_bBq3_GwI';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function todayKST(){
+  const d = new Date();
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function nowTimeStr(){
+  const d = new Date();
+  return d.toTimeString().slice(0,8);
+}
+
+const DAY_KR = ['일','월','화','수','목','금','토'];
+
+async function doConfirm(){
+  const noInput = document.getElementById('no-input');
+  const btn = document.getElementById('confirm-btn');
+  const err = document.getElementById('err-msg');
+  const no = noInput.value.trim();
+  err.style.display = 'none';
+
+  if(!/^\d{5}$/.test(no)){
+    err.textContent = '학번 5자리를 입력해주세요';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '확인 중...';
+
+  try {
+    // 명단 확인
+    const {data:students, error:e1} = await sb.from('meal_students').select('*').eq('학번', no).limit(1);
+    if(e1) throw e1;
+    if(!students || !students.length){
+      err.textContent = '명단에 없는 학번입니다';
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = '🍱 식사 확인';
+      return;
+    }
+    const student = students[0];
+    if(!student.활성){
+      err.textContent = '비활성화된 학생입니다';
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = '🍱 식사 확인';
+      return;
+    }
+
+    // 중복 체크
+    const {data:dups, error:e2} = await sb.from('meal_records').select('*').eq('날짜', todayKST()).eq('학번', no).limit(1);
+    if(e2) throw e2;
+    if(dups && dups.length){
+      err.textContent = student.이름+' 학생은 이미 식사 확인됨\n('+(dups[0].원래시각||'').slice(0,8)+')';
+      err.style.display = 'block';
+      btn.disabled = false; btn.textContent = '🍱 식사 확인';
+      return;
+    }
+
+    // INSERT
+    const time = nowTimeStr();
+    const {error:e3} = await sb.from('meal_records').insert({
+      세션id: 'test',
+      학번: no,
+      이름: student.이름,
+      학년: student.학년,
+      반: student.반,
+      날짜: todayKST(),
+      원래시각: time,
+      처리시각: time,
+      방법: '테스트',
+      상태: '식사',
+    });
+    if(e3) throw e3;
+
+    // 성공 화면
+    document.getElementById('input-screen').style.display = 'none';
+    document.getElementById('ok-screen').style.display = 'flex';
+    document.getElementById('ok-name').textContent = student.이름;
+    document.getElementById('ok-meta').textContent = `${student.학년}학년 ${student.반}반 · ${time.slice(0,5)} · 테스트 모드`;
+  } catch(e){
+    err.textContent = '오류: ' + (e.message || e);
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = '🍱 식사 확인';
+  }
+}
+
+function resetForm(){
+  document.getElementById('input-screen').style.display = 'flex';
+  document.getElementById('ok-screen').style.display = 'none';
+  document.getElementById('no-input').value = '';
+  document.getElementById('err-msg').style.display = 'none';
+  document.getElementById('confirm-btn').disabled = false;
+  document.getElementById('confirm-btn').textContent = '🍱 식사 확인';
+  document.getElementById('no-input').focus();
+}
+
+// 엔터로 제출
+document.getElementById('no-input').addEventListener('keydown', e => {
+  if(e.key === 'Enter') doConfirm();
+});
+
+document.getElementById('no-input').focus();
+</script>
+</body>
+</html>
