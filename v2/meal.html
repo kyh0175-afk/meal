@@ -314,13 +314,12 @@ select option{background:#fff;color:#000}
             <button id="tr-unit-week" class="on" onclick="setTrendUnit('week')">주별</button>
             <button id="tr-unit-month" onclick="setTrendUnit('month')">월별</button>
           </div>
-          <select id="tr-range" onchange="loadTrend()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
-            <option value="14">최근 2주</option>
-            <option value="30" selected>최근 30일</option>
-            <option value="60">최근 60일</option>
-            <option value="90">최근 90일</option>
-            <option value="180">최근 6개월</option>
-          </select>
+          <!-- 주별/월별 네비게이션 -->
+          <div style="display:flex;align-items:center;gap:6px">
+            <button class="btn btn-ghost btn-sm" id="tr-prev" onclick="navTrend(-1)" style="padding:6px 10px;font-size:14px">←</button>
+            <span id="tr-period" style="font-size:14px;font-weight:700;min-width:180px;text-align:center">—</span>
+            <button class="btn btn-ghost btn-sm" id="tr-next" onclick="navTrend(1)" style="padding:6px 10px;font-size:14px">→</button>
+          </div>
           <select id="tr-grade" onchange="renderTrend()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
             <option value="">전체 학년</option>
             <option value="1">1학년</option>
@@ -2010,22 +2009,77 @@ window.downloadAnalysisExcel = downloadAnalysisExcel;
 /* ══ 추이 탭 ══ */
 var _trUnit = 'week';
 var _trData = { students: [], records: [], startDate: '', endDate: '' };
+// 추이 네비게이션 앵커 (주별: 월요일, 월별: 1일)
+var _trAnchor = (function(){
+  const now = new Date();
+  const day = now.getDay();
+  const mon = new Date(now);
+  mon.setDate(now.getDate() - (day===0 ? 6 : day-1));
+  mon.setHours(0,0,0,0);
+  return mon;
+})();
 
 function setTrendUnit(u){
   _trUnit = u;
   ['week','month'].forEach(x=>{
     document.getElementById('tr-unit-'+x).classList.toggle('on', x===u);
   });
-  renderTrend();
+  // 현재 날짜 기준으로 초기화
+  const now = new Date();
+  if(u === 'week'){
+    // 이번 주 월요일
+    const day = now.getDay();
+    _trAnchor = new Date(now);
+    _trAnchor.setDate(now.getDate() - (day===0 ? 6 : day-1));
+  } else {
+    // 이번 달 1일
+    _trAnchor = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  loadTrend();
 }
 window.setTrendUnit = setTrendUnit;
+
+// 네비게이션
+function navTrend(dir){
+  if(_trUnit === 'week'){
+    _trAnchor.setDate(_trAnchor.getDate() + dir * 7);
+  } else {
+    _trAnchor.setMonth(_trAnchor.getMonth() + dir);
+  }
+  loadTrend();
+}
+window.navTrend = navTrend;
+
+// 기간 시작/끝 계산
+function getTrendRange(){
+  let start, end;
+  if(_trUnit === 'week'){
+    start = new Date(_trAnchor);
+    end = new Date(_trAnchor);
+    end.setDate(end.getDate() + 6); // 월~일
+  } else {
+    start = new Date(_trAnchor);
+    end = new Date(_trAnchor.getFullYear(), _trAnchor.getMonth() + 1, 0); // 월 말일
+  }
+  return {start, end};
+}
+
+// 기간 표시 텍스트
+function getTrendPeriodLabel(){
+  const {start, end} = getTrendRange();
+  if(_trUnit === 'week'){
+    return fmtAnaDate(start) + ' ~ ' + fmtAnaDate(end);
+  } else {
+    return start.getFullYear() + '년 ' + (start.getMonth()+1) + '월';
+  }
+}
 
 async function loadTrend(){
   const el = document.getElementById('tr-content');
   el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>';
-  const days = parseInt(document.getElementById('tr-range').value || '30', 10);
-  const end = new Date();
-  const start = new Date(); start.setDate(end.getDate() - days + 1);
+  // 기간 레이블 업데이트
+  document.getElementById('tr-period').textContent = getTrendPeriodLabel();
+  const {start, end} = getTrendRange();
   // ANA_MIN_DATE 이전으로는 안 가도록
   if (start < ANA_MIN_DATE) start.setTime(ANA_MIN_DATE.getTime());
   const startStr = fmtAnaDate(start);
@@ -2176,29 +2230,11 @@ function renderTrend(){
   });
   const absentAvg = weekdayCount ? Math.round(absentTotal / weekdayCount) : 0;
 
-  // 단위별 총 식사 인원 (고유 학생) — 가장 최근 단위 기준
+  // 단위별 총 식사 인원 (고유 학생) — 현재 보고 있는 기간 전체
   const unitLabel = _trUnit==='week' ? '주간' : '월간';
-  let unitUniqueCount = 0;
-  if (_trData.endDate) {
-    const ed = new Date(_trData.endDate + 'T00:00:00');
-    let unitStart;
-    if (_trUnit==='week') {
-      // 가장 최근 월요일
-      const day = ed.getDay();
-      unitStart = new Date(ed);
-      unitStart.setDate(ed.getDate() - (day===0 ? 6 : day-1));
-    } else {
-      // 해당 월 1일
-      unitStart = new Date(ed.getFullYear(), ed.getMonth(), 1);
-    }
-    const unitStartStr = fmtAnaDate(unitStart);
-    const unitEndStr = fmtAnaDate(ed);
-    const uniqueSet = new Set();
-    records.forEach(r => {
-      if (r.date >= unitStartStr && r.date <= unitEndStr) uniqueSet.add(String(r.no));
-    });
-    unitUniqueCount = uniqueSet.size;
-  }
+  const uniqueSet = new Set();
+  records.forEach(r => uniqueSet.add(String(r.no)));
+  const unitUniqueCount = uniqueSet.size;
 
   document.getElementById('tr-summary').innerHTML = `
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
@@ -2260,14 +2296,14 @@ function renderTrend(){
       labels += `<text x="${x + barW/2}" y="${padT + innerH + 18}" text-anchor="middle" font-size="10" fill="#7a8499">${fmtTrendLabel(d.label, 'day')}</text>`;
     }
     if (d.count > 0 && (n <= 20 || i % showEvery === 0)) {
-      valueLabels += `<text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" font-size="9" fill="#edf0f7" font-weight="600">${d.count}</text>`;
+      valueLabels += `<text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" font-size="9" fill="#1d1d1f" font-weight="600">${d.count}</text>`;
     }
   });
 
   let grid = '';
   yTicks.forEach(v => {
     const y = padT + innerH - (v / dailyMax) * innerH;
-    grid += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>`;
+    grid += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(0,0,0,.06)" stroke-width="1"/>`;
     grid += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="10" fill="#7a8499">${v}</text>`;
   });
 
@@ -2281,7 +2317,7 @@ function renderTrend(){
       </svg>
     </div>
     <div style="margin-top:8px;font-size:12px;color:var(--muted);text-align:center">
-      ${_trData.startDate} ~ ${_trData.endDate} · 일별 식사 인원
+      ${getTrendPeriodLabel()} · 일별 식사 인원
     </div>
   `;
 }
