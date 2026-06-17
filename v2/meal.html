@@ -1149,11 +1149,6 @@ function renderTodayList(){
     setTimeout(()=>{ S._justAdded.clear(); }, 2500);
   }
 }
-  // 플래시 처리한 항목은 마킹 해제 (다음 렌더부터는 강조 안 함)
-  if(S._justAdded.size){
-    setTimeout(()=>{ S._justAdded.clear(); }, 2500);
-  }
-}
 
 /* ══ 명단 탭 ══ */
 function setRosterFilter(f){S.rosterFilter=f;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('on',b.dataset.filter===f));renderRoster()}
