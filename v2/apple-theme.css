@@ -563,6 +563,22 @@ body:not(:has(.student-screen.on))::before{ display: none !important; }
 #dashboard tr:last-child td{ border-bottom: none; }
 #dashboard tr:hover td{ background: var(--bg-softer); }
 
+/* ─── 금일 식사 인원 (크게 표시) ─── */
+#dashboard table.today-big th{
+  font-size: 15px !important;
+  padding: 0 10px 12px !important;
+  background: transparent;
+}
+#dashboard table.today-big td{
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  padding: 16px 10px !important;
+}
+#dashboard table.today-big td.tb-time{
+  font-size: 24px !important;
+  font-weight: 500 !important;
+}
+
 /* ─── 뱃지 ─── */
 #dashboard .badge{
   padding: 3px 10px !important;
