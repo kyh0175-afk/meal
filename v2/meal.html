@@ -87,10 +87,11 @@ select option{background:#fff;color:#000}
 @media(max-width:600px){.stat-num{font-size:22px}}
 /* 금일 식사 인원 새 항목 플래시 효과 */
 @keyframes rowFlash{
-  0%{background:rgba(52,211,153,.35)}
+  0%{background:rgba(52,211,153,.45)}
+  15%{background:rgba(52,211,153,.45)}
   100%{background:transparent}
 }
-.row-flash td{ animation:rowFlash 1.8s ease-out; }
+.row-flash td{ animation:rowFlash 2.2s ease-out; }
 </style>
 </head>
 <body>
@@ -1137,9 +1138,10 @@ function renderTodayList(){
       const flash=S._justAdded.has(no)?' class="row-flash"':'';
       return `<tr${flash}><td class="tb-no">${c.no}</td><td class="tb-name">${c.name}</td><td class="tb-time">${fmtTimeShort(c.time)}</td></tr>`;
     }).join('')+'</tbody></table>';
+  if(S._justAdded.size) console.log('[flash] 새 항목 마킹:', [...S._justAdded]);
   // 플래시 처리한 항목은 마킹 해제 (다음 렌더부터는 강조 안 함)
   if(S._justAdded.size){
-    setTimeout(()=>{ S._justAdded.clear(); }, 2000);
+    setTimeout(()=>{ S._justAdded.clear(); }, 2500);
   }
 }
 
