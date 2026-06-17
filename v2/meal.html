@@ -1135,10 +1135,20 @@ function renderTodayList(){
   el.innerHTML='<table class="today-big"><thead><tr><th>학번</th><th>이름</th><th>시각</th></tr></thead><tbody>'
     +list.map(c=>{
       const no=String(c.no);
-      const flash=S._justAdded.has(no)?' class="row-flash"':'';
-      return `<tr${flash}><td class="tb-no">${c.no}</td><td class="tb-name">${c.name}</td><td class="tb-time">${fmtTimeShort(c.time)}</td></tr>`;
+      const mark=S._justAdded.has(no)?` data-flash="${no}"`:'';
+      return `<tr${mark}><td class="tb-no">${c.no}</td><td class="tb-name">${c.name}</td><td class="tb-time">${fmtTimeShort(c.time)}</td></tr>`;
     }).join('')+'</tbody></table>';
-  if(S._justAdded.size) console.log('[flash] 새 항목 마킹:', [...S._justAdded]);
+  // 렌더 직후 플래시 클래스를 JS로 부여 → 애니메이션 강제 트리거
+  if(S._justAdded.size){
+    console.log('[flash] 새 항목 마킹:', [...S._justAdded]);
+    const flashRows = el.querySelectorAll('tr[data-flash]');
+    flashRows.forEach(tr=>{
+      void tr.offsetHeight; // 강제 reflow
+      tr.classList.add('row-flash');
+    });
+    setTimeout(()=>{ S._justAdded.clear(); }, 2500);
+  }
+}
   // 플래시 처리한 항목은 마킹 해제 (다음 렌더부터는 강조 안 함)
   if(S._justAdded.size){
     setTimeout(()=>{ S._justAdded.clear(); }, 2500);
