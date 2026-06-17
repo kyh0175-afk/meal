@@ -580,13 +580,14 @@ body:not(:has(.student-screen.on))::before{ display: none !important; }
 }
 /* 새 항목 플래시 (hover 배경보다 우선) */
 @keyframes rowFlashApple{
-  0%{ background-color: rgba(48,209,88,.5) !important; }
-  15%{ background-color: rgba(48,209,88,.5) !important; }
-  100%{ background-color: transparent !important; }
+  0%{ background-color: rgba(48,209,88,.5); }
+  15%{ background-color: rgba(48,209,88,.5); }
+  100%{ background-color: rgba(48,209,88,0); }
 }
 #dashboard table.today-big tbody tr.row-flash td,
 #dashboard table.today-big tbody tr.row-flash:hover td{
   animation: rowFlashApple 2.2s ease-out !important;
+  background-color: transparent;
 }
 
 /* ─── 뱃지 ─── */
