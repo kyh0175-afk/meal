@@ -85,6 +85,12 @@ select option{background:#fff;color:#000}
 .toast.ok{background:rgba(52,211,153,.18);color:var(--ok);border:1px solid rgba(52,211,153,.3)}
 .toast.err{background:rgba(248,113,113,.18);color:var(--red);border:1px solid rgba(248,113,113,.3)}
 @media(max-width:600px){.stat-num{font-size:22px}}
+/* 금일 식사 인원 새 항목 플래시 효과 */
+@keyframes rowFlash{
+  0%{background:rgba(52,211,153,.35)}
+  100%{background:transparent}
+}
+.row-flash td{ animation:rowFlash 1.8s ease-out; }
 </style>
 </head>
 <body>
@@ -397,7 +403,7 @@ select option{background:#fff;color:#000}
 (function(){
 'use strict';
 
-const S = { roster:[], confirmed:[], pollInt:null, rosterFilter:'all', npVal:'' };
+const S = { roster:[], confirmed:[], pollInt:null, rosterFilter:'all', npVal:'', _justAdded:new Set() };
 
 // ══════════════════════════════════════════════════════════════
 //  Supabase 설정
@@ -1105,7 +1111,7 @@ function startPolling(){
     let upd=false;
     r.confirmed.forEach(c=>{
       const no=String(c.no).replace(/\.0$/,'');
-      if(!S.confirmed.find(x=>String(x.no)===no)){S.confirmed.push({...c,no});upd=true}
+      if(!S.confirmed.find(x=>String(x.no)===no)){S.confirmed.push({...c,no});S._justAdded.add(no);upd=true}
     });
     if(upd){refreshStats();renderTodayList();renderRoster()}
   },5000);
@@ -1126,7 +1132,15 @@ function renderTodayList(){
   if(!S.confirmed.length){el.innerHTML='<div style="font-size:15px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>';return}
   const list=[...S.confirmed].reverse().slice(0,15);
   el.innerHTML='<table class="today-big"><thead><tr><th>학번</th><th>이름</th><th>시각</th></tr></thead><tbody>'
-    +list.map(c=>`<tr><td class="tb-no">${c.no}</td><td class="tb-name">${c.name}</td><td class="tb-time">${fmtTimeShort(c.time)}</td></tr>`).join('')+'</tbody></table>';
+    +list.map(c=>{
+      const no=String(c.no);
+      const flash=S._justAdded.has(no)?' class="row-flash"':'';
+      return `<tr${flash}><td class="tb-no">${c.no}</td><td class="tb-name">${c.name}</td><td class="tb-time">${fmtTimeShort(c.time)}</td></tr>`;
+    }).join('')+'</tbody></table>';
+  // 플래시 처리한 항목은 마킹 해제 (다음 렌더부터는 강조 안 함)
+  if(S._justAdded.size){
+    setTimeout(()=>{ S._justAdded.clear(); }, 2000);
+  }
 }
 
 /* ══ 명단 탭 ══ */
