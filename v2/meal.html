@@ -1123,10 +1123,10 @@ function refreshStats(){
 /* ══ 오늘 식사 인원 목록 ══ */
 function renderTodayList(){
   const el=document.getElementById('today-list');
-  if(!S.confirmed.length){el.innerHTML='<div style="font-size:14px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>';return}
-  const list=[...S.confirmed].reverse().slice(0,30);
-  el.innerHTML='<table><thead><tr><th>학번</th><th>이름</th><th>시각</th></tr></thead><tbody>'
-    +list.map(c=>`<tr><td style="font-family:'DM Mono',monospace;font-size:14px">${c.no}</td><td style="font-size:14px">${c.name}</td><td style="font-family:'DM Mono',monospace;font-size:13px">${fmtTimeShort(c.time)}</td></tr>`).join('')+'</tbody></table>';
+  if(!S.confirmed.length){el.innerHTML='<div style="font-size:15px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>';return}
+  const list=[...S.confirmed].reverse().slice(0,15);
+  el.innerHTML='<table><thead><tr><th style="font-size:14px">학번</th><th style="font-size:14px">이름</th><th style="font-size:14px">시각</th></tr></thead><tbody>'
+    +list.map(c=>`<tr><td style="font-family:'DM Mono',monospace;font-size:20px;font-weight:600;padding:12px 10px">${c.no}</td><td style="font-size:20px;font-weight:600;padding:12px 10px">${c.name}</td><td style="font-family:'DM Mono',monospace;font-size:18px;padding:12px 10px">${fmtTimeShort(c.time)}</td></tr>`).join('')+'</tbody></table>';
 }
 
 /* ══ 명단 탭 ══ */
