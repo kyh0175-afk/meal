@@ -1,2531 +1,907 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>야간 급식 확인</title>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.min.css">
-<link rel="stylesheet" href="apple-theme.css">
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap');
-:root{--ink:#0e1117;--card:rgba(255,255,255,0.05);--card2:rgba(255,255,255,0.09);--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);--accent:#f59e0b;--ok:#34d399;--sky:#60a5fa;--red:#f87171;--text:#edf0f7;--muted:#7a8499;--r:14px;--r-sm:10px}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{background:#0e1117!important}
-body{font-family:'Noto Sans KR',sans-serif;background:#0e1117;color:#edf0f7;min-height:100vh;font-size:16px;line-height:1.7;-webkit-tap-highlight-color:transparent}
-body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 20% 0%,rgba(245,158,11,.08) 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 80% 90%,rgba(249,115,22,.06) 0%,transparent 60%)}
-.wrap{position:relative;z-index:1}
-.topbar{display:flex;align-items:center;gap:12px;padding:0 20px;height:56px;background:rgba(14,17,23,.88);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200}
-.logo{font-size:20px;font-weight:900;color:var(--accent);cursor:pointer}
-.topbar-right{display:flex;gap:8px;margin-left:auto;align-items:center}
-.sess-lbl{font-size:14px;color:var(--muted);font-weight:500}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:10px 20px;border:none;border-radius:var(--r-sm);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .18s}
-.btn:active{transform:scale(.96)}
-.btn-amber{background:var(--accent);color:#000}.btn-green{background:var(--ok);color:#000}
-.btn-red{background:var(--red);color:#000}
-.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text)}
-.btn-ghost:hover{background:var(--card2)}.btn-sm{padding:7px 14px;font-size:12px}.btn-full{width:100%}
-.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px;margin-bottom:14px}
-.card-head{font-size:13px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
-.field{margin-bottom:14px}
-.field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px}
-.field input{width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 13px;color:var(--text);font-family:inherit;font-size:14px;outline:none}
-.field input:focus{border-color:var(--accent)}
-.stats-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-.stat-box{flex:1;min-width:80px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 8px}
-.stat-num{font-size:28px;font-weight:900;font-family:'DM Mono',monospace;line-height:1.1}
-.stat-lbl{font-size:13px;color:var(--muted);margin-top:4px}
-table{width:100%;border-collapse:collapse;margin-top:10px}
-th{font-size:13px;font-weight:600;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border2)}
-td{font-size:14px;padding:8px 10px;border-bottom:1px solid var(--border)}
-tr:last-child td{border-bottom:none}
-.badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600}
-.badge-ok{background:rgba(52,211,153,.15);color:var(--ok)}
-.badge-wait{background:rgba(248,113,113,.12);color:var(--red)}
-.badge-qr{background:rgba(96,165,250,.12);color:var(--sky)}
-.badge-manual{background:rgba(167,139,250,.12);color:#a78bfa}
-.tab-bar{display:flex;gap:2px;margin-bottom:16px;flex-wrap:wrap}
-.tab-btn{padding:10px 18px;border:none;border-radius:8px;background:transparent;color:var(--muted);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;transition:all .18s}
-.tab-btn:hover{background:var(--card2);color:var(--text)}.tab-btn.on{background:var(--card2);color:var(--text)}
-.tab-content{display:none}.tab-content.on{display:block}
-.roster-search{display:flex;gap:8px;margin-bottom:12px}
-.roster-search input{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none}
-.roster-search input:focus{border-color:var(--accent)}
-.filter-chip{padding:5px 12px;border-radius:16px;font-size:12px;font-weight:600;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
-.filter-chip:hover{background:var(--card2);color:var(--text)}.filter-chip.on{background:var(--accent);color:#000;border-color:var(--accent)}
-.filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-.filter-bar select,.filter-bar input[type="date"]{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none}
-select option{background:#fff;color:#000}
-select option{background:#fff;color:#000}
-/* numpad */
-.numpad-wrap{position:fixed;bottom:0;left:0;right:0;background:rgba(14,17,23,.96);backdrop-filter:blur(16px);border-top:1px solid var(--border2);padding:16px 20px 28px;z-index:300;display:none;flex-direction:column;align-items:center;gap:10px}
-.numpad-display{font-family:'DM Mono',monospace;font-size:28px;font-weight:500;text-align:center;color:var(--text);letter-spacing:4px;padding:8px 16px;width:100%;max-width:420px;border:1px solid var(--border2);border-radius:var(--r-sm);min-height:48px}
-.numpad-display.full{color:var(--ok);border-color:rgba(52,211,153,.35)}
-.numpad-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:100%;max-width:420px}
-.npbtn{padding:14px 0;border:none;border-radius:var(--r-sm);font-family:'DM Mono',monospace;font-size:18px;font-weight:500;background:var(--card2);color:var(--text);cursor:pointer;transition:all .15s}
-.npbtn:active{transform:scale(.93)}.npbtn-del{background:rgba(248,113,113,.15);color:var(--red)}
-.npbtn-ok{background:var(--ok);color:#000;font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:14px}
-/* student screen */
-.student-screen{display:none;position:fixed;inset:0;z-index:500;background:#0e1117;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
-.student-screen.on{display:flex}
-.s-title{font-size:24px;font-weight:900;margin-bottom:8px}
-.s-sub{font-size:14px;color:var(--muted);line-height:1.7;white-space:pre-line;margin-bottom:28px}
-.s-input{font-family:'DM Mono',monospace;font-size:28px;font-weight:500;text-align:center;letter-spacing:4px;background:rgba(255,255,255,.05);border:2px solid var(--border2);border-radius:12px;color:var(--text);padding:14px 20px;width:220px;outline:none}
-.s-input:focus{border-color:var(--accent)}
-.s-err{color:var(--red);font-size:13px;margin-top:10px;display:none;white-space:pre-line}
-.s-ok{display:none;flex-direction:column;align-items:center;gap:10px}
-.s-ok .check{font-size:64px;animation:popIn .4s cubic-bezier(.175,.885,.32,1.275)}
-@keyframes popIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
-.ok-name{font-size:22px;font-weight:800}
-.ok-meta{font-size:13px;color:var(--muted);white-space:pre-line;line-height:1.8}
-.toast{position:fixed;top:68px;left:50%;transform:translateX(-50%) translateY(-20px);padding:10px 22px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;z-index:999;pointer-events:none;transition:all .3s;white-space:nowrap}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.toast.ok{background:rgba(52,211,153,.18);color:var(--ok);border:1px solid rgba(52,211,153,.3)}
-.toast.err{background:rgba(248,113,113,.18);color:var(--red);border:1px solid rgba(248,113,113,.3)}
-@media(max-width:600px){.stat-num{font-size:22px}}
-/* 금일 식사 인원 새 항목 플래시 효과 */
-@keyframes rowFlash{
-  0%{background:rgba(52,211,153,.45)}
-  15%{background:rgba(52,211,153,.45)}
-  100%{background:transparent}
+/* ============================================================
+   🍎 야간 급식 시스템 — Apple Light Theme
+   적용 방법:
+   1. 이 파일을 meal.html과 같은 폴더에 넣는다
+   2. meal.html의 <head> 안에 아래 한 줄을 추가한다:
+      <link rel="stylesheet" href="apple-theme.css">
+      (Pretendard 폰트도 함께 로드 — CDN 사용)
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.min.css">
+   3. JS 3군데 패치 (patch-instructions.txt 참조)
+   
+   롤백: <link> 두 줄만 지우면 원래 다크 테마로 복원됨
+   ============================================================ */
+
+
+/* ════════════════════════════════════════════════════════════
+   1단계 — 학생 화면 (?mode=student)
+   ════════════════════════════════════════════════════════════ */
+
+body:has(.student-screen.on){
+  background: #fbfbfd !important;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
 }
-.row-flash td{ animation:rowFlash 2.2s ease-out; }
-</style>
-</head>
-<body>
-<div class="wrap">
-<div class="toast" id="toast"></div>
+body:has(.student-screen.on)::before{ display: none !important; }
 
-<!-- ══ 교사 대시보드 ══ -->
-<div id="dashboard">
-  <div class="topbar">
-    <div class="logo" onclick="location.reload()">🍱 야간 급식</div>
-    <div class="topbar-right">
-      <span class="sess-lbl" id="top-date"></span>
-    </div>
-  </div>
-  <div style="padding:24px 20px;max-width:900px;margin:0 auto">
-    <div class="tab-bar">
-      <button class="tab-btn on" data-tab="today" onclick="goTab('today')">📡 오늘 현황</button>
-      <button class="tab-btn" data-tab="roster" onclick="goTab('roster')">📋 명단</button>
-      <button class="tab-btn" data-tab="manage" onclick="goTab('manage')">👥 학생 관리</button>
-      <button class="tab-btn" data-tab="manual" onclick="goTab('manual')">✏️ 수동 입력</button>
-      <button class="tab-btn" data-tab="history" onclick="goTab('history')">📂 기록</button>
-      <button class="tab-btn" data-tab="analysis" onclick="goTab('analysis')">📈 분석</button>
-      <button class="tab-btn" data-tab="trend" onclick="goTab('trend')">📊 추이</button>
-    </div>
+.student-screen{
+  background: #fbfbfd !important;
+  color: #1d1d1f !important;
+  padding: 40px 28px !important;
+  overflow: hidden;
+}
+.student-screen::before{
+  content: "";
+  position: absolute;
+  top: -10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 700px;
+  background: radial-gradient(ellipse 50% 45% at 50% 40%,
+    rgba(255, 180, 60, 0.18) 0%,
+    rgba(255, 140, 40, 0.08) 35%,
+    rgba(255,255,255,0) 70%);
+  pointer-events: none;
+  filter: blur(10px);
+  z-index: 0;
+}
+.student-screen::after{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(0,0,0,0.025) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,0.025) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 70% 55% at 50% 45%, black 25%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 45%, black 25%, transparent 75%);
+  pointer-events: none;
+  z-index: 0;
+}
+.student-screen > *{ position: relative; z-index: 1; }
 
-    <!-- 오늘 현황 -->
-    <div class="tab-content on" id="tab-today">
-      <div style="display:flex;gap:20px;flex-wrap:wrap">
-        <!-- QR -->
-        <div style="flex-shrink:0;width:308px">
-          <div id="qr-empty" style="background:rgba(255,255,255,.04);border:1px dashed var(--border2);border-radius:12px;padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;width:308px;height:308px;text-align:center">
-            <div style="font-size:48px;margin-bottom:10px">📱</div>
-            <div style="font-size:14px;color:var(--muted);line-height:1.7">오늘 사용할<br>QR 코드를 만들어주세요</div>
-            <button class="btn btn-amber" style="margin-top:14px;padding:10px 22px" onclick="createQR()">+ QR 생성</button>
-          </div>
-          <div id="qr-active" style="display:none">
-            <div style="background:#fff;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:center">
-              <div id="qr-render" style="width:280px;height:280px"></div>
-            </div>
-            <div style="margin-top:8px;font-size:13px;color:var(--muted);text-align:center" id="qr-info">스캔하면 학생 식사 확인 화면으로 이동</div>
-            <button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%" onclick="createQR(true)">🔄 새 QR 생성</button>
-          </div>
-        </div>
-        <!-- 통계 + 목록 -->
-        <div style="flex:1;min-width:280px">
-          <div class="stats-row">
-            <div class="stat-box"><div class="stat-num" id="st-total" style="color:var(--sky)">0</div><div class="stat-lbl">오늘 대상</div></div>
-            <div class="stat-box"><div class="stat-num" id="st-done" style="color:var(--ok)">0</div><div class="stat-lbl">식사 완료</div></div>
-            <div class="stat-box"><div class="stat-num" id="st-remain" style="color:var(--red)">0</div><div class="stat-lbl">식사 안함</div></div>
-            <div class="stat-box"><div class="stat-num" id="st-rate" style="color:var(--accent)">0%</div><div class="stat-lbl">식사 비율</div></div>
-          </div>
-          <div style="font-size:15px;font-weight:700;color:var(--muted);margin-bottom:8px">금일 식사 인원</div>
-          <div id="today-list" style="max-height:500px;overflow-y:auto">
-            <div style="font-size:14px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 명단 -->
-    <div class="tab-content" id="tab-roster">
-      <div class="card">
-        <div class="card-head">오늘 급식 대상 명단</div>
-        <div class="roster-search"><input type="text" id="roster-search" placeholder="학번 또는 이름 검색" oninput="renderRoster()"></div>
-        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
-          <button class="filter-chip on" data-filter="all" onclick="setRosterFilter('all')">전체</button>
-          <button class="filter-chip" data-filter="wait" onclick="setRosterFilter('wait')">🔴 식사 안함</button>
-          <button class="filter-chip" data-filter="done" onclick="setRosterFilter('done')">🟢 식사 완료</button>
-        </div>
-        <div id="roster-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
-        <div style="max-height:500px;overflow-y:auto">
-          <table><thead><tr><th>학번</th><th>이름</th><th>상태</th><th>시각</th></tr></thead>
-          <tbody id="roster-tbody"></tbody></table>
-        </div>
-      </div>
-    </div>
-
-    <!-- 학생 관리 -->
-    <div class="tab-content" id="tab-manage">
-      <div class="card">
-        <div class="card-head">학생 관리</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-          <label class="btn btn-ghost btn-sm" style="cursor:pointer">
-            📂 엑셀 업로드
-            <input type="file" id="excel-upload" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleExcelUpload(event)">
-          </label>
-          <button class="btn btn-ghost btn-sm" onclick="downloadTemplate()">📥 양식 다운로드</button>
-          <button class="btn btn-amber btn-sm" onclick="toggleAddForm()" style="margin-left:auto">+ 학생 추가</button>
-        </div>
-
-        <!-- 추가 폼 -->
-        <div id="add-form" style="display:none;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px">
-            <div class="field" style="margin-bottom:0"><label>학년</label><input type="text" id="add-grade" inputmode="numeric" maxlength="1" placeholder="1"></div>
-            <div class="field" style="margin-bottom:0"><label>반</label><input type="text" id="add-cls" inputmode="numeric" maxlength="2" placeholder="1"></div>
-            <div class="field" style="margin-bottom:0"><label>번호</label><input type="text" id="add-num" inputmode="numeric" maxlength="2" placeholder="1"></div>
-          </div>
-          <div class="field" style="margin-bottom:10px"><label>이름</label><input type="text" id="add-name" placeholder="홍길동"></div>
-          <div style="margin-bottom:10px">
-            <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px">신청 요일 (모두 선택 = 매일)</label>
-            <div id="add-days" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:10px">학번은 학년·반·번호로 자동 생성됩니다 (예: 1학년 1반 1번 → <span style="font-family:'DM Mono',monospace;color:var(--text)">10101</span>)</div>
-          <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button class="btn btn-ghost btn-sm" onclick="toggleAddForm()">취소</button>
-            <button class="btn btn-green btn-sm" onclick="confirmAddStudent()">등록</button>
-          </div>
-        </div>
-
-        <!-- 필터 -->
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
-          <input type="text" id="manage-search" placeholder="학번 또는 이름 검색" oninput="renderManageList()" style="flex:1;min-width:160px;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
-          <select id="manage-grade" onchange="renderManageList()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
-            <option value="">전체 학년</option>
-            <option value="1">1학년</option>
-            <option value="2">2학년</option>
-            <option value="3">3학년</option>
-          </select>
-          <select id="manage-cls" onchange="renderManageList()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
-            <option value="">전체 반</option>
-          </select>
-        </div>
-        <div id="manage-count" style="font-size:12px;color:var(--muted);margin-bottom:8px"></div>
-
-        <!-- 업로드 결과 -->
-        <div id="upload-result" style="display:none;padding:12px 14px;border-radius:8px;font-size:13px;margin-bottom:12px"></div>
-
-        <!-- 학생 목록 -->
-        <div style="max-height:600px;overflow-y:auto" id="manage-list-wrap">
-          <div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">학생 명단을 불러오는 중...</div>
-        </div>
-      </div>
-
-      <!-- 석식 미운영일 관리 -->
-      <div class="card" style="margin-top:16px">
-        <div class="card-head">📅 석식 미운영일 관리</div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">미운영일은 분석·추이 통계 계산에서 자동 제외됩니다.</p>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-          <input type="date" id="holiday-date" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
-          <input type="text" id="holiday-reason" placeholder="사유 (선택)" style="flex:1;min-width:120px;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none">
-          <button class="btn btn-amber btn-sm" onclick="addHoliday()">추가</button>
-        </div>
-        <div id="holiday-list" style="font-size:13px;color:var(--muted)">불러오는 중...</div>
-      </div>
-    </div>
-
-    <!-- 수동 입력 -->
-    <div class="tab-content" id="tab-manual">
-      <div class="card">
-        <div class="card-head">수동 식사 확인</div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">QR 없이 학번을 직접 입력합니다. (시간 제한 없음)</p>
-        <div style="display:flex;gap:10px;align-items:flex-end">
-          <div class="field" style="flex:1;margin-bottom:0"><label>학번</label>
-            <input type="text" id="manual-no" placeholder="학번 입력" inputmode="numeric" onkeydown="if(event.key==='Enter')manualConfirm()">
-          </div>
-          <button class="btn btn-green" onclick="manualConfirm()" style="height:42px">✓ 확인</button>
-        </div>
-        <div id="manual-result" style="margin-top:12px"></div>
-      </div>
-      <div class="card">
-        <div class="card-head">넘버패드</div>
-        <button class="btn btn-ghost btn-full" onclick="openNumpad()">🔢 넘버패드 열기</button>
-      </div>
-    </div>
-
-    <!-- 기록 -->
-    <div class="tab-content" id="tab-history">
-      <div class="card">
-        <div class="card-head">날짜별 기록</div>
-        <div class="filter-bar">
-          <input type="date" id="hist-date" onchange="loadHistoryDate()">
-          <span id="hist-day" style="font-size:13px;color:var(--accent);font-weight:700"></span>
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="exportHistCSV()">📥 CSV</button>
-        </div>
-        <div class="stats-row" id="hist-stats" style="display:none">
-          <div class="stat-box"><div class="stat-num" id="hist-total" style="color:var(--sky)">0</div><div class="stat-lbl">대상</div></div>
-          <div class="stat-box"><div class="stat-num" id="hist-done" style="color:var(--ok)">0</div><div class="stat-lbl">식사 완료</div></div>
-          <div class="stat-box"><div class="stat-num" id="hist-miss" style="color:var(--red)">0</div><div class="stat-lbl">식사 안함</div></div>
-          <div class="stat-box"><div class="stat-num" id="hist-rate" style="color:var(--accent)">0%</div><div class="stat-lbl">식사 비율</div></div>
-        </div>
-        <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="hist-filter" style="display:none">
-          <button class="filter-chip on" data-hf="all" onclick="setHistFilter('all')">전체</button>
-          <button class="filter-chip" data-hf="done" onclick="setHistFilter('done')">🟢 식사 완료</button>
-          <button class="filter-chip" data-hf="miss" onclick="setHistFilter('miss')">🔴 식사 안함</button>
-        </div>
-        <div class="roster-search" id="hist-search-wrap"><input type="text" id="hist-search" placeholder="학번 또는 이름 검색" oninput="renderHistTable()"></div>
-        <div style="max-height:500px;overflow-y:auto">
-          <table><thead><tr><th>학번</th><th>이름</th><th>상태</th><th>시각</th><th style="width:50px"></th></tr></thead>
-          <tbody id="hist-tbody"></tbody></table>
-        </div>
-        <div id="hist-empty" style="font-size:14px;color:var(--muted);padding:20px;text-align:center;display:none">해당 날짜의 기록이 없어요</div>
-      </div>
-    </div>
-
-    <!-- 분석 -->
-    <div class="tab-content" id="tab-analysis">
-      <div class="card">
-        <div class="card-head">기간별 식사 분석</div>
-        <!-- 컨트롤 -->
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-          <select id="ana-grade" onchange="renderAnalysis()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
-            <option value="">전체 학년</option>
-            <option value="1">1학년</option>
-            <option value="2">2학년</option>
-            <option value="3">3학년</option>
-          </select>
-          <select id="ana-cls" onchange="renderAnalysis()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
-            <option value="">전체 반</option>
-          </select>
-          <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-            <button id="ana-mode-individual" class="on" onclick="setAnalysisMode('individual')">개인별</button>
-            <button id="ana-mode-trend" onclick="setAnalysisMode('trend')">전체 추이</button>
-          </div>
-          <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-            <button id="ana-view-week" class="on" onclick="setAnalysisView('week')">주별</button>
-            <button id="ana-view-month" onclick="setAnalysisView('month')">월별</button>
-          </div>
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="downloadAnalysisExcel()">📥 엑셀</button>
-        </div>
-        <!-- 네비게이션 -->
-        <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:16px">
-          <button class="btn btn-ghost btn-sm" onclick="navAnalysis(-1)">← 이전</button>
-          <div id="ana-period" style="font-size:15px;font-weight:700;min-width:200px;text-align:center">—</div>
-          <button class="btn btn-ghost btn-sm" onclick="navAnalysis(1)">다음 →</button>
-        </div>
-        <!-- 콘텐츠 -->
-        <div id="ana-content">
-          <div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 추이 -->
-    <div class="tab-content" id="tab-trend">
-      <div class="card">
-        <div class="card-head">총 식사 인원 추이</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
-          <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
-            <button id="tr-unit-week" class="on" onclick="setTrendUnit('week')">주별</button>
-            <button id="tr-unit-month" onclick="setTrendUnit('month')">월별</button>
-          </div>
-          <!-- 주별/월별 네비게이션 -->
-          <div style="display:flex;align-items:center;gap:6px">
-            <button class="btn btn-ghost btn-sm" id="tr-prev" onclick="navTrend(-1)" style="padding:6px 10px;font-size:14px">←</button>
-            <span id="tr-period" style="font-size:14px;font-weight:700;min-width:180px;text-align:center">—</span>
-            <button class="btn btn-ghost btn-sm" id="tr-next" onclick="navTrend(1)" style="padding:6px 10px;font-size:14px">→</button>
-          </div>
-          <select id="tr-grade" onchange="renderTrend()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
-            <option value="">전체 학년</option>
-            <option value="1">1학년</option>
-            <option value="2">2학년</option>
-            <option value="3">3학년</option>
-          </select>
-          <select id="tr-cls" onchange="renderTrend()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
-            <option value="">전체 반</option>
-          </select>
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="downloadTrendCSV()">📥 CSV</button>
-        </div>
-        <!-- 요약 통계 -->
-        <div id="tr-summary" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap"></div>
-        <!-- 그래프 -->
-        <div id="tr-content">
-          <div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ 학생 화면 (QR 스캔 진입) ══ -->
-<div class="student-screen" id="student-screen">
-  <div id="sf-input-wrap" style="display:flex;flex-direction:column;align-items:center">
-    <div style="font-size:48px;margin-bottom:12px">🍱</div>
-    <div class="s-title">야간 급식 확인</div>
-    <div class="s-sub">학번을 입력하면 식사가 확인돼요<br><span style="color:var(--accent)">⏰ 18:20 ~ 18:50</span></div>
-    <input type="text" class="s-input" id="sf-no" inputmode="numeric" placeholder="학번" maxlength="5" onkeydown="if(event.key==='Enter')doStudentConfirm()">
-    <div style="margin-top:16px">
-      <button class="btn btn-amber" style="padding:14px 48px;font-size:16px" id="sf-btn" onclick="doStudentConfirm()">🍱 식사 확인</button>
-    </div>
-    <div class="s-err" id="sf-err"></div>
-  </div>
-  <div class="s-ok" id="sf-ok">
-    <div class="check">✅</div>
-    <div class="ok-name" id="sf-ok-name"></div>
-    <div class="ok-meta" id="sf-ok-meta"></div>
-    <button class="btn btn-ghost" style="margin-top:20px;padding:12px 36px" onclick="resetStudent()">다른 학생 확인</button>
-  </div>
-</div>
-
-<!-- ══ 넘버패드 ══ -->
-<div class="numpad-wrap" id="numpad">
-  <div style="display:flex;justify-content:space-between;width:100%;max-width:420px;align-items:center">
-    <span style="font-size:13px;font-weight:700;color:var(--muted)">학번 입력</span>
-    <button class="btn btn-ghost btn-sm" onclick="closeNumpad()">✕ 닫기</button>
-  </div>
-  <div class="numpad-display" id="np-display">—</div>
-  <div class="numpad-grid">
-    <button class="npbtn" onclick="npInput('1')">1</button><button class="npbtn" onclick="npInput('2')">2</button>
-    <button class="npbtn" onclick="npInput('3')">3</button><button class="npbtn" onclick="npInput('4')">4</button>
-    <button class="npbtn" onclick="npInput('5')">5</button><button class="npbtn npbtn-del" onclick="npDelete()">⌫</button>
-    <button class="npbtn" onclick="npInput('6')">6</button><button class="npbtn" onclick="npInput('7')">7</button>
-    <button class="npbtn" onclick="npInput('8')">8</button><button class="npbtn" onclick="npInput('9')">9</button>
-    <button class="npbtn" onclick="npInput('0')">0</button><button class="npbtn" style="background:transparent;color:var(--muted)" onclick="npClear()">C</button>
-  </div>
-  <button class="npbtn npbtn-ok" id="np-ok" style="width:100%;max-width:420px;padding:14px" onclick="npConfirm()" disabled>🍱 식사 확인</button>
-</div>
-</div>
-
-<script>
-(function(){
-'use strict';
-
-const S = { roster:[], confirmed:[], pollInt:null, rosterFilter:'all', npVal:'', _justAdded:new Set() };
-
-// ══════════════════════════════════════════════════════════════
-//  Supabase 설정
-// ══════════════════════════════════════════════════════════════
-const SUPABASE_URL = 'https://mvuxbngxpmdmxdkxohoc.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_h6vVNV3t-b2JSZAH2wuZ3g_bBq3_GwI';
-let sbClient = null;
-function initSupabase(){
-  if(sbClient) return sbClient;
-  if(typeof window.supabase==='undefined'||!window.supabase.createClient){
-    throw new Error('Supabase SDK가 로드되지 않았어요');
+.student-screen #sf-input-wrap{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 420px;
+  width: 100%;
+  animation: studentRise 0.7s ease forwards;
+  opacity: 0;
+}
+@keyframes studentRise{
+  from{ opacity: 0; transform: translateY(16px); }
+  to{ opacity: 1; transform: translateY(0); }
+}
+.student-screen #sf-input-wrap > div:first-child{
+  font-size: 56px !important;
+  margin-bottom: 24px !important;
+  filter: drop-shadow(0 6px 20px rgba(245, 158, 11, 0.25));
+  animation: floatEmoji 3s ease-in-out infinite;
+}
+@keyframes floatEmoji{
+  0%, 100%{ transform: translateY(0); }
+  50%{ transform: translateY(-4px); }
+}
+.student-screen .s-title{
+  font-family: 'Pretendard', -apple-system, sans-serif !important;
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.028em;
+  color: #1d1d1f !important;
+  margin-bottom: 10px !important;
+  line-height: 1.15;
+}
+.student-screen .s-sub{
+  font-size: 15px !important;
+  color: #6e6e73 !important;
+  line-height: 1.6;
+  margin-bottom: 40px !important;
+  font-weight: 400 !important;
+  max-width: 320px;
+}
+.student-screen .s-sub span[style*="accent"]{
+  display: inline-block;
+  margin-top: 4px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.1) !important;
+  color: #b45309 !important;
+  font-size: 13px !important;
+  font-weight: 500;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+.student-screen .s-input{
+  font-family: 'Pretendard', -apple-system, sans-serif !important;
+  font-size: 44px !important;
+  font-weight: 300 !important;
+  letter-spacing: 0.14em !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  border-radius: 18px !important;
+  color: #1d1d1f !important;
+  padding: 20px 28px !important;
+  width: 280px !important;
+  font-variant-numeric: tabular-nums;
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.03),
+    0 4px 16px -4px rgba(0,0,0,0.05) !important;
+  transition: all 0.25s ease;
+}
+.student-screen .s-input::placeholder{
+  color: #c7c7cc;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+}
+.student-screen .s-input:focus{
+  border-color: #f59e0b !important;
+  box-shadow:
+    0 0 0 4px rgba(245, 158, 11, 0.12),
+    0 8px 24px -6px rgba(245, 158, 11, 0.2) !important;
+  transform: translateY(-1px);
+}
+.student-screen .s-input:disabled{
+  background: #f5f5f7 !important;
+  color: #86868b !important;
+  cursor: not-allowed;
+}
+.student-screen #sf-input-wrap > div[style*="margin-top:16px"]{
+  margin-top: 24px !important;
+}
+.student-screen #sf-btn{
+  background: #1d1d1f !important;
+  color: #ffffff !important;
+  padding: 16px 52px !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  border-radius: 980px !important;
+  font-family: 'Pretendard', sans-serif !important;
+  letter-spacing: -0.01em;
+  box-shadow: 0 4px 14px -4px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+}
+.student-screen #sf-btn:hover:not(:disabled){
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px -6px rgba(0,0,0,0.28);
+}
+.student-screen #sf-btn:active:not(:disabled){
+  transform: translateY(0) scale(0.98);
+}
+.student-screen #sf-btn:disabled{
+  background: #d2d2d7 !important;
+  color: #86868b !important;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.student-screen .s-err{
+  color: #d70015 !important;
+  font-size: 14px !important;
+  margin-top: 16px !important;
+  padding: 10px 18px;
+  background: rgba(215, 0, 21, 0.06);
+  border-radius: 12px;
+  border: 1px solid rgba(215, 0, 21, 0.15);
+  font-weight: 500;
+}
+.student-screen .s-ok{
+  gap: 16px !important;
+  animation: studentRise 0.5s ease forwards;
+}
+.student-screen .s-ok .check{
+  font-size: 88px !important;
+  filter: drop-shadow(0 8px 24px rgba(52, 199, 89, 0.35));
+  animation: popInApple 0.6s cubic-bezier(.2, .9, .3, 1.3) !important;
+}
+@keyframes popInApple{
+  0%{ transform: scale(0.3); opacity: 0; }
+  60%{ transform: scale(1.08); opacity: 1; }
+  100%{ transform: scale(1); opacity: 1; }
+}
+.student-screen .ok-name{
+  font-family: 'Pretendard', -apple-system, sans-serif !important;
+  font-size: 36px !important;
+  font-weight: 300 !important;
+  color: #1d1d1f !important;
+  letter-spacing: -0.03em;
+  margin-top: 8px;
+  line-height: 1.1;
+}
+.student-screen .ok-meta{
+  font-family: 'Pretendard', sans-serif !important;
+  font-size: 15px !important;
+  color: #6e6e73 !important;
+  line-height: 1.6;
+  background: #ffffff;
+  padding: 12px 24px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px -2px rgba(0,0,0,0.04);
+  margin-top: 8px;
+}
+.student-screen .s-ok .btn-ghost{
+  background: transparent !important;
+  color: #1d1d1f !important;
+  border: 1px solid rgba(0,0,0,0.15) !important;
+  padding: 14px 36px !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  border-radius: 980px !important;
+  font-family: 'Pretendard', sans-serif !important;
+  margin-top: 24px !important;
+  transition: all 0.2s ease;
+}
+.student-screen .s-ok .btn-ghost:hover{
+  background: rgba(0,0,0,0.04) !important;
+  transform: translateY(-1px);
+}
+@media (max-width: 420px){
+  .student-screen{ padding: 32px 20px !important; }
+  .student-screen #sf-input-wrap > div:first-child{ font-size: 48px !important; }
+  .student-screen .s-title{ font-size: 28px !important; }
+  .student-screen .s-input{
+    font-size: 38px !important;
+    width: 100% !important;
+    max-width: 280px;
+    padding: 18px 22px !important;
   }
-  sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  return sbClient;
-}
-// KST 헬퍼
-function todayKST(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function nowTimeStr(){return new Date().toTimeString().slice(0,8)}
-
-// ══════════════════════════════════════════════════════════════
-//  sb 헬퍼 — Supabase API 래퍼
-// ══════════════════════════════════════════════════════════════
-const DAY_KR = ['일','월','화','수','목','금','토'];
-const sb = {
-  client(){return sbClient || initSupabase()},
-
-  // ── 학생 명단 ──
-  students: {
-    async list(){
-      const {data,error} = await sb.client().from('meal_students').select('*').eq('활성',true).order('학번',{ascending:true});
-      if(error) throw error;
-      return data || [];
-    },
-    async listAll(){
-      const {data,error} = await sb.client().from('meal_students').select('*').order('학번',{ascending:true});
-      if(error) throw error;
-      return data || [];
-    },
-    async byNo(no){
-      const {data,error} = await sb.client().from('meal_students').select('*').eq('학번',String(no)).limit(1);
-      if(error) throw error;
-      return (data && data.length) ? data[0] : null;
-    },
-    async upsert(s){
-      const row = {
-        학번: String(s.no || s.학번),
-        이름: s.name || s.이름,
-        학년: s.grade || s.학년 || null,
-        반: s.cls || s.반 || null,
-        출석요일: Array.isArray(s.days) ? s.days : (Array.isArray(s.출석요일) ? s.출석요일 : null),
-        활성: true,
-        수정일시: new Date().toISOString(),
-      };
-      const {error} = await sb.client().from('meal_students').upsert(row,{onConflict:'학번'});
-      if(error) throw error;
-    },
-    async updateDays(no, days){
-      const {error} = await sb.client().from('meal_students').update({출석요일:days,수정일시:new Date().toISOString()}).eq('학번',String(no));
-      if(error) throw error;
-    },
-    async deactivate(no){
-      const {error} = await sb.client().from('meal_students').update({활성:false,수정일시:new Date().toISOString()}).eq('학번',String(no));
-      if(error) throw error;
-    },
-    async bulkUpsert(students){
-      const rows = students.map(s => ({
-        학번: String(s.no || s.학번),
-        이름: s.name || s.이름,
-        학년: s.grade || s.학년 || null,
-        반: s.cls || s.반 || null,
-        출석요일: Array.isArray(s.days) ? s.days : (Array.isArray(s.출석요일) ? s.출석요일 : null),
-        활성: true,
-        수정일시: new Date().toISOString(),
-      }));
-      const {error} = await sb.client().from('meal_students').upsert(rows,{onConflict:'학번'});
-      if(error) throw error;
-      return rows.length;
-    },
-  },
-
-  // ── 식사 기록 ──
-  records: {
-    async byDate(date){
-      const {data,error} = await sb.client().from('meal_records').select('*').eq('날짜',date).order('원래시각',{ascending:true}).range(0, 1999);
-      if(error) throw error;
-      return data || [];
-    },
-    async byRange(start,end){
-      // Supabase 기본 1000행 제한 우회 — 페이지네이션
-      let all = [];
-      let from = 0;
-      const pageSize = 1000;
-      while(true){
-        const {data,error} = await sb.client().from('meal_records').select('*').gte('날짜',start).lte('날짜',end).order('날짜',{ascending:true}).order('원래시각',{ascending:true}).range(from, from + pageSize - 1);
-        if(error) throw error;
-        if(!data || !data.length) break;
-        all = all.concat(data);
-        if(data.length < pageSize) break;
-        from += pageSize;
-      }
-      return all;
-    },
-    async byStudent(no){
-      const {data,error} = await sb.client().from('meal_records').select('*').eq('학번',String(no)).order('날짜',{ascending:false}).limit(5000);
-      if(error) throw error;
-      return data || [];
-    },
-    async add(rec){
-      const row = {
-        세션id: rec.sessionId || 'manual',
-        학번: String(rec.no),
-        이름: rec.name || null,
-        학년: rec.grade || null,
-        반: rec.cls || null,
-        날짜: rec.date || todayKST(),
-        원래시각: rec.time || nowTimeStr(),
-        사후여부: false,
-        방법: rec.method || 'QR',
-        상태: '식사',
-      };
-      const {error} = await sb.client().from('meal_records').insert(row);
-      if(error){
-        if(error.code === '23505') return {ok:true, alreadyDone:true};
-        throw error;
-      }
-      return {ok:true};
-    },
-    async deleteOne(no, date){
-      const {error} = await sb.client().from('meal_records').delete().eq('학번',String(no)).eq('날짜',date);
-      if(error) throw error;
-    },
-  },
-
-  // ── 세션 ──
-  sessions: {
-    async create(){
-      // 오늘의 활성 세션 모두 비활성화 (좀비 방지)
-      const today = todayKST();
-      try {
-        await sb.client().from('meal_sessions').update({활성:false,종료시각:new Date().toISOString()}).eq('날짜',today).eq('활성',true);
-      } catch(e) { console.warn('기존 세션 정리 실패:', e); }
-      // 새 세션
-      const sid = String(Date.now());
-      const now = new Date();
-      const expireAt = new Date(now.getTime() + 30*60*1000).toISOString(); // 30분 (식사 시간 끝까지 여유)
-      const row = {
-        세션id: sid,
-        날짜: today,
-        시작시각: now.toISOString(),
-        만료시각: expireAt,
-        활성: true,
-      };
-      const {error} = await sb.client().from('meal_sessions').insert(row);
-      if(error) throw error;
-      return {sessionId: sid, time: now.toTimeString().slice(0,8)};
-    },
-    async getActive(){
-      const {data,error} = await sb.client().from('meal_sessions').select('*').eq('날짜',todayKST()).eq('활성',true).order('시작시각',{ascending:false}).limit(1);
-      if(error) throw error;
-      if(!data || !data.length) return null;
-      const s = data[0];
-      const t = new Date(s.시작시각);
-      return {sessionId: s.세션id, date: s.날짜, time: t.toTimeString().slice(0,8)};
-    },
-    async validate(sid){
-      if(!sid) return {ok:false, msg:'세션 정보가 없어요.'};
-      const {data,error} = await sb.client().from('meal_sessions').select('활성,날짜').eq('세션id',String(sid)).limit(1);
-      if(error) return {ok:false, msg:'세션 검증 실패'};
-      if(!data || !data.length) return {ok:false, msg:'오늘 사용 가능한 QR이 아니에요.'};
-      const s = data[0];
-      if(s.날짜 !== todayKST()) return {ok:false, msg:'오늘 사용 가능한 QR이 아니에요.\n선생님께 새 QR 생성을 요청해주세요.'};
-      if(!s.활성) return {ok:false, msg:'이 QR은 마감됐어요.\n선생님께 새 QR을 요청해주세요.'};
-      return {ok:true};
-    },
-  },
-  holidays: {
-    async list(){
-      const {data,error} = await sb.client().from('meal_holidays').select('*').order('날짜',{ascending:true});
-      if(error) throw error;
-      return data || [];
-    },
-    async add(date, reason){
-      const {error} = await sb.client().from('meal_holidays').upsert({날짜:date, 사유:reason||''},{onConflict:'날짜'});
-      if(error) throw error;
-    },
-    async remove(date){
-      const {error} = await sb.client().from('meal_holidays').delete().eq('날짜',date);
-      if(error) throw error;
-    },
-    _cache: null,
-    _cacheTime: 0,
-    async getSet(){
-      // 5분 캐시
-      if(this._cache && Date.now() - this._cacheTime < 300000) return this._cache;
-      const list = await this.list();
-      this._cache = new Set(list.map(h => h.날짜));
-      this._cacheTime = Date.now();
-      return this._cache;
-    },
-    clearCache(){ this._cache = null; this._cacheTime = 0; },
-  },
-};
-window.sb = sb;
-
-// ══════════════════════════════════════════════════════════════
-//  gasPost 어댑터 — 기존 호출 사이트를 sb 헬퍼로 라우팅
-//  (점진적 전환을 위해 함수 이름은 그대로 유지)
-// ══════════════════════════════════════════════════════════════
-async function gasPost(payload, retry=2) {
-  const action = payload.action;
-  try {
-    if(action === 'getRoster'){
-      const list = await sb.students.list();
-      const todayKr = DAY_KR[new Date().getDay()];
-      const students = list.map(s => {
-        const days = Array.isArray(s.출석요일) ? s.출석요일 : [];
-        const isToday = days.length === 0 || days.includes(todayKr);
-        return {
-          no: s.학번,
-          name: s.이름,
-          grade: s.학년 || '',
-          cls: s.반 || '',
-          days: days.join(','),
-          isToday,
-        };
-      });
-      return {ok:true, students};
-    }
-
-    if(action === 'getTodayStatus'){
-      const recs = await sb.records.byDate(todayKST());
-      const confirmed = recs.map(r => ({
-        no: r.학번,
-        name: r.이름,
-        time: (r.원래시각 || '').slice(0,8),
-        method: r.방법 || 'QR',
-      }));
-      return {ok:true, confirmed};
-    }
-
-    if(action === 'getActiveSession'){
-      const session = await sb.sessions.getActive();
-      return {ok:true, session};
-    }
-
-    if(action === 'createSession'){
-      const r = await sb.sessions.create();
-      return {ok:true, sessionId:r.sessionId, time:r.time};
-    }
-
-    if(action === 'validateSession'){
-      return await sb.sessions.validate(payload.sessionId);
-    }
-
-    if(action === 'confirmMeal'){
-      const no = String(payload.studentNo || '').trim();
-      if(!/^\d{5}$/.test(no)) return {ok:false, msg:'학번 5자리를 입력해주세요'};
-
-      // 시간 검증 (18:20~18:50) — manual:true 또는 수동 입력은 우회
-      const now = new Date();
-      const cur = now.getHours()*60 + now.getMinutes();
-      const skipTimeCheck = payload.manual || payload.method === '수동';
-      if(!skipTimeCheck && (cur < 1100 || cur >= 1130)){
-        const hh = String(now.getHours()).padStart(2,'0');
-        const mm = String(now.getMinutes()).padStart(2,'0');
-        return {ok:false, msg:'식사 확인 가능 시간이 아닙니다.\n현재: '+hh+':'+mm+'\n가능: 18:20 ~ 18:50'};
-      }
-
-      // 주말 차단
-      const dow = now.getDay();
-      if(dow === 0 || dow === 6) return {ok:false, msg:'주말은 운영하지 않습니다.'};
-
-      // 세션 검증 (QR 방식만)
-      if(payload.method !== '수동'){
-        const v = await sb.sessions.validate(payload.sessionId);
-        if(!v.ok) return v;
-      }
-
-      // 명단 확인
-      const student = await sb.students.byNo(no);
-      if(!student) return {ok:false, msg:'명단에 없는 학번입니다.'};
-      if(!student.활성) return {ok:false, msg:'비활성화된 학생입니다.'};
-
-      // 오늘 요일 신청 여부
-      const todayKr = DAY_KR[new Date().getDay()];
-      const days = Array.isArray(student.출석요일) ? student.출석요일 : [];
-      if(days.length > 0 && !days.includes(todayKr)){
-        return {ok:false, msg:student.이름+' 학생은 오늘('+todayKr+') 신청자가 아닙니다.'};
-      }
-
-      // 중복 체크 (DB UNIQUE 제약이 있긴 한데 미리 메시지 만들기)
-      const todayRecs = await sb.records.byDate(todayKST());
-      const dup = todayRecs.find(r => r.학번 === no);
-      if(dup){
-        return {ok:false, msg:student.이름+' 학생은 이미 식사 확인되었습니다.\n('+(dup.원래시각 || '').slice(0,8)+')'};
-      }
-
-      // INSERT
-      const result = await sb.records.add({
-        sessionId: payload.sessionId || 'manual',
-        no,
-        name: student.이름,
-        grade: student.학년,
-        cls: student.반,
-        date: todayKST(),
-        time: nowTimeStr(),
-        method: payload.method || 'QR',
-      });
-
-      if(result.alreadyDone){
-        return {ok:false, msg:student.이름+' 학생은 이미 식사 확인되었습니다.'};
-      }
-      return {ok:true, name:student.이름, time:nowTimeStr()};
-    }
-
-    if(action === 'getMealHistory'){
-      const date = payload.date || todayKST();
-      const [recs, students] = await Promise.all([
-        sb.records.byDate(date),
-        sb.students.list(),
-      ]);
-      const records = recs.map(r => ({
-        no: r.학번,
-        name: r.이름,
-        grade: r.학년 || '',
-        cls: r.반 || '',
-        time: (r.원래시각 || '').slice(0,8),
-        method: r.방법 || 'QR',
-      }));
-      // 해당 날짜의 요일 신청자 명단 (분모)
-      const d = new Date(date + 'T00:00:00');
-      const dayKr = DAY_KR[d.getDay()];
-      const roster = students
-        .filter(s => {
-          const days = Array.isArray(s.출석요일) ? s.출석요일 : [];
-          return days.length === 0 || days.includes(dayKr);
-        })
-        .map(s => ({
-          no: s.학번,
-          name: s.이름,
-          grade: s.학년 || '',
-          cls: s.반 || '',
-        }));
-      return {ok:true, records, roster, date, day:dayKr};
-    }
-
-    if(action === 'deleteMealRecord'){
-      await sb.records.deleteOne(payload.no, payload.date);
-      return {ok:true};
-    }
-
-    if(action === 'addMealRecord'){
-      // 과거/오늘 날짜에 직접 식사 기록 추가 (관리자용)
-      const no = String(payload.no || '').trim();
-      const date = payload.date;
-      if(!/^\d{5}$/.test(no)) return {ok:false, msg:'학번 5자리 필요'};
-      if(!date) return {ok:false, msg:'날짜 필요'};
-
-      const student = await sb.students.byNo(no);
-      if(!student) return {ok:false, msg:'명단에 없는 학번입니다.'};
-
-      // 중복 체크
-      const recs = await sb.records.byDate(date);
-      if(recs.find(r => r.학번 === no)){
-        return {ok:false, msg:student.이름+' 학생은 이미 식사 확인됨'};
-      }
-
-      const result = await sb.records.add({
-        sessionId: 'manual',
-        no,
-        name: student.이름,
-        grade: student.학년,
-        cls: student.반,
-        date: date,
-        time: nowTimeStr(),
-        method: '수동',
-      });
-      if(result.alreadyDone){
-        return {ok:false, msg:student.이름+' 학생은 이미 식사 확인됨'};
-      }
-      return {ok:true, name:student.이름, time:nowTimeStr()};
-    }
-
-    if(action === 'getHolidays'){
-      const list = await sb.holidays.list();
-      return {ok:true, holidays: list.map(h => ({date:h.날짜, reason:h.사유||''}))};
-    }
-
-    if(action === 'addHoliday'){
-      await sb.holidays.add(payload.date, payload.reason);
-      sb.holidays.clearCache();
-      return {ok:true};
-    }
-
-    if(action === 'removeHoliday'){
-      await sb.holidays.remove(payload.date);
-      sb.holidays.clearCache();
-      return {ok:true};
-    }
-
-    if(action === 'getStudentMealInfo'){
-      const no = String(payload.studentNo || '').trim();
-      const student = await sb.students.byNo(no);
-      if(!student) return {ok:false, msg:'명단에 없는 학번입니다.'};
-      const recs = await sb.records.byStudent(no);
-      const records = recs.map(r => ({
-        date: r.날짜,
-        time: (r.원래시각 || '').slice(0,8),
-        method: r.방법 || 'QR',
-      }));
-      const days = Array.isArray(student.출석요일) ? student.출석요일 : [];
-      return {
-        ok: true,
-        student: {
-          no: student.학번,
-          name: student.이름,
-          grade: student.학년 || '',
-          cls: student.반 || '',
-          days: days.join(','),
-        },
-        records,
-      };
-    }
-
-    if(action === 'getMealAnalysisData'){
-      const start = payload.startDate;
-      const end = payload.endDate;
-      const [students, records] = await Promise.all([
-        sb.students.list(),
-        sb.records.byRange(start, end),
-      ]);
-      // 클라이언트에서 처리하기 쉬운 포맷으로
-      const studentsOut = students.map(s => ({
-        no: s.학번,
-        name: s.이름,
-        grade: s.학년 || '',
-        cls: s.반 || '',
-        days: Array.isArray(s.출석요일) ? s.출석요일.join(',') : '',
-      }));
-      const recordsOut = records.map(r => ({
-        no: r.학번,
-        date: r.날짜,
-        time: (r.원래시각 || '').slice(0,8),
-      }));
-      return {ok:true, students:studentsOut, records:recordsOut};
-    }
-
-    if(action === 'saveStudentDays'){
-      const days = Array.isArray(payload.days) ? payload.days : (payload.days ? String(payload.days).split(',').map(s=>s.trim()).filter(Boolean) : []);
-      await sb.students.updateDays(payload.no, days);
-      return {ok:true};
-    }
-
-    if(action === 'saveStudent'){
-      // 기존 학번 존재하는지 확인
-      const existing = await sb.students.byNo(payload.no);
-      if(existing) return {ok:false, msg:'이미 존재하는 학번입니다.'};
-      await sb.students.upsert({
-        no: payload.no,
-        name: payload.name,
-        grade: payload.grade,
-        cls: payload.cls,
-        days: Array.isArray(payload.days) ? payload.days : (payload.days ? String(payload.days).split(',').map(s=>s.trim()).filter(Boolean) : []),
-      });
-      return {ok:true};
-    }
-
-    if(action === 'bulkUpsertStudents'){
-      const students = payload.students || [];
-      const doReplace = payload.replace === true;
-
-      if(doReplace){
-        // 전체 교체: 기존 학생 전부 비활성화 → 새 명단 upsert
-        await sb.client().from('meal_students').update({활성: false, 수정일시: new Date().toISOString()}).eq('활성', true);
-      }
-
-      // 기존 학번 목록 조회 (added/updated 카운트용)
-      const existingNos = new Set();
-      const {data:existing} = await sb.client().from('meal_students').select('학번').limit(10000);
-      if(existing) existing.forEach(s => existingNos.add(s.학번));
-
-      const cnt = await sb.students.bulkUpsert(students);
-
-      let added = 0, updated = 0;
-      students.forEach(s => {
-        if(existingNos.has(String(s.no))) updated++;
-        else added++;
-      });
-
-      return {ok:true, count:cnt, added, updated, skipped:0, replaced:doReplace};
-    }
-
-    if(action === 'deleteStudent'){
-      // 완전 삭제 (식사 기록 함께)
-      try {
-        await sb.client().from('meal_records').delete().eq('학번', String(payload.no));
-      } catch(e) { console.warn('식사 기록 삭제 실패:', e); }
-      const {error} = await sb.client().from('meal_students').delete().eq('학번', String(payload.no));
-      if(error) throw error;
-      return {ok:true};
-    }
-
-    return {ok:false, msg:'알 수 없는 액션: '+action};
-  } catch(e){
-    console.error('[gasPost]', action, e?.message || e, e);
-    return {ok:false, msg:'오류: '+(e?.message || e?.code || '알 수 없음')};
+  .student-screen #sf-btn{
+    padding: 15px 44px !important;
+    font-size: 15px !important;
   }
+  .student-screen .ok-name{ font-size: 30px !important; }
 }
-window.gasPost = gasPost; // 디버깅용
 
-function fmtDate(s){if(!s)return'';if(/^\d{4}-\d{2}-\d{2}$/.test(s.trim())){const p=s.trim().split('-');return p[0].slice(2)+'-'+p[1]+'-'+p[2]}const d=new Date(s);if(isNaN(d))return s;return String(d.getFullYear()).slice(2)+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function fmtTimeShort(t){if(!t)return'';if(/^\d{2}:\d{2}:\d{2}$/.test(t))return t;if(/^\d{2}:\d{2}$/.test(t))return t;try{const d=new Date(t);if(!isNaN(d))return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(e){}return t}
 
-/* ══ 초기화 ══ */
-(async function init(){
-  // Supabase 클라이언트 초기화
-  try { initSupabase(); } catch(e) { console.error('Supabase 초기화 실패:', e); alert('Supabase 연결 실패: '+e.message); return; }
-  const p=new URLSearchParams(location.search);
-  if(p.get('mode')==='student'){
-    document.getElementById('dashboard').style.display='none';
-    document.getElementById('student-screen').classList.add('on');
-    const sid = p.get('sid') || '';
-    S.studentSessionId = sid;
-    // 세션 검증
-    const v = await gasPost({action:'validateSession', sessionId:sid});
-    if(!v.ok){
-      // 검증 실패 → 입력창 영구 비활성화
-      const input = document.getElementById('sf-no');
-      const btn = document.getElementById('sf-btn');
-      const sub = document.querySelector('#sf-input-wrap .s-sub');
-      if(input) input.disabled = true;
-      if(btn){ btn.disabled = true; btn.style.opacity = '0.4'; }
-      if(sub){ sub.innerHTML = '⚠️ '+(v.msg||'사용할 수 없는 QR 코드예요.').replace(/\n/g,'<br>'); sub.dataset.gated = 'invalid'; }
-      return;
-    }
-    document.getElementById('sf-no').focus();
-    startStudentTimeGate();
-    return;
+/* ════════════════════════════════════════════════════════════
+   2단계 — 교사 대시보드
+   ════════════════════════════════════════════════════════════ */
+
+/* 교사 대시보드가 보일 때만 (학생 화면과 격리) */
+body:not(:has(.student-screen.on)){
+  background: #fbfbfd !important;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  color: #1d1d1f !important;
+  -webkit-font-smoothing: antialiased;
+}
+body:not(:has(.student-screen.on))::before{ display: none !important; }
+
+/* 라이트 팔레트 변수 (교사 대시보드에만) */
+#dashboard{
+  --bg: #fbfbfd;
+  --bg-soft: #f5f5f7;
+  --bg-softer: #fafafc;
+  --ink-light: #1d1d1f;
+  --ink-soft: #424245;
+  --muted-light: #86868b;
+  --muted-2: #6e6e73;
+  --card-light: #ffffff;
+  --border-light: rgba(0, 0, 0, 0.08);
+  --border2-light: rgba(0, 0, 0, 0.12);
+  --accent-light: #ff9500;
+  --accent-soft: rgba(255, 149, 0, 0.12);
+  --accent-ink: #a85a00;
+  --ok-light: #30d158;
+  --ok-soft: rgba(48, 209, 88, 0.12);
+  --ok-ink: #087b2b;
+  --red-light: #ff3b30;
+  --red-soft: rgba(255, 59, 48, 0.10);
+  --red-ink: #c21a12;
+  --sky-light: #0071e3;
+  --sky-soft: rgba(0, 113, 227, 0.10);
+  --sky-ink: #0051a8;
+  --purple-light: #5856d6;
+  --purple-soft: rgba(88, 86, 214, 0.10);
+  font-family: 'Pretendard', -apple-system, sans-serif;
+  color: #1d1d1f;
+}
+
+/* ─── Topbar ─── */
+#dashboard .topbar{
+  background: rgba(251, 251, 253, 0.8) !important;
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--border-light) !important;
+  height: 52px !important;
+  padding: 0 22px !important;
+}
+#dashboard .logo{
+  color: var(--ink-light) !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+}
+#dashboard .sess-lbl{
+  color: var(--muted-light) !important;
+  font-size: 12px !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── 버튼 시스템 ─── */
+#dashboard .btn{
+  border-radius: 980px !important;
+  font-family: 'Pretendard', sans-serif !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em;
+  transition: all 0.18s ease;
+}
+#dashboard .btn-amber{
+  background: var(--ink-light) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px -2px rgba(0,0,0,0.15);
+}
+#dashboard .btn-amber:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -4px rgba(0,0,0,0.2);
+}
+#dashboard .btn-green{
+  background: var(--ok-light) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px -2px rgba(48, 209, 88, 0.3);
+}
+#dashboard .btn-green:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -4px rgba(48, 209, 88, 0.35);
+}
+#dashboard .btn-red{
+  background: var(--red-light) !important;
+  color: #ffffff !important;
+}
+#dashboard .btn-ghost{
+  background: #ffffff !important;
+  border: 1px solid var(--border-light) !important;
+  color: var(--ink-light) !important;
+}
+#dashboard .btn-ghost:hover{
+  background: var(--bg-soft) !important;
+  border-color: var(--border2-light) !important;
+}
+
+/* ─── 카드 ─── */
+#dashboard .card{
+  background: var(--card-light) !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 16px !important;
+  padding: 24px !important;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.6) inset,
+    0 1px 3px -1px rgba(0,0,0,0.04);
+}
+#dashboard .card-head{
+  color: var(--muted-light) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase;
+}
+
+/* ─── 필드 / 인풋 / 셀렉트 ─── */
+#dashboard .field label{
+  color: var(--muted-2) !important;
+  font-weight: 500 !important;
+  font-size: 12px !important;
+}
+#dashboard input[type="text"],
+#dashboard input[type="date"],
+#dashboard .field input,
+#dashboard select{
+  font-family: 'Pretendard', sans-serif !important;
+  background: var(--bg-soft) !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  color: var(--ink-light) !important;
+  font-size: 13px !important;
+  outline: none;
+  transition: all 0.15s ease;
+}
+#dashboard input[type="text"]:focus,
+#dashboard input[type="date"]:focus,
+#dashboard .field input:focus,
+#dashboard select:focus{
+  background: #ffffff !important;
+  border-color: var(--accent-light) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+#dashboard select{
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M3 4.5L6 7.5L9 4.5' stroke='%2386868b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  padding-right: 32px !important;
+}
+#dashboard select option{
+  background: #ffffff !important;
+  color: var(--ink-light) !important;
+}
+
+/* ─── 통계 박스 (방향 A — 모노톤 + 미세 악센트) ─── */
+#dashboard .stats-row{
+  display: flex !important;
+  gap: 0 !important;
+  margin-bottom: 20px !important;
+  background: var(--card-light) !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 16px !important;
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+#dashboard .stat-box{
+  flex: 1;
+  min-width: 140px;
+  padding: 22px 24px !important;
+  border-right: 1px solid var(--border-light);
+  background: transparent !important;
+  text-align: left !important;
+  position: relative;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: 10px;
+}
+#dashboard .stat-box:last-child{ border-right: none; }
+#dashboard .stat-box::before{
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 24px;
+  right: 24px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--ink-light);
+}
+#dashboard .stat-box:has(#st-total)::before,
+#dashboard .stat-box:has(#hist-total)::before{ background: var(--sky-light); }
+#dashboard .stat-box:has(#st-done)::before,
+#dashboard .stat-box:has(#hist-done)::before{ background: var(--ok-light); }
+#dashboard .stat-box:has(#st-remain)::before,
+#dashboard .stat-box:has(#hist-miss)::before{ background: var(--red-light); }
+#dashboard .stat-box:has(#st-rate)::before,
+#dashboard .stat-box:has(#hist-rate)::before{ background: var(--accent-light); }
+
+#dashboard .stat-num{
+  font-size: 34px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.03em !important;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-light) !important;
+  font-family: 'Pretendard', sans-serif !important;
+}
+#dashboard .stat-lbl{
+  font-size: 11px !important;
+  color: var(--muted-light) !important;
+  font-weight: 500 !important;
+  margin-top: 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#dashboard .stat-lbl::before{
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted-light);
+  display: inline-block;
+  flex-shrink: 0;
+}
+#dashboard .stat-box:has(#st-total) .stat-lbl::before,
+#dashboard .stat-box:has(#hist-total) .stat-lbl::before{ background: var(--sky-light); }
+#dashboard .stat-box:has(#st-done) .stat-lbl::before,
+#dashboard .stat-box:has(#hist-done) .stat-lbl::before{ background: var(--ok-light); }
+#dashboard .stat-box:has(#st-remain) .stat-lbl::before,
+#dashboard .stat-box:has(#hist-miss) .stat-lbl::before{ background: var(--red-light); }
+#dashboard .stat-box:has(#st-rate) .stat-lbl::before,
+#dashboard .stat-box:has(#hist-rate) .stat-lbl::before{ background: var(--accent-light); }
+
+@media (max-width: 640px){
+  #dashboard .stat-box{
+    flex: 1 1 50%;
+    min-width: 50%;
+    border-bottom: 1px solid var(--border-light);
   }
-  // 교사 대시보드
-  document.getElementById('top-date').textContent = fmtDate(new Date().toISOString().slice(0,10));
-  document.getElementById('hist-date').value = new Date().toISOString().slice(0,10);
-  // 오늘 활성 세션이 있으면 복원
-  const sess = await gasPost({action:'getActiveSession'});
-  if(sess.ok && sess.session){
-    S.sessionId = sess.session.sessionId;
-    showQR(sess.session.sessionId, sess.session.time);
-  }
-  await loadToday();
-  startPolling();
-  startTeacherAutoQR();
-})();
-
-/* ══ 교사 화면 자동 QR 생성/종료 스케줄러 ══ */
-// 18:20~18:50 사이 + 오늘 세션 없으면 자동 생성
-// 18:50 이후 + 오늘 세션 있으면 종료 배지 표시
-function startTeacherAutoQR(){
-  let _autoTriggered = false;
-  let _lastDate = new Date().toISOString().slice(0,10);
-  async function tick(){
-    // 자정 넘김 시 트리거 플래그 리셋
-    const todayStr = new Date().toISOString().slice(0,10);
-    if (todayStr !== _lastDate){
-      _lastDate = todayStr;
-      _autoTriggered = false;
-      // 어제 세션 정리
-      S.sessionId = null;
-      document.getElementById('qr-empty').style.display = 'flex';
-      document.getElementById('qr-active').style.display = 'none';
-    }
-    const now = new Date();
-    const cur = now.getHours()*60 + now.getMinutes();
-    const inWindow = cur >= 1100 && cur < 1130; // 18:20~18:50
-    const afterEnd = cur >= 1130; // 18:50 이후
-
-    // 자동 생성: 식사 시간 시작됐고 아직 세션 없음
-    if (inWindow && !S.sessionId && !_autoTriggered){
-      _autoTriggered = true; // 동시 호출 방지
-      // 다른 화면에서 만들었을 수도 있으니 최신 상태 한 번 더 확인
-      const sess = await gasPost({action:'getActiveSession'});
-      if (sess.ok && sess.session){
-        S.sessionId = sess.session.sessionId;
-        showQR(sess.session.sessionId, sess.session.time);
-        toast('오늘 QR을 자동 복원했어요','ok');
-      } else {
-        const r = await gasPost({action:'createSession'});
-        if (r.ok){
-          S.sessionId = r.sessionId;
-          showQR(r.sessionId, r.time);
-          toast('식사 시간 시작 — QR 자동 생성됨','ok');
-        }
-      }
-    }
-
-    // 자동 종료: 식사 시간 끝났고 세션 표시 중
-    if (afterEnd && S.sessionId){
-      const info = document.getElementById('qr-info');
-      if (info && info.dataset.ended !== '1'){
-        info.innerHTML = '<span style="color:var(--red);font-weight:700">⏹ 식사 시간 종료</span>';
-        info.dataset.ended = '1';
-        // QR 영역에 흐림 효과
-        const box = document.getElementById('qr-render');
-        if (box) box.style.opacity = '0.35';
-      }
-    } else if (cur < 1130) {
-      // 다음 날 새 세션 생성 시 흐림 해제
-      const info = document.getElementById('qr-info');
-      if (info && info.dataset.ended === '1'){
-        info.dataset.ended = '0';
-        const box = document.getElementById('qr-render');
-        if (box) box.style.opacity = '';
-      }
-    }
-  }
-  tick();
-  setInterval(tick, 30000); // 30초마다 체크
+  #dashboard .stat-box:nth-child(2n){ border-right: none; }
+  #dashboard .stat-box:nth-last-child(-n+2){ border-bottom: none; }
 }
 
-/* ══ 학생 화면 시간대 사전 안내 ══ */
-function startStudentTimeGate(){
-  // 매 5초마다 시간 체크 — 18:20~18:50 외엔 입력 비활성화 + 안내
-  function check(){
-    const now = new Date();
-    const cur = now.getHours()*60 + now.getMinutes();
-    const inWindow = cur >= 1100 && cur < 1130; // 18:20~18:50
-    const input = document.getElementById('sf-no');
-    const btn = document.getElementById('sf-btn');
-    const sub = document.querySelector('#sf-input-wrap .s-sub');
-    if(!input || !btn) return;
-    if(sub && sub.dataset.gated === 'invalid') return; // 세션 무효 시 건드리지 않음
-    if(inWindow){
-      input.disabled = false;
-      btn.disabled = false;
-      btn.style.opacity = '';
-      if(sub && sub.dataset.gated==='1'){
-        sub.innerHTML = '학번을 입력하면 식사가 확인돼요<br><span style="color:var(--accent)">⏰ 18:20 ~ 18:50</span>';
-        sub.dataset.gated = '0';
-      }
-    } else {
-      input.disabled = true;
-      btn.disabled = true;
-      btn.style.opacity = '0.4';
-      const hh = String(now.getHours()).padStart(2,'0');
-      const mm = String(now.getMinutes()).padStart(2,'0');
-      const msg = cur < 1100 ? `⏰ 18:20부터 시작돼요<br><span style="color:var(--muted);font-size:12px">현재 ${hh}:${mm}</span>` : `⏰ 식사 시간이 종료됐어요<br><span style="color:var(--muted);font-size:12px">현재 ${hh}:${mm}</span>`;
-      if(sub){ sub.innerHTML = msg; sub.dataset.gated = '1'; }
-    }
-  }
-  check();
-  setInterval(check, 5000);
+/* ─── 탭바 (언더라인 방식) ─── */
+#dashboard .tab-bar{
+  border-bottom: 1px solid var(--border-light) !important;
+  margin-bottom: 20px !important;
+  gap: 2px !important;
+}
+#dashboard .tab-btn{
+  padding: 10px 16px !important;
+  background: transparent !important;
+  color: var(--muted-light) !important;
+  font-family: 'Pretendard', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  border-radius: 0 !important;
+  position: relative;
+  letter-spacing: -0.01em;
+}
+#dashboard .tab-btn:hover{
+  background: transparent !important;
+  color: var(--ink-light) !important;
+}
+#dashboard .tab-btn.on{
+  background: transparent !important;
+  color: var(--ink-light) !important;
+  font-weight: 600 !important;
+}
+#dashboard .tab-btn.on::after{
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--ink-light);
+  border-radius: 2px 2px 0 0;
 }
 
-/* ══ QR 세션 생성 / 표시 ══ */
-async function createQR(force){
-  if(force && !confirm('새 QR을 생성하면 기존 QR은 무효화되지 않지만, 학생들에게 새 QR을 다시 안내해야 해요. 계속할까요?')) return;
-  const r = await gasPost({action:'createSession'});
-  if(!r.ok){ toast(r.msg||'QR 생성 실패','err'); return; }
-  S.sessionId = r.sessionId;
-  showQR(r.sessionId, r.time);
-  toast('QR 생성 완료','ok');
+/* ─── 테이블 ─── */
+#dashboard table{ background: transparent; }
+#dashboard th{
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--muted-light) !important;
+  padding: 10px 12px !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: var(--bg-softer);
 }
-window.createQR = createQR;
-
-function showQR(sessionId, time){
-  document.getElementById('qr-empty').style.display = 'none';
-  document.getElementById('qr-active').style.display = 'block';
-  const box = document.getElementById('qr-render');
-  const url = location.origin + location.pathname + '?mode=student&sid=' + encodeURIComponent(sessionId);
-  const tmp = document.createElement('div');
-  new QRCode(tmp, {text:url, width:280, height:280, colorDark:'#000', colorLight:'#fff', correctLevel:QRCode.CorrectLevel.M});
-  setTimeout(() => { box.innerHTML = ''; while(tmp.firstChild) box.appendChild(tmp.firstChild); }, 50);
-  document.getElementById('qr-info').innerHTML = `생성: ${time||'—'} · 오늘만 유효`;
+#dashboard td{
+  color: var(--ink-light) !important;
+  padding: 12px !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  font-size: 14px !important;
 }
+#dashboard tr:last-child td{ border-bottom: none; }
+#dashboard tr:hover td{ background: var(--bg-softer); }
 
-/* ══ 오늘 데이터 로드 ══ */
-async function loadToday(){
-  // 명단 + 오늘 현황 병렬 로드
-  const [rosterRes, statusRes] = await Promise.all([
-    gasPost({action:'getRoster'}),
-    gasPost({action:'getTodayStatus'})
-  ]);
-  if(rosterRes.ok) S.roster = rosterRes.students.filter(s=>s.isToday);
-  if(statusRes.ok) S.confirmed = statusRes.confirmed.map(c=>({...c, no:String(c.no).replace(/\.0$/,'')}));
-  refreshStats(); renderTodayList(); renderRoster();
+/* ─── 금일 식사 인원 (크게 표시) ─── */
+#dashboard table.today-big th{
+  font-size: 14px !important;
+  padding: 0 10px 12px !important;
+  background: transparent;
 }
-
-/* ══ 폴링 (5초 간격) ══ */
-function startPolling(){
-  clearInterval(S.pollInt);
-  S.currentDate = new Date().toISOString().slice(0,10);
-  S.pollInt = setInterval(async()=>{
-    // 자정 넘김 감지
-    const nowDate = new Date().toISOString().slice(0,10);
-    if (nowDate !== S.currentDate) {
-      S.currentDate = nowDate;
-      document.getElementById('top-date').textContent = fmtDate(nowDate);
-      document.getElementById('hist-date').value = nowDate;
-      S.confirmed = []; // 어제 캐시 비우기
-      await loadToday();
-      toast('날짜가 바뀌었어요. 오늘 데이터로 새로고침됨','ok');
-      return;
-    }
-    const r = await gasPost({action:'getTodayStatus'});
-    if(!r.ok) return;
-    let upd=false;
-    r.confirmed.forEach(c=>{
-      const no=String(c.no).replace(/\.0$/,'');
-      if(!S.confirmed.find(x=>String(x.no)===no)){S.confirmed.push({...c,no});S._justAdded.add(no);upd=true}
-    });
-    if(upd){refreshStats();renderTodayList();renderRoster()}
-  },5000);
+#dashboard table.today-big td{
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  padding: 14px 10px !important;
+}
+#dashboard table.today-big td.tb-time{
+  font-size: 21px !important;
+  font-weight: 500 !important;
+}
+/* 새 항목 플래시 (hover 배경보다 우선) */
+@keyframes rowFlashApple{
+  0%{ background-color: rgba(48,209,88,.5) !important; }
+  15%{ background-color: rgba(48,209,88,.5) !important; }
+  100%{ background-color: transparent !important; }
+}
+#dashboard table.today-big tbody tr.row-flash td,
+#dashboard table.today-big tbody tr.row-flash:hover td{
+  animation: rowFlashApple 2.2s ease-out !important;
 }
 
-/* ══ 통계 ══ */
-function refreshStats(){
-  const total=S.roster.length, done=S.confirmed.length, remain=Math.max(0,total-done);
-  document.getElementById('st-total').textContent=total;
-  document.getElementById('st-done').textContent=done;
-  document.getElementById('st-remain').textContent=remain;
-  document.getElementById('st-rate').textContent=(total>0?Math.round(done/total*100):0)+'%';
+/* ─── 뱃지 ─── */
+#dashboard .badge{
+  padding: 3px 10px !important;
+  border-radius: 999px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+}
+#dashboard .badge-ok{
+  background: var(--ok-soft) !important;
+  color: var(--ok-ink) !important;
+}
+#dashboard .badge-wait{
+  background: var(--red-soft) !important;
+  color: var(--red-ink) !important;
+}
+#dashboard .badge-qr{
+  background: var(--sky-soft) !important;
+  color: var(--sky-ink) !important;
+}
+#dashboard .badge-manual{
+  background: var(--purple-soft) !important;
+  color: #3a2f9e !important;
 }
 
-/* ══ 오늘 식사 인원 목록 ══ */
-function renderTodayList(){
-  const el=document.getElementById('today-list');
-  if(!S.confirmed.length){el.innerHTML='<div style="font-size:15px;color:var(--muted);padding:16px;text-align:center">아직 식사한 인원이 없어요</div>';return}
-  const list=[...S.confirmed].reverse().slice(0,15);
-  el.innerHTML='<table class="today-big"><thead><tr><th>학번</th><th>이름</th><th>시각</th></tr></thead><tbody>'
-    +list.map(c=>{
-      const no=String(c.no);
-      const mark=S._justAdded.has(no)?` data-flash="${no}"`:'';
-      return `<tr${mark}><td class="tb-no">${c.no}</td><td class="tb-name">${c.name}</td><td class="tb-time">${fmtTimeShort(c.time)}</td></tr>`;
-    }).join('')+'</tbody></table>';
-  // 렌더 직후 플래시 클래스를 JS로 부여 → 애니메이션 강제 트리거
-  if(S._justAdded.size){
-    console.log('[flash] 새 항목 마킹:', [...S._justAdded]);
-    const flashRows = el.querySelectorAll('tr[data-flash]');
-    flashRows.forEach(tr=>{
-      void tr.offsetHeight; // 강제 reflow
-      tr.classList.add('row-flash');
-    });
-    setTimeout(()=>{ S._justAdded.clear(); }, 2500);
-  }
+/* ─── QR 카드 ─── */
+#dashboard #qr-empty{
+  background: var(--bg-softer) !important;
+  border: 1px dashed var(--border2-light) !important;
+  border-radius: 16px !important;
 }
-  // 플래시 처리한 항목은 마킹 해제 (다음 렌더부터는 강조 안 함)
-  if(S._justAdded.size){
-    setTimeout(()=>{ S._justAdded.clear(); }, 2500);
-  }
+#dashboard #qr-active > div:first-child{
+  background: #ffffff !important;
+  border-radius: 16px !important;
+  border: 1px solid var(--border-light);
+  box-shadow:
+    0 1px 3px rgba(0,0,0,0.04),
+    0 10px 30px -10px rgba(0,0,0,0.08);
+}
+#dashboard #qr-info{
+  color: var(--muted-light) !important;
+  font-size: 12px !important;
 }
 
-/* ══ 명단 탭 ══ */
-function setRosterFilter(f){S.rosterFilter=f;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('on',b.dataset.filter===f));renderRoster()}
-window.setRosterFilter=setRosterFilter;
-
-function renderRoster(){
-  const doneSet=new Set(S.confirmed.map(c=>String(c.no)));
-  const q=(document.getElementById('roster-search').value||'').trim().toLowerCase();
-  let list=S.roster.map(s=>{const rec=S.confirmed.find(c=>String(c.no)===String(s.no));return{...s,isDone:!!rec,time:rec?rec.time:''}});
-  if(S.rosterFilter==='done')list=list.filter(s=>s.isDone);
-  else if(S.rosterFilter==='wait')list=list.filter(s=>!s.isDone);
-  if(q)list=list.filter(s=>String(s.no).includes(q)||s.name.toLowerCase().includes(q));
-  list.sort((a,b)=>{if(a.isDone!==b.isDone)return a.isDone?1:-1;return String(a.no).localeCompare(String(b.no))});
-  const doneCount=S.roster.filter(s=>doneSet.has(String(s.no))).length;
-  document.getElementById('roster-count').textContent=`표시: ${list.length}명 / 전체: ${S.roster.length}명 (식사 완료 ${doneCount}명)`;
-  const tbody=document.getElementById('roster-tbody');
-  if(!list.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';return}
-  tbody.innerHTML=list.map(s=>{
-    const badge=s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>';
-    const tc=s.isDone?fmtTimeShort(s.time):'<button class="btn btn-green btn-sm" onclick="manualConfirmNo(\''+s.no+'\')">수동 확인</button>';
-    return`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${badge}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${tc}</td></tr>`}).join('');
+/* ─── 필터칩 ─── */
+#dashboard .filter-chip{
+  background: #ffffff !important;
+  border: 1px solid var(--border-light) !important;
+  color: var(--muted-2) !important;
+  border-radius: 999px !important;
+  padding: 6px 14px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  font-family: 'Pretendard', sans-serif !important;
+  letter-spacing: -0.01em;
+  transition: all 0.15s ease;
 }
-window.renderRoster=renderRoster;
-
-/* ══ 탭 전환 ══ */
-function goTab(tab){
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('on',b.dataset.tab===tab));
-  ['today','roster','manage','manual','history','analysis','trend'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('on',t===tab));
-  if(tab==='roster')renderRoster();
-  if(tab==='manage'){loadManageList();loadHolidays();}
-  if(tab==='history')loadHistoryDate();
-  if(tab==='analysis')loadAnalysis();
-  if(tab==='trend')loadTrend();
+#dashboard .filter-chip:hover{
+  background: var(--bg-soft) !important;
+  color: var(--ink-light) !important;
+  border-color: var(--border2-light) !important;
 }
-window.goTab=goTab;
-
-/* ══ 식사 확인 요청 ══ */
-async function tryConfirm(no,method){
-  if(!no)return{ok:false,msg:'학번을 입력해주세요.'};
-  no=String(no).trim();
-  // 세션 ID: 학생 화면이면 studentSessionId, 교사 화면이면 sessionId
-  const sid = S.studentSessionId || S.sessionId || '';
-  // 수동 입력은 세션 없어도 OK (QR 방식만 세션 필수)
-  if(method !== '수동' && !sid) return{ok:false,msg:'먼저 QR을 생성해주세요.'};
-  if(S.confirmed.find(c=>String(c.no)===no))return{ok:false,msg:'이미 식사 확인된 학생이에요.'};
-  const local=S.roster.find(s=>String(s.no)===no);
-  const tmp={no,name:local?local.name:no,time:new Date().toTimeString().slice(0,8),method:method||'QR',_p:true};
-  S.confirmed.push(tmp);refreshStats();renderTodayList();renderRoster();
-  const r=await gasPost({action:'confirmMeal',studentNo:no,method:method||'QR',sessionId:sid});
-  if(!r.ok){const idx=S.confirmed.indexOf(tmp);if(idx!==-1)S.confirmed.splice(idx,1);refreshStats();renderTodayList();renderRoster();return{ok:false,msg:r.msg}}
-  tmp.name=r.name;tmp.time=r.time;delete tmp._p;
-  refreshStats();renderTodayList();renderRoster();
-  return{ok:true,name:r.name,time:r.time};
+#dashboard .filter-chip.on{
+  background: var(--ink-light) !important;
+  color: #ffffff !important;
+  border-color: var(--ink-light) !important;
 }
 
-/* ══ 학생 전체화면 ══ */
-async function doStudentConfirm(){
-  const err=document.getElementById('sf-err');err.style.display='none';
-  const btn=document.getElementById('sf-btn');btn.disabled=true;btn.textContent='확인 중...';
-  const r=await tryConfirm(document.getElementById('sf-no').value.trim(),'QR');
-  btn.disabled=false;btn.textContent='🍱 식사 확인';
-  if(!r.ok){err.textContent=r.msg;err.style.display='block';return}
-  document.getElementById('sf-input-wrap').style.display='none';
-  document.getElementById('sf-ok').style.display='flex';
-  document.getElementById('sf-ok-name').textContent=r.name+' 학생';
-  document.getElementById('sf-ok-meta').textContent='식사 시각: '+fmtTimeShort(r.time);
+/* ─── 뷰 토글 (명단 탭의 주간/월간) ─── */
+#dashboard .view-toggle{
+  display: inline-flex;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  background: var(--bg-soft);
+  padding: 3px;
+  gap: 2px;
 }
-window.doStudentConfirm=doStudentConfirm;
-function resetStudent(){document.getElementById('sf-input-wrap').style.display='flex';document.getElementById('sf-ok').style.display='none';document.getElementById('sf-no').value='';document.getElementById('sf-err').style.display='none';document.getElementById('sf-no').focus()}
-window.resetStudent=resetStudent;
-
-/* ══ 수동 확인 ══ */
-async function manualConfirm(){
-  const no=document.getElementById('manual-no').value.trim();
-  const el=document.getElementById('manual-result');
-  el.innerHTML='<span style="color:var(--muted)">처리 중...</span>';
-  const r=await tryConfirm(no,'수동');
-  if(!r.ok){el.innerHTML=`<span style="color:var(--red)">${r.msg}</span>`;return}
-  el.innerHTML=`<span style="color:var(--ok)">✓ ${r.name} 식사 확인 (${fmtTimeShort(r.time)})</span>`;
-  document.getElementById('manual-no').value='';
+#dashboard .view-toggle button{
+  padding: 6px 14px !important;
+  background: transparent !important;
+  color: var(--muted-2) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  border-radius: 7px !important;
+  font-family: 'Pretendard', sans-serif !important;
+  transition: all 0.15s ease;
 }
-window.manualConfirm=manualConfirm;
-async function manualConfirmNo(no){const r=await tryConfirm(no,'수동');if(r.ok)toast(r.name+' 식사 확인!','ok');else toast(r.msg,'err')}
-window.manualConfirmNo=manualConfirmNo;
-
-/* ══ 넘버패드 ══ */
-function openNumpad(){S.npVal='';npRefresh();document.getElementById('numpad').style.display='flex'}
-window.openNumpad=openNumpad;
-function closeNumpad(){document.getElementById('numpad').style.display='none'}window.closeNumpad=closeNumpad;
-function npInput(d){if(S.npVal.length>=5)return;S.npVal+=d;npRefresh()}window.npInput=npInput;
-function npDelete(){S.npVal=S.npVal.slice(0,-1);npRefresh()}window.npDelete=npDelete;
-function npClear(){S.npVal='';npRefresh()}window.npClear=npClear;
-function npRefresh(){const d=document.getElementById('np-display');d.textContent=S.npVal||'—';d.classList.toggle('full',S.npVal.length>=4);document.getElementById('np-ok').disabled=S.npVal.length<4}
-async function npConfirm(){if(S.npVal.length<4)return;const r=await tryConfirm(S.npVal,'수동');if(r.ok){toast(r.name+' 식사 확인!','ok');S.npVal='';npRefresh()}else toast(r.msg,'err')}
-window.npConfirm=npConfirm;
-
-/* ══ 기록 탭 ══ */
-var _histData={roster:[],records:[],date:'',day:''}, _histFilter='all';
-async function loadHistoryDate(){
-  const date=document.getElementById('hist-date').value;if(!date)return;
-  const r=await gasPost({action:'getMealHistory',date});
-  if(!r.ok){_histData={roster:[],records:[],date:date,day:''};document.getElementById('hist-stats').style.display='none';document.getElementById('hist-tbody').innerHTML='';document.getElementById('hist-empty').style.display='block';return}
-  _histData={roster:r.roster||[],records:r.records||[],date:r.date||date,day:r.day||''};
-  document.getElementById('hist-day').textContent=_histData.day?'('+_histData.day+'요일)':'';
-  document.getElementById('hist-stats').style.display='flex';document.getElementById('hist-empty').style.display='none';
-  const doneSet=new Set(_histData.records.map(r=>String(r.no)));
-  const total=_histData.roster.length,done=_histData.roster.filter(s=>doneSet.has(String(s.no))).length,miss=total-done;
-  document.getElementById('hist-total').textContent=total;document.getElementById('hist-done').textContent=done;
-  document.getElementById('hist-miss').textContent=miss;document.getElementById('hist-rate').textContent=(total>0?Math.round(done/total*100):0)+'%';
-  _histFilter='all';document.querySelectorAll('[data-hf]').forEach(b=>b.classList.toggle('on',b.dataset.hf==='all'));
-  document.getElementById('hist-search').value='';renderHistTable();
-}
-window.loadHistoryDate=loadHistoryDate;
-function setHistFilter(f){_histFilter=f;document.querySelectorAll('[data-hf]').forEach(b=>b.classList.toggle('on',b.dataset.hf===f));renderHistTable()}
-window.setHistFilter=setHistFilter;
-function renderHistTable(){
-  const doneMap={};_histData.records.forEach(r=>{doneMap[String(r.no)]=r});
-  let list=_histData.roster.map(s=>{const rec=doneMap[String(s.no)];return{no:s.no,name:s.name,isDone:!!rec,time:rec?rec.time:''}});
-  if(_histFilter==='done')list=list.filter(s=>s.isDone);else if(_histFilter==='miss')list=list.filter(s=>!s.isDone);
-  const q=(document.getElementById('hist-search').value||'').trim().toLowerCase();
-  if(q)list=list.filter(s=>String(s.no).includes(q)||s.name.toLowerCase().includes(q));
-  list.sort((a,b)=>{if(a.isDone!==b.isDone)return a.isDone?1:-1;return String(a.no).localeCompare(String(b.no))});
-  const tbody=document.getElementById('hist-tbody');
-  if(!list.length&&!_histData.roster.length){tbody.innerHTML='';document.getElementById('hist-empty').style.display='block';return}
-  document.getElementById('hist-empty').style.display='none';
-  if(!list.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">해당하는 학생이 없어요</td></tr>';return}
-  tbody.innerHTML=list.map(s=>{
-    const actBtn = s.isDone
-      ? `<button class="btn btn-ghost btn-sm" onclick="deleteRecord('${s.no}','${_histData.date}')" style="color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:4px 10px;white-space:nowrap">삭제</button>`
-      : `<button class="btn btn-ghost btn-sm" onclick="addRecord('${s.no}','${_histData.date}')" style="color:var(--ok);border-color:rgba(52,211,153,.3);font-size:11px;padding:4px 10px;white-space:nowrap">추가</button>`;
-    return`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>'}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${s.isDone?fmtTimeShort(s.time):'—'}</td><td style="white-space:nowrap">${actBtn}</td></tr>`
-  }).join('');
-}
-window.renderHistTable=renderHistTable;
-
-async function addRecord(no, date){
-  if(!confirm(no+' 학생의 '+date+' 식사 기록을 추가할까요?'))return;
-  const r=await gasPost({action:'addMealRecord',no:no,date:date});
-  if(!r.ok){toast(r.msg,'err');return}
-  toast(r.name+' 추가됨','ok');
-  // 로컬에도 추가
-  _histData.records.push({no:no, name:r.name, time:r.time, method:'수동'});
-  // 오늘이면 오늘 현황도 업데이트
-  const today=new Date().toISOString().slice(0,10);
-  if(date===today){
-    S.confirmed.push({no:no, name:r.name, time:r.time, method:'수동'});
-    refreshStats();renderTodayList();renderRoster();
-  }
-  // 통계 재계산
-  const doneSet=new Set(_histData.records.map(r=>String(r.no)));
-  const total=_histData.roster.length,done=_histData.roster.filter(s=>doneSet.has(String(s.no))).length,miss=total-done;
-  document.getElementById('hist-total').textContent=total;document.getElementById('hist-done').textContent=done;
-  document.getElementById('hist-miss').textContent=miss;document.getElementById('hist-rate').textContent=(total>0?Math.round(done/total*100):0)+'%';
-  renderHistTable();
-}
-window.addRecord=addRecord;
-
-async function deleteRecord(no, date){
-  if(!confirm(no+' 학생의 '+date+' 식사 기록을 삭제할까요?'))return;
-  const r=await gasPost({action:'deleteMealRecord',no:no,date:date});
-  if(!r.ok){toast(r.msg,'err');return}
-  toast(r.msg,'ok');
-  // 로컬에서도 제거
-  _histData.records=_histData.records.filter(rec=>!(String(rec.no)===no));
-  // 오늘 현황에서도 제거 (오늘 날짜인 경우)
-  const today=new Date().toISOString().slice(0,10);
-  if(date===today){S.confirmed=S.confirmed.filter(c=>String(c.no)!==no);refreshStats();renderTodayList();renderRoster()}
-  // 통계 재계산 + 테이블 재렌더
-  const doneSet=new Set(_histData.records.map(r=>String(r.no)));
-  const total=_histData.roster.length,done=_histData.roster.filter(s=>doneSet.has(String(s.no))).length,miss=total-done;
-  document.getElementById('hist-total').textContent=total;document.getElementById('hist-done').textContent=done;
-  document.getElementById('hist-miss').textContent=miss;document.getElementById('hist-rate').textContent=(total>0?Math.round(done/total*100):0)+'%';
-  renderHistTable();
-}
-window.deleteRecord=deleteRecord;
-function exportHistCSV(){
-  const doneMap={};_histData.records.forEach(r=>{doneMap[String(r.no)]=r});
-  const list=_histData.roster.map(s=>{const rec=doneMap[String(s.no)];return{no:s.no,name:s.name,status:rec?'식사 완료':'식사 안함',time:rec?fmtTimeShort(rec.time):''}});
-  if(!list.length){toast('내보낼 데이터가 없어요','err');return}
-  list.sort((a,b)=>String(a.no).localeCompare(String(b.no)));
-  const csv='\uFEFF학번,이름,상태,식사시각\n'+list.map(c=>`${c.no},${c.name},${c.status},${c.time}`).join('\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download='급식기록_'+_histData.date+'.csv';a.click();toast('CSV 다운로드 완료','ok');
-}
-window.exportHistCSV=exportHistCSV;
-
-/* ══ 학생 관리 탭 ══ */
-const MANAGE_DAYS = ['월','화','수','목','금'];
-var _manageStudents = [];
-
-async function loadManageList(){
-  const wrap = document.getElementById('manage-list-wrap');
-  wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">불러오는 중...</div>';
-  const r = await gasPost({action:'getRoster'});
-  if (!r.ok) {
-    wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">'+(r.msg||'로드 실패')+'</div>';
-    return;
-  }
-  _manageStudents = r.students || [];
-  // 반 필터 옵션 생성
-  const classes = [...new Set(_manageStudents.map(s=>s.cls).filter(Boolean))].sort();
-  const clsSel = document.getElementById('manage-cls');
-  const cur = clsSel.value;
-  clsSel.innerHTML = '<option value="">전체 반</option>' + classes.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}반</option>`).join('');
-  renderManageList();
-  // 추가 폼의 요일 버튼 초기화
-  buildAddDayButtons();
-}
-window.loadManageList = loadManageList;
-
-function parseDays(str){
-  // "매일" 또는 "월,수,금" → ['월','수','금']
-  if (!str || str === '매일') return [...MANAGE_DAYS];
-  return String(str).split(/[,，]/).map(s=>s.trim()).filter(d => MANAGE_DAYS.indexOf(d)>=0);
+#dashboard .view-toggle button.on{
+  background: #ffffff !important;
+  color: var(--ink-light) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-function renderManageList(){
-  const q = (document.getElementById('manage-search').value||'').trim().toLowerCase();
-  const gf = document.getElementById('manage-grade').value;
-  const cf = document.getElementById('manage-cls').value;
-  let list = [..._manageStudents];
-  if (gf) list = list.filter(s => String(s.grade) === gf);
-  if (cf) list = list.filter(s => String(s.cls) === cf);
-  if (q)  list = list.filter(s => String(s.no).includes(q) || (s.name||'').toLowerCase().includes(q));
-  list.sort((a,b)=>String(a.no).localeCompare(String(b.no), undefined, {numeric:true}));
-
-  document.getElementById('manage-count').textContent = `표시: ${list.length}명 / 전체: ${_manageStudents.length}명`;
-
-  const wrap = document.getElementById('manage-list-wrap');
-  if (!list.length) {
-    wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">해당하는 학생이 없어요</div>';
-    return;
-  }
-
-  wrap.innerHTML = list.map(s => {
-    const days = parseDays(s.days);
-    const dayBtns = MANAGE_DAYS.map(d => {
-      const active = days.indexOf(d) >= 0;
-      return `<button onclick="toggleManageDay('${s.no}','${d}',this)" data-active="${active}" style="width:30px;height:30px;border-radius:50%;border:1px solid ${active?'var(--ok)':'var(--border)'};background:${active?'rgba(52,211,153,.18)':'transparent'};color:${active?'var(--ok)':'var(--muted)'};font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;flex-shrink:0">${d}</button>`;
-    }).join('');
-    return `<div style="display:flex;align-items:center;gap:10px;padding:12px 8px;border-bottom:1px solid var(--border);flex-wrap:wrap">
-      <div style="min-width:130px">
-        <div style="font-weight:700;font-size:14px">${s.name||'(이름없음)'}</div>
-        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${s.no} · ${s.grade||'-'}-${s.cls||'-'}</div>
-      </div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap">${dayBtns}</div>
-      <button class="btn btn-ghost btn-sm" onclick="deleteManageStudent('${s.no}')" style="margin-left:auto;color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:5px 10px">삭제</button>
-    </div>`;
-  }).join('');
+/* ─── 분석/추이 탭의 모드·뷰 토글 버튼 ─── */
+/* JS 패치 후 .on 클래스 방식으로 전환됨 */
+#dashboard #ana-mode-individual,
+#dashboard #ana-mode-trend,
+#dashboard #ana-view-week,
+#dashboard #ana-view-month,
+#dashboard #tr-unit-week,
+#dashboard #tr-unit-month{
+  font-family: 'Pretendard', sans-serif !important;
+  border: none !important;
+  border-radius: 7px !important;
+  padding: 7px 14px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  background: transparent !important;
+  color: var(--muted-2) !important;
+  transition: all 0.15s ease;
+  cursor: pointer;
 }
-window.renderManageList = renderManageList;
-
-async function toggleManageDay(no, day, btn){
-  const st = _manageStudents.find(s => String(s.no) === String(no));
-  if (!st) return;
-  let days = parseDays(st.days);
-  const idx = days.indexOf(day);
-  if (idx >= 0) days.splice(idx, 1);
-  else days.push(day);
-
-  // 즉시 UI 반영
-  const active = days.indexOf(day) >= 0;
-  btn.dataset.active = active;
-  btn.style.borderColor = active ? 'var(--ok)' : 'var(--border)';
-  btn.style.background = active ? 'rgba(52,211,153,.18)' : 'transparent';
-  btn.style.color = active ? 'var(--ok)' : 'var(--muted)';
-
-  // 로컬 상태 갱신 (매일 처리 포함)
-  const newDaysStr = days.length === 5 ? '매일' : days.join(',');
-  st.days = newDaysStr;
-
-  // 서버 저장
-  const r = await gasPost({action:'saveStudentDays', no:no, days:days});
-  if (!r.ok) { toast('저장 실패: '+r.msg, 'err'); return; }
-  // 오늘 현황/명단 캐시 동기화
-  await syncRosterAfterChange();
+#dashboard #ana-mode-individual.on,
+#dashboard #ana-mode-trend.on,
+#dashboard #ana-view-week.on,
+#dashboard #ana-view-month.on,
+#dashboard #tr-unit-week.on,
+#dashboard #tr-unit-month.on{
+  background: #ffffff !important;
+  color: var(--ink-light) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
-window.toggleManageDay = toggleManageDay;
-
-async function deleteManageStudent(no){
-  const st = _manageStudents.find(s => String(s.no) === String(no));
-  if (!st) return;
-  if (!confirm(`${st.name||no} 학생을 명단에서 삭제할까요?`)) return;
-  const r = await gasPost({action:'deleteStudent', no:no});
-  if (!r.ok) { toast(r.msg||'삭제 실패','err'); return; }
-  toast('삭제됨','ok');
-  _manageStudents = _manageStudents.filter(s => String(s.no) !== String(no));
-  renderManageList();
-  // 오늘 현황/명단 캐시 동기화
-  await syncRosterAfterChange();
-}
-window.deleteManageStudent = deleteManageStudent;
-
-// 학생 관리 탭에서 변경 발생 시 오늘 현황 캐시도 갱신
-async function syncRosterAfterChange(){
-  const r = await gasPost({action:'getRoster'});
-  if (!r.ok) return;
-  S.roster = r.students.filter(s => s.isToday);
-  refreshStats();
-  renderTodayList();
-  renderRoster();
+/* 분석/추이 탭의 버튼 그룹 컨테이너 */
+#dashboard #tab-analysis .card > div > div[style*="border:1px solid var(--border)"],
+#dashboard #tab-trend .card > div > div[style*="border:1px solid var(--border)"]{
+  background: var(--bg-soft) !important;
+  padding: 3px !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--border-light) !important;
 }
 
-/* ══ 석식 미운영일 관리 ══ */
-async function loadHolidays(){
-  const el = document.getElementById('holiday-list');
-  try {
-    const r = await gasPost({action:'getHolidays'});
-    if(!r.ok){el.textContent='로드 실패';return}
-    const list = r.holidays || [];
-    if(!list.length){el.innerHTML='<div style="padding:12px;color:var(--muted)">등록된 미운영일이 없어요</div>';return}
-    el.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
-      list.map(h => `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:8px 12px;font-family:'DM Mono',monospace;font-size:13px">${h.date}</td>
-        <td style="padding:8px 12px;font-size:13px;color:var(--text)">${h.reason || '—'}</td>
-        <td style="padding:8px 4px;text-align:right">
-          <button class="btn btn-ghost btn-sm" onclick="removeHoliday('${h.date}')" style="color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:4px 10px;white-space:nowrap">삭제</button>
-        </td>
-      </tr>`).join('') + '</table>';
-  } catch(e){ el.textContent='로드 실패: '+e.message; }
+/* ─── 네비 바 (← 기간 →) ─── */
+#dashboard .nav-bar{
+  gap: 14px !important;
+  margin-bottom: 18px !important;
 }
-window.loadHolidays = loadHolidays;
-
-async function addHoliday(){
-  const dateInput = document.getElementById('holiday-date');
-  const reasonInput = document.getElementById('holiday-reason');
-  const date = dateInput.value;
-  if(!date){toast('날짜를 선택해주세요','err');return}
-  const r = await gasPost({action:'addHoliday', date:date, reason:reasonInput.value.trim()});
-  if(!r.ok){toast(r.msg||'추가 실패','err');return}
-  toast(date+' 미운영일 추가됨','ok');
-  dateInput.value = '';
-  reasonInput.value = '';
-  loadHolidays();
+#dashboard .nav-bar button{
+  background: #ffffff !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 10px !important;
+  padding: 7px 14px !important;
+  color: var(--ink-light) !important;
+  font-family: 'Pretendard', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
 }
-window.addHoliday = addHoliday;
-
-async function removeHoliday(date){
-  if(!confirm(date+' 미운영일을 삭제할까요?'))return;
-  const r = await gasPost({action:'removeHoliday', date:date});
-  if(!r.ok){toast(r.msg||'삭제 실패','err');return}
-  toast(date+' 미운영일 삭제됨','ok');
-  loadHolidays();
+#dashboard .nav-bar button:hover{
+  background: var(--bg-soft) !important;
+  border-color: var(--border2-light) !important;
 }
-window.removeHoliday = removeHoliday;
-
-/* ── 학생 추가 ── */
-function buildAddDayButtons(){
-  const wrap = document.getElementById('add-days');
-  if (wrap.children.length) return; // 이미 생성됨
-  wrap.innerHTML = MANAGE_DAYS.map(d =>
-    `<button type="button" onclick="toggleAddDay(this)" data-day="${d}" data-active="false" style="width:34px;height:34px;border-radius:50%;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer">${d}</button>`
-  ).join('');
+#dashboard .nav-bar .period{
+  color: var(--ink-light) !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
-function toggleAddDay(btn){
-  const active = btn.dataset.active === 'true';
-  btn.dataset.active = active ? 'false' : 'true';
-  btn.style.borderColor = active ? 'var(--border)' : 'var(--ok)';
-  btn.style.background = active ? 'transparent' : 'rgba(52,211,153,.18)';
-  btn.style.color = active ? 'var(--muted)' : 'var(--ok)';
+/* ─── 학생 관리 요일 토글 버튼 ─── */
+#dashboard #manage-list-wrap button[onclick*="toggleManageDay"],
+#dashboard #add-days button{
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  font-family: 'Pretendard', sans-serif !important;
+  transition: all 0.15s ease;
 }
-window.toggleAddDay = toggleAddDay;
-
-function toggleAddForm(){
-  const f = document.getElementById('add-form');
-  if (f.style.display === 'none') {
-    f.style.display = 'block';
-    buildAddDayButtons();
-    document.getElementById('add-grade').value = '';
-    document.getElementById('add-cls').value = '';
-    document.getElementById('add-num').value = '';
-    document.getElementById('add-name').value = '';
-    document.querySelectorAll('#add-days button').forEach(b => {
-      b.dataset.active = 'false';
-      b.style.borderColor = 'var(--border)';
-      b.style.background = 'transparent';
-      b.style.color = 'var(--muted)';
-    });
-  } else {
-    f.style.display = 'none';
-  }
+#dashboard #manage-list-wrap button[onclick*="toggleManageDay"][data-active="false"],
+#dashboard #add-days button[data-active="false"]{
+  border: 1px solid var(--border-light) !important;
+  background: #ffffff !important;
+  color: var(--muted-light) !important;
 }
-window.toggleAddForm = toggleAddForm;
-
-// 학년/반/번호 → 5자리 학번 합성
-function buildStudentNo(grade, cls, num){
-  const g = String(grade||'').replace(/[^0-9]/g,'');
-  const c = String(cls||'').replace(/[^0-9]/g,'');
-  const n = String(num||'').replace(/[^0-9]/g,'');
-  if (!g || !c || !n) return '';
-  return g + c.padStart(2,'0') + n.padStart(2,'0');
+#dashboard #manage-list-wrap button[onclick*="toggleManageDay"][data-active="true"],
+#dashboard #add-days button[data-active="true"]{
+  border: 1px solid var(--ok-light) !important;
+  background: var(--ok-soft) !important;
+  color: var(--ok-ink) !important;
+}
+#dashboard #manage-list-wrap > div{
+  border-bottom: 1px solid var(--border-light) !important;
 }
 
-async function confirmAddStudent(){
-  const grade = document.getElementById('add-grade').value.trim();
-  const cls   = document.getElementById('add-cls').value.trim();
-  const num   = document.getElementById('add-num').value.trim();
-  const name  = document.getElementById('add-name').value.trim();
-  if (!grade || !cls || !num || !name) { toast('학년·반·번호·이름은 필수예요','err'); return; }
-  if (!/^[1-9]$/.test(grade))      { toast('학년은 1~9 사이 숫자','err'); return; }
-  if (!/^\d{1,2}$/.test(cls))      { toast('반은 1~2자리 숫자','err'); return; }
-  if (!/^\d{1,2}$/.test(num))      { toast('번호는 1~2자리 숫자','err'); return; }
-  const no = buildStudentNo(grade, cls, num);
-  if (!no) { toast('학번 생성 실패','err'); return; }
-  const days = [...document.querySelectorAll('#add-days button')]
-    .filter(b => b.dataset.active === 'true').map(b => b.dataset.day);
-
-  const r = await gasPost({action:'saveStudent', no, name, grade, cls, days});
-  if (!r.ok) { toast(r.msg||'저장 실패','err'); return; }
-  toast(r.updated ? `${name} (${no}) 업데이트됨`:`${name} (${no}) 추가됨`,'ok');
-  toggleAddForm();
-  await loadManageList();
-  await syncRosterAfterChange();
-}
-window.confirmAddStudent = confirmAddStudent;
-
-/* ── 엑셀 양식 다운로드 ── */
-function downloadTemplate(){
-  const header = ['학년','반','번호','이름','월','화','수','목','금','비고'];
-  const rows = [
-    header,
-    ['1','1','1','홍길동','O','O','O','O','O',''],
-    ['1','1','2','김철수','O','','O','','O',''],
-    ['2','3','5','이영희','O','O','O','O','O','매일'],
-  ];
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{wch:6},{wch:6},{wch:6},{wch:10},{wch:5},{wch:5},{wch:5},{wch:5},{wch:5},{wch:14}];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '급식신청명단');
-  XLSX.writeFile(wb, '급식신청명단_양식.xlsx');
-  toast('양식 다운로드 완료','ok');
-}
-window.downloadTemplate = downloadTemplate;
-
-/* ── 엑셀 업로드 ── */
-const DAY_TRUE = ['o','○','◯','✓','✔','v','y','yes','true','1'];
-function isDayMarked(val){
-  if (val === 1 || val === true) return true;
-  const s = String(val||'').trim().toLowerCase();
-  return DAY_TRUE.indexOf(s) >= 0;
+/* ─── 학생 추가 폼 ─── */
+#dashboard #add-form{
+  background: var(--bg-softer) !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 14px !important;
+  padding: 20px !important;
 }
 
-function handleExcelUpload(event){
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async function(e){
-    try {
-      const wb = XLSX.read(e.target.result, {type:'array'});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
-      if (!rows.length) { toast('파일에 데이터가 없어요','err'); return; }
-
-      // 헤더 검증 — 학년/반/번호/이름 필수, 또는 학번/이름 (구버전 호환)
-      const keys = Object.keys(rows[0]);
-      const hasNew = ['학년','반','번호','이름'].every(k => keys.indexOf(k) >= 0);
-      const hasOld = ['학번','이름'].every(k => keys.indexOf(k) >= 0);
-      if (!hasNew && !hasOld) { toast('헤더 확인: 학년/반/번호/이름 열이 필요해요','err'); return; }
-
-      // 파싱
-      const students = [];
-      let skipped = 0;
-      rows.forEach(row => {
-        const name = String(row['이름']||'').trim();
-        if (!name) { skipped++; return; }
-
-        let no, grade, cls;
-        if (hasNew) {
-          grade = String(row['학년']||'').replace(/[^0-9]/g,'').trim();
-          cls   = String(row['반']  ||'').replace(/[^0-9]/g,'').trim();
-          const num = String(row['번호']||'').replace(/[^0-9]/g,'').trim();
-          if (!grade || !cls || !num) { skipped++; return; }
-          no = buildStudentNo(grade, cls, num);
-        } else {
-          // 구버전: 학번 직접 입력
-          no = String(row['학번']||'').replace(/\.0$/,'').replace(/[^0-9]/g,'').trim();
-          grade = String(row['학년']||'').trim();
-          cls = String(row['반']||'').trim();
-        }
-        if (!no) { skipped++; return; }
-        const note = String(row['비고']||'').trim();
-
-        // 요일 파싱: 월~금 컬럼 또는 비고 "매일"
-        let days = MANAGE_DAYS.filter(d => isDayMarked(row[d]));
-        if (!days.length && (note === '매일' || String(row['신청요일']||'').trim() === '매일')) {
-          days = [...MANAGE_DAYS];
-        }
-        students.push({no, name, grade, cls, days, note: note === '매일' ? '' : note});
-      });
-
-      const resultEl = document.getElementById('upload-result');
-
-      // 중복 학번 제거 (같은 학번이 여러 행이면 마지막 행 사용)
-      const deduped = new Map();
-      students.forEach(s => deduped.set(s.no, s));
-      const uniqueStudents = [...deduped.values()];
-      const dupCount = students.length - uniqueStudents.length;
-
-      // 전체 교체 여부 확인
-      const doReplace = confirm(
-        `${uniqueStudents.length}명 파싱 완료${dupCount ? ` (중복 ${dupCount}명 제거됨)` : ''}${skipped ? ` (파싱 오류 ${skipped}건)` : ''}\n\n` +
-        `[확인] 기존 명단 초기화 후 새로 교체\n[취소] 기존 명단에 추가/업데이트만`
-      );
-
-      resultEl.style.display = 'block';
-      resultEl.style.background = 'rgba(96,165,250,.12)';
-      resultEl.style.color = 'var(--sky)';
-      resultEl.style.border = '1px solid rgba(96,165,250,.3)';
-      resultEl.textContent = `⏳ ${uniqueStudents.length}명 저장 중...`;
-
-      const r = await gasPost({action:'bulkUpsertStudents', students: uniqueStudents, replace: doReplace});
-      if (!r.ok) {
-        resultEl.style.background = 'rgba(248,113,113,.12)';
-        resultEl.style.color = 'var(--red)';
-        resultEl.style.border = '1px solid rgba(248,113,113,.3)';
-        resultEl.textContent = '❌ '+(r.msg||'저장 실패');
-        return;
-      }
-      resultEl.style.background = 'rgba(52,211,153,.12)';
-      resultEl.style.color = 'var(--ok)';
-      resultEl.style.border = '1px solid rgba(52,211,153,.3)';
-      resultEl.textContent = `✅ ${r.replaced?'[전체 교체] ':''}추가 ${r.added}명, 업데이트 ${r.updated}명${dupCount?` (중복 ${dupCount}명 제거됨)`:''}${skipped?` (파싱 오류 ${skipped}건)`:''}`;
-      setTimeout(() => { resultEl.style.display = 'none'; }, 6000);
-      await loadManageList();
-      await syncRosterAfterChange();
-    } catch(err) {
-      toast('파일 읽기 오류: '+err.message,'err');
-    }
-    event.target.value = '';
-  };
-  reader.readAsArrayBuffer(file);
-}
-window.handleExcelUpload = handleExcelUpload;
-
-
-/* ══ 분석 탭 ══ */
-const ANA_DAYS_KR = ['일','월','화','수','목','금','토'];
-const ANA_MIN_DATE = new Date(2026, 3, 6); // 2026-04-06 기준일
-var _anaView = 'week';
-var _anaMode = 'individual'; // 'individual' | 'trend'
-var _anaDate = new Date(2026, 3, 6); // 2026-04-06으로 초기화
-var _anaData = { students: [], records: [] };
-
-function setAnalysisView(v){
-  _anaView = v;
-  document.getElementById('ana-view-week').classList.toggle('on', v==='week');
-  document.getElementById('ana-view-month').classList.toggle('on', v==='month');
-  loadAnalysis();
-}
-window.setAnalysisView = setAnalysisView;
-
-function setAnalysisMode(m){
-  _anaMode = m;
-  document.getElementById('ana-mode-individual').classList.toggle('on', m==='individual');
-  document.getElementById('ana-mode-trend').classList.toggle('on', m==='trend');
-  renderAnalysis();
-}
-window.setAnalysisMode = setAnalysisMode;
-
-function navAnalysis(dir){
-  const d = new Date(_anaDate);
-  if (_anaView==='week') d.setDate(d.getDate() + dir*7);
-  else d.setMonth(d.getMonth() + dir);
-  // 하한 체크
-  if (_anaView==='week'){
-    const weekEnd = new Date(d); weekEnd.setDate(d.getDate()+6);
-    if (weekEnd < ANA_MIN_DATE) return;
-  } else {
-    if (d.getFullYear() < 2026 || (d.getFullYear()===2026 && d.getMonth() < 3)) return;
-  }
-  _anaDate = d;
-  loadAnalysis();
-}
-window.navAnalysis = navAnalysis;
-
-function getAnaPeriod(){
-  // 현재 _anaView, _anaDate에 따른 시작일~종료일 반환
-  if (_anaView==='week'){
-    const d = new Date(_anaDate);
-    const day = d.getDay();
-    const monday = new Date(d);
-    monday.setDate(d.getDate() - (day===0 ? 6 : day-1));
-    const sunday = new Date(monday); sunday.setDate(monday.getDate()+6);
-    return { start: monday, end: sunday };
-  } else {
-    const y = _anaDate.getFullYear(), m = _anaDate.getMonth();
-    const start = new Date(y, m, 1);
-    const end = new Date(y, m+1, 0);
-    return { start, end };
-  }
+/* ─── 업로드 결과 배너 ─── */
+#dashboard #upload-result{
+  border-radius: 10px !important;
+  padding: 12px 16px !important;
+  font-size: 13px !important;
+  font-weight: 500;
 }
 
-function fmtAnaDate(d){
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+/* ─── 수동 입력 넘버패드 ─── */
+.numpad-wrap{
+  background: rgba(251, 251, 253, 0.96) !important;
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-top: 1px solid rgba(0,0,0,0.08) !important;
+  box-shadow: 0 -10px 40px -10px rgba(0,0,0,0.1);
+}
+.numpad-display{
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  border-radius: 12px !important;
+  color: #1d1d1f !important;
+  font-family: 'Pretendard', sans-serif !important;
+  font-weight: 500 !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+.numpad-display.full{
+  color: #087b2b !important;
+  border-color: #30d158 !important;
+  background: rgba(48, 209, 88, 0.12) !important;
+}
+.npbtn{
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  border-radius: 12px !important;
+  color: #1d1d1f !important;
+  font-family: 'Pretendard', sans-serif !important;
+  font-weight: 500 !important;
+  font-variant-numeric: tabular-nums;
+  transition: all 0.12s ease;
+}
+.npbtn:hover{ background: #f5f5f7 !important; }
+.npbtn:active{ transform: scale(0.94); }
+.npbtn-del{
+  background: rgba(255, 59, 48, 0.10) !important;
+  border-color: transparent !important;
+  color: #c21a12 !important;
+}
+.npbtn-ok{
+  background: #1d1d1f !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 980px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em;
+}
+.npbtn-ok:disabled{
+  background: #d2d2d7 !important;
+  color: #86868b !important;
+  cursor: not-allowed;
 }
 
-async function loadAnalysis(){
-  const el = document.getElementById('ana-content');
-  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>';
-  const period = getAnaPeriod();
-  const r = await gasPost({ action:'getMealAnalysisData', startDate: fmtAnaDate(period.start), endDate: fmtAnaDate(period.end) });
-  // 미운영일도 함께 로드
-  _holidaySet = await sb.holidays.getSet();
-  if (!r.ok){
-    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);font-size:14px">데이터 로드 실패: '+(r.msg||'')+'</div>';
-    return;
-  }
-  _anaData.students = r.students || [];
-  _anaData.records = r.records || [];
-  // 반 필터 옵션 생성
-  const classes = [...new Set(_anaData.students.map(s=>s.cls).filter(Boolean))].sort();
-  const clsSel = document.getElementById('ana-cls');
-  const cur = clsSel.value;
-  clsSel.innerHTML = '<option value="">전체 반</option>' + classes.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}반</option>`).join('');
-  renderAnalysis();
+/* ─── 토스트 ─── */
+.toast{
+  background: #ffffff !important;
+  border: 1px solid rgba(0,0,0,0.08) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 30px -10px rgba(0,0,0,0.2);
+  font-weight: 500 !important;
+  padding: 12px 20px !important;
 }
-window.loadAnalysis = loadAnalysis;
-
-function getFilteredStudents(){
-  const gf = document.getElementById('ana-grade').value;
-  const cf = document.getElementById('ana-cls').value;
-  let list = [..._anaData.students];
-  if (gf) list = list.filter(s => String(s.grade) === gf);
-  if (cf) list = list.filter(s => String(s.cls) === cf);
-  list.sort((a,b)=>String(a.no).localeCompare(String(b.no), undefined, {numeric:true}));
-  return list;
+.toast.ok{
+  background: rgba(48, 209, 88, 0.12) !important;
+  color: #087b2b !important;
+  border-color: rgba(48, 209, 88, 0.3) !important;
+}
+.toast.err{
+  background: rgba(255, 59, 48, 0.10) !important;
+  color: #c21a12 !important;
+  border-color: rgba(255, 59, 48, 0.3) !important;
 }
 
-function buildAttendMap(){
-  const m = {};
-  _anaData.records.forEach(r=>{
-    if (!m[r.no]) m[r.no] = new Set();
-    m[r.no].add(r.date);
-  });
-  return m;
+/* ─── 로딩 스피너 · 에러 메시지 ─── */
+#dashboard .spinner{
+  border: 3px solid var(--bg-soft) !important;
+  border-top-color: var(--ink-light) !important;
+}
+#dashboard .loading{ color: var(--muted-light) !important; }
+#dashboard .error-msg{
+  background: var(--red-soft) !important;
+  border: 1px solid rgba(255, 59, 48, 0.2) !important;
+  color: var(--red-ink) !important;
+  border-radius: 10px !important;
 }
 
-function renderAnalysis(){
-  if (_anaMode === 'trend') { renderAnaTrend(); return; }
-  if (_anaView==='week') renderAnaWeek();
-  else renderAnaMonth();
+/* ─── 분석·추이 탭 인라인 스타일 컨테이너 ─── */
+#dashboard #ana-content > div[style*="background:var(--card)"]{
+  background: #ffffff !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
-window.renderAnalysis = renderAnalysis;
-
-/* ── 전체 추이 뷰 (막대 그래프) ── */
-function renderAnaTrend(){
-  const students = getFilteredStudents();
-  const el = document.getElementById('ana-content');
-  if (!students.length){
-    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당하는 학생이 없어요</div>';
-    return;
-  }
-
-  const attendMap = buildAttendMap();
-  const today = new Date(); today.setHours(23,59,59,999);
-
-  // 표시할 날짜 목록 (월~금만)
-  let dates;
-  if (_anaView === 'week'){
-    const period = getAnaPeriod();
-    const start = period.start;
-    dates = Array.from({length:5}, (_,i)=>{ const d = new Date(start); d.setDate(start.getDate()+i); return d; });
-    document.getElementById('ana-period').textContent = `${fmtAnaDate(dates[0])} ~ ${fmtAnaDate(dates[4])}`;
-  } else {
-    const y = _anaDate.getFullYear(), m = _anaDate.getMonth();
-    const daysInMonth = new Date(y, m+1, 0).getDate();
-    const startDay = (y===2026 && m===3) ? 6 : 1;
-    dates = [];
-    for (let dd = startDay; dd <= daysInMonth; dd++){
-      const d = new Date(y, m, dd);
-      const dow = d.getDay();
-      if (dow >= 1 && dow <= 5) {
-        const dateStr = fmtAnaDate(d);
-        if (!_holidaySet.has(dateStr)) dates.push(d); // 평일 + 미운영일 제외
-      }
-    }
-    document.getElementById('ana-period').textContent = `${y}년 ${m+1}월`;
-  }
-
-  // 학생 학번 셋 (필터링된 학생만 카운트)
-  const studentNoSet = new Set(students.map(s => String(s.no)));
-
-  // 날짜별 식사 인원 계산
-  const counts = dates.map(d => {
-    const dateStr = fmtAnaDate(d);
-    const isHoliday = _holidaySet.has(dateStr);
-    if (isHoliday) return { date: d, count: 0, isPast: true, isHoliday: true };
-    if (d > today || d < ANA_MIN_DATE) return { date: d, count: 0, isPast: false, isHoliday: false };
-    let count = 0;
-    studentNoSet.forEach(no => {
-      if (attendMap[no] && attendMap[no].has(dateStr)) count++;
-    });
-    return { date: d, count, isPast: true, isHoliday: false };
-  });
-
-  const maxCount = Math.max(1, ...counts.map(c => c.count));
-  const activeCounts = counts.filter(c => c.isPast && !c.isHoliday);
-  const totalAttend = activeCounts.reduce((s,c) => s+c.count, 0);
-  const pastDays = activeCounts.length;
-  const avg = pastDays ? Math.round(totalAttend/pastDays*10)/10 : 0;
-  const peak = activeCounts.reduce((m,c) => c.count > m.count ? c : m, activeCounts[0] || {count:0});
-
-  // 막대 너비 동적 계산
-  const isMonth = _anaView === 'month';
-  const barW = isMonth ? Math.max(20, Math.floor(640/counts.length) - 4) : 56;
-  const gap = isMonth ? 4 : 12;
-  const chartW = counts.length * (barW + gap);
-  const chartH = 280;
-  const padTop = 20;
-  const padBot = 40;
-  const innerH = chartH - padTop - padBot;
-
-  // SVG 생성
-  const bars = counts.map((c, i) => {
-    const x = i * (barW + gap);
-    const h = c.isPast ? Math.round(innerH * c.count / maxCount) : 0;
-    const y = padTop + (innerH - h);
-    const dow = ANA_DAYS_KR[c.date.getDay()];
-    const dateStr = fmtAnaDate(c.date);
-    const isFuture = c.date > today;
-    const isBefore = c.date < ANA_MIN_DATE;
-    const fill = c.isHoliday ? 'rgba(0,0,0,.06)' : isFuture || isBefore ? 'rgba(0,0,0,.04)' : 'var(--ok)';
-    const label = isMonth ? `${c.date.getDate()}` : `${c.date.getDate()}\n${dow}`;
-    const holidayMark = c.isHoliday ? `<text x="${x + barW/2}" y="${padTop + innerH/2}" text-anchor="middle" fill="var(--muted)" font-size="10">미운영</text>` : '';
-    const labelLines = isMonth
-      ? `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="rgba(255,255,255,.55)" font-size="10" font-family="DM Mono, monospace">${c.date.getDate()}</text>`
-      : `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="rgba(255,255,255,.7)" font-size="11" font-family="DM Mono, monospace">${c.date.getMonth()+1}/${c.date.getDate()}</text>
-         <text x="${x + barW/2}" y="${padTop + innerH + 28}" text-anchor="middle" fill="var(--muted)" font-size="10">${dow}</text>`;
-    const valueLabel = c.isPast && c.count > 0
-      ? `<text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" fill="var(--text)" font-size="${isMonth?9:11}" font-weight="700">${c.count}</text>`
-      : '';
-    return `
-      <g>
-        <rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${fill}" rx="3">
-          <title>${dateStr} (${dow}): ${c.isHoliday ? '미운영일' : c.count+'명'}</title>
-        </rect>
-        ${holidayMark}
-        ${valueLabel}
-        ${labelLines}
-      </g>`;
-  }).join('');
-
-  el.innerHTML = `
-    <div class="stats-row" style="margin-bottom:18px">
-      <div class="stat-box"><div class="stat-num" style="color:var(--ok)">${totalAttend}</div><div class="stat-lbl">총 식사 인원</div></div>
-      <div class="stat-box"><div class="stat-num" style="color:var(--accent)">${avg}</div><div class="stat-lbl">일평균</div></div>
-      <div class="stat-box"><div class="stat-num" style="color:var(--sky)">${peak.count}</div><div class="stat-lbl">최대${peak.count>0?` (${peak.date.getMonth()+1}/${peak.date.getDate()})`:''}</div></div>
-      <div class="stat-box"><div class="stat-num" style="color:var(--text)">${students.length}</div><div class="stat-lbl">신청 학생</div></div>
-    </div>
-    <div style="overflow-x:auto;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px">
-      <svg width="${chartW}" height="${chartH}" style="display:block;min-width:100%">
-        ${bars}
-      </svg>
-    </div>
-    <div style="margin-top:10px;font-size:12px;color:var(--muted);text-align:center">막대에 마우스를 올리면 정확한 숫자를 볼 수 있어요</div>`;
+#dashboard #tr-summary > div{
+  background: #ffffff !important;
+  border: 1px solid var(--border-light) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+#dashboard #tr-summary > div > div:first-child{
+  color: var(--ink-light) !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.02em;
 }
 
-/* ── 주별 뷰 ── */
-function renderAnaWeek(){
-  const period = getAnaPeriod();
-  const start = period.start;
-  // 월~금 5일만 표시
-  const dates = Array.from({length:5}, (_,i)=>{ const d = new Date(start); d.setDate(start.getDate()+i); return d; });
-  document.getElementById('ana-period').textContent = `${fmtAnaDate(dates[0])} ~ ${fmtAnaDate(dates[4])}`;
-
-  const students = getFilteredStudents();
-  const el = document.getElementById('ana-content');
-  if (!students.length){ el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당하는 학생이 없어요</div>'; return; }
-
-  const attendMap = buildAttendMap();
-  const today = new Date(); today.setHours(23,59,59,999);
-
-  // 헤더
-  const colHeaders = dates.map(d=>{
-    const dow = d.getDay();
-    const isToday = fmtAnaDate(d) === fmtAnaDate(new Date());
-    const color = dow===0?'#ff7096':dow===6?'#5eb8ff':'var(--muted)';
-    return `<th style="text-align:center;padding:8px 6px;font-size:12px;font-weight:700;color:${color};border-bottom:1px solid var(--border2);${isToday?'background:rgba(245,158,11,.08)':''}">${ANA_DAYS_KR[dow]}<br><span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:400">${d.getDate()}</span></th>`;
-  }).join('');
-
-  const rows = students.map(st=>{
-    const days = String(st.days||'매일');
-    const isAllDays = days==='매일' || days==='';
-    const cells = dates.map(d=>{
-      const dateStr = fmtAnaDate(d);
-      const dow = d.getDay();
-      const dayKr = ANA_DAYS_KR[dow];
-      const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
-      const isFuture = d > today;
-      const isBefore = d < ANA_MIN_DATE;
-      const isHoliday = _holidaySet.has(dateStr);
-      const attended = attendMap[st.no] && attendMap[st.no].has(dateStr);
-      const isToday = dateStr === fmtAnaDate(new Date());
-      let cell;
-      if (isHoliday) cell = '<span style="color:var(--muted);font-size:10px">미운영</span>';
-      else if (isBefore) cell = '<span style="color:rgba(255,255,255,.15)">·</span>';
-      else if (isFuture) cell = '<span style="color:rgba(255,255,255,.4);font-size:16px">-</span>';
-      else if (attended && isTarget) cell = '<span style="color:var(--ok);font-size:18px;line-height:1">●</span>';
-      else if (!isTarget) cell = '<span style="color:rgba(255,255,255,.3);font-size:18px">·</span>';
-      else cell = '<span style="color:var(--red);font-weight:700">X</span>';
-      return `<td style="text-align:center;padding:8px 4px;border-bottom:1px solid var(--border);${isToday?'background:rgba(245,158,11,.08)':''}">${cell}</td>`;
-    }).join('');
-
-    // 식사율 계산 (미운영일 제외)
-    let total=0, done=0;
-    dates.forEach(d=>{
-      if (d > today || d < ANA_MIN_DATE) return;
-      if (_holidaySet.has(fmtAnaDate(d))) return; // 미운영일 제외
-      const dayKr = ANA_DAYS_KR[d.getDay()];
-      const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
-      if (!isTarget) return;
-      total++;
-      if (attendMap[st.no] && attendMap[st.no].has(fmtAnaDate(d))) done++;
-    });
-    const rate = total ? Math.round(done/total*100) : 0;
-    const rColor = rate>=80?'var(--ok)':rate>=50?'var(--accent)':'var(--red)';
-
-    return `<tr>
-      <td style="padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap">
-        <div style="font-weight:600;font-size:14px">${st.name}</div>
-        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${st.no} · ${st.grade}-${st.cls}</div>
-      </td>
-      ${cells}
-      <td style="text-align:center;padding:8px;border-bottom:1px solid var(--border);white-space:nowrap">
-        <div style="font-family:'DM Mono',monospace;font-size:13px;color:${rColor};font-weight:700">${rate}%</div>
-        <div style="font-size:10px;color:var(--muted)">${done}/${total}</div>
-      </td>
-    </tr>`;
-  }).join('');
-
-  el.innerHTML = `
-    <div style="overflow-x:auto">
-      <table style="width:100%;border-collapse:collapse;min-width:600px">
-        <thead><tr>
-          <th style="text-align:left;padding:8px 12px;font-size:12px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border2)">학생</th>
-          ${colHeaders}
-          <th style="text-align:center;padding:8px;font-size:12px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border2)">식사율</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-    <div style="margin-top:12px;font-size:12px;color:var(--muted);text-align:center">
-      <span style="color:var(--ok)">●</span> 식사 완료 &nbsp;·&nbsp;
-      <span style="color:var(--red)">X</span> 식사 안함 &nbsp;·&nbsp;
-      · 비신청일 &nbsp;·&nbsp; - 미래
-    </div>`;
+/* ─── 스크롤바 ─── */
+#dashboard ::-webkit-scrollbar{ width: 8px; height: 8px; }
+#dashboard ::-webkit-scrollbar-track{ background: transparent; }
+#dashboard ::-webkit-scrollbar-thumb{
+  background: rgba(0,0,0,0.12);
+  border-radius: 999px;
 }
-
-/* ── 월별 뷰 ── */
-function renderAnaMonth(){
-  const y = _anaDate.getFullYear(), m = _anaDate.getMonth();
-  document.getElementById('ana-period').textContent = `${y}년 ${m+1}월`;
-  const daysInMonth = new Date(y, m+1, 0).getDate();
-  const startDay = (y===2026 && m===3) ? 6 : 1; // 2026-04는 6일부터
-  const allDates = Array.from({length: daysInMonth - startDay + 1}, (_,i)=>{
-    const d = new Date(y, m, startDay+i);
-    return { date: d, str: fmtAnaDate(d), dayKr: ANA_DAYS_KR[d.getDay()] };
-  });
-
-  const students = getFilteredStudents();
-  const el = document.getElementById('ana-content');
-  if (!students.length){ el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당하는 학생이 없어요</div>'; return; }
-
-  const attendMap = buildAttendMap();
-  const today = new Date(); today.setHours(23,59,59,999);
-
-  const cards = students.map(st=>{
-    const days = String(st.days||'매일');
-    const isAllDays = days==='매일' || days==='';
-
-    // 식사율 계산
-    const targetDates = allDates.filter(d=>{
-      if (d.date > today || d.date < ANA_MIN_DATE) return false;
-      return isAllDays || days.indexOf(d.dayKr) >= 0;
-    });
-    const attendedDates = targetDates.filter(d => attendMap[st.no] && attendMap[st.no].has(d.str));
-    const rate = targetDates.length ? Math.round(attendedDates.length/targetDates.length*100) : 0;
-    const rColor = rate>=80?'var(--ok)':rate>=50?'var(--accent)':'var(--red)';
-
-    // 미니 달력
-    const weeks = [];
-    let week = [];
-    const firstDay = new Date(y, m, startDay).getDay();
-    for (let i=0; i<firstDay; i++) week.push(null);
-    allDates.forEach(d=>{
-      week.push(d);
-      if (week.length===7){ weeks.push(week); week=[]; }
-    });
-    if (week.length) weeks.push(week);
-
-    const calRows = weeks.map(w=>
-      `<tr>${w.map(d=>{
-        if (!d) return '<td style="padding:2px"></td>';
-        const isTarget = isAllDays || days.indexOf(d.dayKr) >= 0;
-        const attended = attendMap[st.no] && attendMap[st.no].has(d.str);
-        const isFuture = d.date > today;
-        const isBefore = d.date < ANA_MIN_DATE;
-        const isToday = d.str === fmtAnaDate(new Date());
-        let bg = '', text = 'var(--muted)';
-        if (isToday) bg = 'rgba(245,158,11,.15)';
-        if (!isFuture && !isBefore && attended && isTarget){ bg = 'rgba(52,211,153,.25)'; text = 'var(--ok)'; }
-        else if (!isFuture && !isBefore && isTarget){ bg = 'rgba(248,113,113,.15)'; text = 'var(--red)'; }
-        return `<td style="padding:2px;text-align:center">
-          <div style="width:26px;height:26px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:11px;color:${text};margin:auto;${(!isFuture&&!isBefore&&(attended||isTarget))?'font-weight:700':''}">${d.date.getDate()}</div>
-        </td>`;
-      }).join('')}</tr>`
-    ).join('');
-
-    return `
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <div>
-            <div style="font-weight:700;font-size:15px">${st.name}
-              <span style="font-weight:400;color:var(--muted);font-size:12px;margin-left:6px;font-family:'DM Mono',monospace">${st.no} · ${st.grade}-${st.cls}</span>
-            </div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px">신청 요일: ${days}</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:${rColor}">${rate}%</div>
-            <div style="font-size:11px;color:var(--muted)">${attendedDates.length}/${targetDates.length}일</div>
-          </div>
-        </div>
-        <table style="width:100%;border-collapse:collapse">
-          <thead><tr>${['일','월','화','수','목','금','토'].map((d,i)=>
-            `<th style="text-align:center;font-size:11px;color:${i===0?'#ff7096':i===6?'#5eb8ff':'var(--muted)'};padding:3px;font-weight:600">${d}</th>`
-          ).join('')}</tr></thead>
-          <tbody>${calRows}</tbody>
-        </table>
-      </div>`;
-  }).join('');
-
-  el.innerHTML = cards;
-}
-
-/* ── 엑셀 다운로드 ── */
-function downloadAnalysisExcel(){
-  if (!_anaData.students.length){ toast('데이터가 없어요','err'); return; }
-  const students = getFilteredStudents();
-  if (!students.length){ toast('해당하는 학생이 없어요','err'); return; }
-  const attendMap = buildAttendMap();
-  const today = new Date(); today.setHours(23,59,59,999);
-  const wb = XLSX.utils.book_new();
-
-  if (_anaView==='week'){
-    const period = getAnaPeriod();
-    const dates = Array.from({length:5}, (_,i)=>{ const d = new Date(period.start); d.setDate(period.start.getDate()+i); return d; });
-    const label = `${fmtAnaDate(dates[0])}_${fmtAnaDate(dates[4])}`;
-    const header = ['학년','반','번호','이름','신청요일',
-      ...dates.map(d=>`${d.getMonth()+1}/${d.getDate()}(${ANA_DAYS_KR[d.getDay()]})`),
-      '식사','대상','식사율'];
-    const rows = [header];
-
-    students.forEach(st=>{
-      const days = String(st.days||'매일');
-      const isAllDays = days==='매일' || days==='';
-      const cells = dates.map(d=>{
-        const dateStr = fmtAnaDate(d);
-        const dayKr = ANA_DAYS_KR[d.getDay()];
-        const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
-        const attended = attendMap[st.no] && attendMap[st.no].has(dateStr);
-        const isFuture = d > today;
-        const isBefore = d < ANA_MIN_DATE;
-        if (isBefore) return '';
-        if (isFuture) return '-';
-        if (attended && isTarget) return 'O';
-        if (!isTarget) return '';
-        return 'X';
-      });
-      let total=0, done=0;
-      dates.forEach(d=>{
-        if (d > today || d < ANA_MIN_DATE) return;
-        const dayKr = ANA_DAYS_KR[d.getDay()];
-        const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
-        if (!isTarget) return;
-        total++;
-        if (attendMap[st.no] && attendMap[st.no].has(fmtAnaDate(d))) done++;
-      });
-      const rate = total ? Math.round(done/total*100)+'%' : '-';
-      const num = String(st.no).slice(-2).replace(/^0/,'');
-      rows.push([st.grade, st.cls, num, st.name, days, ...cells, done, total, rate]);
-    });
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{wch:6},{wch:6},{wch:6},{wch:10},{wch:14}, ...dates.map(()=>({wch:8})), {wch:6},{wch:6},{wch:8}];
-    XLSX.utils.book_append_sheet(wb, ws, '주별식사');
-    XLSX.writeFile(wb, `급식분석_주별_${label}.xlsx`);
-  } else {
-    const y = _anaDate.getFullYear(), m = _anaDate.getMonth();
-    const daysInMonth = new Date(y, m+1, 0).getDate();
-    const startDay = (y===2026 && m===3) ? 6 : 1;
-    const allDates = Array.from({length: daysInMonth - startDay + 1}, (_,i)=>{
-      const d = new Date(y, m, startDay+i);
-      return { date: d, str: fmtAnaDate(d), dayKr: ANA_DAYS_KR[d.getDay()] };
-    });
-    const label = `${y}년${m+1}월`;
-    const header = ['학년','반','번호','이름','신청요일',
-      ...allDates.map(d=>`${d.date.getDate()}(${d.dayKr})`),
-      '식사','대상','식사율'];
-    const rows = [header];
-
-    students.forEach(st=>{
-      const days = String(st.days||'매일');
-      const isAllDays = days==='매일' || days==='';
-      const cells = allDates.map(d=>{
-        const isTarget = isAllDays || days.indexOf(d.dayKr) >= 0;
-        const attended = attendMap[st.no] && attendMap[st.no].has(d.str);
-        const isFuture = d.date > today;
-        if (isFuture) return '-';
-        if (attended && isTarget) return 'O';
-        if (!isTarget) return '';
-        return 'X';
-      });
-      const targetDates = allDates.filter(d=>{
-        if (d.date > today) return false;
-        return isAllDays || days.indexOf(d.dayKr) >= 0;
-      });
-      const attendedDates = targetDates.filter(d => attendMap[st.no] && attendMap[st.no].has(d.str));
-      const rate = targetDates.length ? Math.round(attendedDates.length/targetDates.length*100)+'%' : '-';
-      const num = String(st.no).slice(-2).replace(/^0/,'');
-      rows.push([st.grade, st.cls, num, st.name, days, ...cells, attendedDates.length, targetDates.length, rate]);
-    });
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{wch:6},{wch:6},{wch:6},{wch:10},{wch:14}, ...allDates.map(()=>({wch:5})), {wch:6},{wch:6},{wch:8}];
-    XLSX.utils.book_append_sheet(wb, ws, '월별식사');
-    XLSX.writeFile(wb, `급식분석_${label}.xlsx`);
-  }
-  toast('엑셀 다운로드 완료','ok');
-}
-window.downloadAnalysisExcel = downloadAnalysisExcel;
-
-/* ══ 추이 탭 ══ */
-var _trUnit = 'week';
-var _trData = { students: [], records: [], startDate: '', endDate: '' };
-var _holidaySet = new Set(); // 석식 미운영일
-// 추이 네비게이션 앵커 (주별: 월요일, 월별: 1일)
-var _trAnchor = (function(){
-  const now = new Date();
-  const day = now.getDay();
-  const mon = new Date(now);
-  mon.setDate(now.getDate() - (day===0 ? 6 : day-1));
-  mon.setHours(0,0,0,0);
-  return mon;
-})();
-
-function setTrendUnit(u){
-  _trUnit = u;
-  ['week','month'].forEach(x=>{
-    document.getElementById('tr-unit-'+x).classList.toggle('on', x===u);
-  });
-  // 현재 날짜 기준으로 초기화
-  const now = new Date();
-  if(u === 'week'){
-    // 이번 주 월요일
-    const day = now.getDay();
-    _trAnchor = new Date(now);
-    _trAnchor.setDate(now.getDate() - (day===0 ? 6 : day-1));
-  } else {
-    // 이번 달 1일
-    _trAnchor = new Date(now.getFullYear(), now.getMonth(), 1);
-  }
-  loadTrend();
-}
-window.setTrendUnit = setTrendUnit;
-
-// 네비게이션
-function navTrend(dir){
-  if(_trUnit === 'week'){
-    _trAnchor.setDate(_trAnchor.getDate() + dir * 7);
-  } else {
-    _trAnchor.setMonth(_trAnchor.getMonth() + dir);
-  }
-  loadTrend();
-}
-window.navTrend = navTrend;
-
-// 기간 시작/끝 계산
-function getTrendRange(){
-  let start, end;
-  if(_trUnit === 'week'){
-    start = new Date(_trAnchor);
-    end = new Date(_trAnchor);
-    end.setDate(end.getDate() + 6); // 월~일
-  } else {
-    start = new Date(_trAnchor);
-    end = new Date(_trAnchor.getFullYear(), _trAnchor.getMonth() + 1, 0); // 월 말일
-  }
-  return {start, end};
-}
-
-// 기간 표시 텍스트
-function getTrendPeriodLabel(){
-  const {start, end} = getTrendRange();
-  if(_trUnit === 'week'){
-    return fmtAnaDate(start) + ' ~ ' + fmtAnaDate(end);
-  } else {
-    return start.getFullYear() + '년 ' + (start.getMonth()+1) + '월';
-  }
-}
-
-async function loadTrend(){
-  const el = document.getElementById('tr-content');
-  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>';
-  // 기간 레이블 업데이트
-  document.getElementById('tr-period').textContent = getTrendPeriodLabel();
-  const {start, end} = getTrendRange();
-  // ANA_MIN_DATE 이전으로는 안 가도록
-  if (start < ANA_MIN_DATE) start.setTime(ANA_MIN_DATE.getTime());
-  const startStr = fmtAnaDate(start);
-  const endStr = fmtAnaDate(end);
-  const r = await gasPost({action:'getMealAnalysisData', startDate:startStr, endDate:endStr});
-  // 미운영일도 함께 로드
-  _holidaySet = await sb.holidays.getSet();
-  if (!r.ok) {
-    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);font-size:14px">로드 실패: '+(r.msg||'')+'</div>';
-    return;
-  }
-  _trData.students = r.students || [];
-  _trData.records = r.records || [];
-  _trData.startDate = startStr;
-  _trData.endDate = endStr;
-  // 반 필터 옵션 갱신
-  const classes = [...new Set(_trData.students.map(s=>s.cls).filter(Boolean))].sort();
-  const clsSel = document.getElementById('tr-cls');
-  const cur = clsSel.value;
-  clsSel.innerHTML = '<option value="">전체 반</option>' + classes.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}반</option>`).join('');
-  renderTrend();
-}
-window.loadTrend = loadTrend;
-
-function getTrendFilteredRecords(){
-  const gf = document.getElementById('tr-grade').value;
-  const cf = document.getElementById('tr-cls').value;
-  // 학생 학번 → 학생 정보 매핑
-  const stMap = {};
-  _trData.students.forEach(s => { stMap[String(s.no)] = s; });
-  let records = _trData.records.filter(r=>{
-    const st = stMap[String(r.no)];
-    if (!st) return false;
-    if (gf && String(st.grade) !== gf) return false;
-    if (cf && String(st.cls) !== cf) return false;
-    return true;
-  });
-  return records;
-}
-
-function getTrendFilteredStudents(){
-  const gf = document.getElementById('tr-grade').value;
-  const cf = document.getElementById('tr-cls').value;
-  let list = _trData.students;
-  if (gf) list = list.filter(s => String(s.grade) === gf);
-  if (cf) list = list.filter(s => String(s.cls) === cf);
-  return list;
-}
-
-function aggregateTrend(records, unit){
-  // 단위별로 카운트 집계
-  const map = {}; // key → count
-  records.forEach(r=>{
-    let key;
-    if (unit==='day') key = r.date;
-    else if (unit==='week'){
-      // 그 날짜가 속한 주의 월요일 yyyy-MM-dd
-      const d = new Date(r.date+'T00:00:00');
-      const day = d.getDay();
-      const monday = new Date(d);
-      monday.setDate(d.getDate() - (day===0 ? 6 : day-1));
-      key = fmtAnaDate(monday);
-    } else { // month
-      key = r.date.slice(0,7); // yyyy-MM
-    }
-    map[key] = (map[key]||0) + 1;
-  });
-
-  // 키 정렬해서 배열로
-  const keys = Object.keys(map).sort();
-  return keys.map(k=>({label:k, count:map[k]}));
-}
-
-// 표시할 라벨 (X축)
-function fmtTrendLabel(key, unit){
-  if (unit==='day'){
-    const p = key.split('-');
-    return `${p[1]}/${p[2]}`;
-  } else if (unit==='week'){
-    const p = key.split('-');
-    return `${p[1]}/${p[2]}~`;
-  } else {
-    const p = key.split('-');
-    return `${p[0].slice(2)}/${p[1]}`;
-  }
-}
-
-function renderTrend(){
-  const records = getTrendFilteredRecords();
-  const targetStudents = getTrendFilteredStudents();
-
-  // 일별 집계 (그래프 + 일 최대/최소용)
-  const dailyData = aggregateTrend(records, 'day');
-
-  // 평일 일수 계산 (총 식사 횟수 카드 = 평일 수)
-  // 오늘은 18:20 이후일 때만 카운트
-  let weekdayCount = 0;
-  const weekdayDates = []; // 평일 날짜 목록
-  if (_trData.startDate && _trData.endDate) {
-    const sd = new Date(_trData.startDate + 'T00:00:00');
-    const ed = new Date(_trData.endDate + 'T00:00:00');
-    const now = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const todayCounted = nowMin >= 1100;
-    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-    const limit = todayCounted ? now : yesterday;
-    const limitDate = new Date(limit.getFullYear(), limit.getMonth(), limit.getDate());
-    const endLimit = ed < limitDate ? ed : limitDate;
-    for (let d = new Date(sd); d <= endLimit; d.setDate(d.getDate()+1)) {
-      const dow = d.getDay();
-      const dateStr = fmtAnaDate(d);
-      if (dow >= 1 && dow <= 5 && !_holidaySet.has(dateStr)) {
-        weekdayCount++;
-        weekdayDates.push(dateStr);
-      }
-    }
-  }
-  const total = records.length;
-  // 평일 평균 (식사 인원)
-  const weekdayAvg = weekdayCount ? Math.round(total / weekdayCount) : 0;
-  // 일 최대/최소 (실제 식사 데이터가 있는 평일 중)
-  const validDaily = dailyData.filter(d => weekdayDates.indexOf(d.label) >= 0);
-  const dayMax = validDaily.length ? Math.max(...validDaily.map(d=>d.count)) : 0;
-  const dayMin = validDaily.length ? Math.min(...validDaily.map(d=>d.count)) : 0;
-
-  // 결석 평균 — 평일별로 (신청 대상 - 식사) 합산 후 평균
-  // 신청 대상: 학생의 신청 요일에 해당하는 평일만
-  function isStudentTarget(st, dateStr){
-    const days = String(st.days||'매일');
-    if (!days || days==='매일') return true;
-    const d = new Date(dateStr+'T00:00:00');
-    const dayKr = ANA_DAYS_KR[d.getDay()];
-    return days.indexOf(dayKr) >= 0;
-  }
-  // 학번 → 학생 매핑
-  const stMap = {};
-  targetStudents.forEach(s => { stMap[String(s.no)] = s; });
-  // 식사 기록을 (날짜 → Set<학번>)으로 매핑
-  const dayAttendMap = {};
-  records.forEach(r => {
-    if (!dayAttendMap[r.date]) dayAttendMap[r.date] = new Set();
-    dayAttendMap[r.date].add(String(r.no));
-  });
-  let absentTotal = 0;
-  weekdayDates.forEach(dateStr => {
-    let targetN = 0;
-    targetStudents.forEach(st => { if (isStudentTarget(st, dateStr)) targetN++; });
-    const attendedN = dayAttendMap[dateStr] ? dayAttendMap[dateStr].size : 0;
-    const absent = Math.max(0, targetN - attendedN);
-    absentTotal += absent;
-  });
-  const absentAvg = weekdayCount ? Math.round(absentTotal / weekdayCount) : 0;
-
-  // 단위별 총 식사 인원 (고유 학생) — 현재 보고 있는 기간 전체
-  const unitLabel = _trUnit==='week' ? '주간' : '월간';
-  const uniqueSet = new Set();
-  records.forEach(r => uniqueSet.add(String(r.no)));
-  const unitUniqueCount = uniqueSet.size;
-
-  document.getElementById('tr-summary').innerHTML = `
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--sky)">${weekdayCount}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 수</div>
-    </div>
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--ok)">${weekdayAvg}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 평균 식사</div>
-    </div>
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--red)">${absentAvg}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 평균 결석</div>
-    </div>
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--accent)">${dayMax}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">일 최대</div>
-    </div>
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--accent)">${dayMin}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">일 최소</div>
-    </div>
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:#a78bfa">${unitUniqueCount}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">${unitLabel} 식사 인원<br><span style="font-size:9px;opacity:.7">(중복 제외)</span></div>
-    </div>
-  `;
-
-  const el = document.getElementById('tr-content');
-  if (!dailyData.length) {
-    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당 기간 식사 기록이 없어요</div>';
-    return;
-  }
-
-  // SVG 막대그래프 — 항상 일별
-  const W = 800, H = 320;
-  const padL = 40, padR = 20, padT = 20, padB = 60;
-  const innerW = W - padL - padR;
-  const innerH = H - padT - padB;
-  const n = dailyData.length;
-  const barGap = Math.max(2, Math.floor(innerW / n * 0.15));
-  const barW = Math.max(1, Math.floor(innerW / n) - barGap);
-  const dailyMax = Math.max(...dailyData.map(d=>d.count), 1);
-  const yTicks = [];
-  for (let i=0; i<=5; i++) yTicks.push(Math.round(dailyMax * i / 5));
-
-  let bars = '';
-  let labels = '';
-  let valueLabels = '';
-  dailyData.forEach((d, i)=>{
-    const x = padL + i * (innerW / n) + barGap/2;
-    const h = (d.count / dailyMax) * innerH;
-    const y = padT + innerH - h;
-    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="#0a84ff">
-      <title>${d.label}: ${d.count}명</title>
-    </rect>`;
-    const showEvery = n > 20 ? Math.ceil(n/15) : 1;
-    if (i % showEvery === 0) {
-      labels += `<text x="${x + barW/2}" y="${padT + innerH + 18}" text-anchor="middle" font-size="10" fill="#7a8499">${fmtTrendLabel(d.label, 'day')}</text>`;
-    }
-    if (d.count > 0 && (n <= 20 || i % showEvery === 0)) {
-      valueLabels += `<text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" font-size="9" fill="#1d1d1f" font-weight="600">${d.count}</text>`;
-    }
-  });
-
-  let grid = '';
-  yTicks.forEach(v => {
-    const y = padT + innerH - (v / dailyMax) * innerH;
-    grid += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(0,0,0,.06)" stroke-width="1"/>`;
-    grid += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="10" fill="#7a8499">${v}</text>`;
-  });
-
-  el.innerHTML = `
-    <div style="overflow-x:auto">
-      <svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:500px;display:block" preserveAspectRatio="xMidYMid meet">
-        ${grid}
-        ${bars}
-        ${valueLabels}
-        ${labels}
-      </svg>
-    </div>
-    <div style="margin-top:8px;font-size:12px;color:var(--muted);text-align:center">
-      ${getTrendPeriodLabel()} · 일별 식사 인원
-    </div>
-  `;
-}
-window.renderTrend = renderTrend;
-
-function downloadTrendCSV(){
-  const records = getTrendFilteredRecords();
-  const aggData = aggregateTrend(records, _trUnit);
-  if (!aggData.length){ toast('내보낼 데이터가 없어요','err'); return; }
-  const unitLabel = _trUnit==='week' ? '주(월요일)' : '월';
-  const csv = '\uFEFF'+unitLabel+',식사 인원\n' + aggData.map(d=>`${d.label},${d.count}`).join('\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
-  a.download = `식사추이_${_trUnit}_${_trData.startDate}_${_trData.endDate}.csv`;
-  a.click();
-  toast('CSV 다운로드 완료','ok');
-}
-window.downloadTrendCSV = downloadTrendCSV;
-
-
-/* ══ 토스트 ══ */
-function toast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='toast '+(type||'ok');el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2800)}
-
-})();
-</script>
-</body>
-</html>
+#dashboard ::-webkit-scrollbar-thumb:hover{ background: rgba(0,0,0,0.2); }
