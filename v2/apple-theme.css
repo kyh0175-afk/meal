@@ -565,18 +565,26 @@ body:not(:has(.student-screen.on))::before{ display: none !important; }
 
 /* ─── 금일 식사 인원 (크게 표시) ─── */
 #dashboard table.today-big th{
-  font-size: 15px !important;
+  font-size: 14px !important;
   padding: 0 10px 12px !important;
   background: transparent;
 }
 #dashboard table.today-big td{
-  font-size: 28px !important;
+  font-size: 24px !important;
   font-weight: 700 !important;
-  padding: 16px 10px !important;
+  padding: 14px 10px !important;
 }
 #dashboard table.today-big td.tb-time{
-  font-size: 24px !important;
+  font-size: 21px !important;
   font-weight: 500 !important;
+}
+/* 새 항목 플래시 (hover 배경보다 우선) */
+@keyframes rowFlashApple{
+  0%{ background: rgba(48,209,88,.30) !important; }
+  100%{ background: transparent !important; }
+}
+#dashboard table.today-big tr.row-flash td{
+  animation: rowFlashApple 1.8s ease-out;
 }
 
 /* ─── 뱃지 ─── */
