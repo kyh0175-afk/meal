@@ -580,11 +580,12 @@ body:not(:has(.student-screen.on))::before{ display: none !important; }
 }
 /* 새 항목 플래시 (hover 배경보다 우선) */
 @keyframes rowFlashApple{
-  0%{ background: rgba(48,209,88,.30) !important; }
+  0%{ background: rgba(48,209,88,.45) !important; }
+  15%{ background: rgba(48,209,88,.45) !important; }
   100%{ background: transparent !important; }
 }
 #dashboard table.today-big tr.row-flash td{
-  animation: rowFlashApple 1.8s ease-out;
+  animation: rowFlashApple 2.2s ease-out;
 }
 
 /* ─── 뱃지 ─── */
