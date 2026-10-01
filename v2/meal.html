@@ -267,7 +267,7 @@ select option{background:#fff;color:#000}
         <div class="filter-bar">
           <input type="date" id="hist-date" onchange="loadHistoryDate()">
           <span id="hist-day" style="font-size:13px;color:var(--accent);font-weight:700"></span>
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="exportHistCSV()">📥 CSV</button>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="exportHistExcel()">📥 엑셀</button>
         </div>
         <div class="stats-row" id="hist-stats" style="display:none">
           <div class="stat-box"><div class="stat-num" id="hist-total" style="color:var(--sky)">0</div><div class="stat-lbl">대상</div></div>
@@ -361,7 +361,7 @@ select option{background:#fff;color:#000}
           <select id="tr-cls" onchange="renderTrend()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
             <option value="">전체 반</option>
           </select>
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="downloadTrendCSV()">📥 CSV</button>
+          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="downloadTrendExcel()">📥 엑셀</button>
         </div>
         <!-- 요일 선택 (요일별 보기) -->
         <div id="tr-dow-pick" style="display:none;gap:6px;align-items:center;margin-bottom:14px">
@@ -1354,16 +1354,22 @@ async function deleteRecord(no, date){
   renderHistTable();
 }
 window.deleteRecord=deleteRecord;
-function exportHistCSV(){
+// 기록 탭 엑셀 — 시트: 전체 · 식사 완료 · 식사 안함
+function exportHistExcel(){
   const doneMap={};_histData.records.forEach(r=>{doneMap[String(r.no)]=r});
-  const list=_histData.roster.map(s=>{const rec=doneMap[String(s.no)];return{no:s.no,name:s.name,status:rec?'식사 완료':'식사 안함',time:rec?fmtTimeShort(rec.time):''}});
+  const list=_histData.roster.map(s=>{const rec=doneMap[String(s.no)];return{no:s.no,name:s.name,grade:s.grade,cls:s.cls,status:rec?'식사 완료':'식사 안함',time:rec?fmtTimeShort(rec.time):'',method:rec?(rec.method||'QR'):''}});
   if(!list.length){toast('내보낼 데이터가 없어요','err');return}
-  list.sort((a,b)=>String(a.no).localeCompare(String(b.no)));
-  const csv='\uFEFF학번,이름,상태,식사시각\n'+list.map(c=>`${c.no},${c.name},${c.status},${c.time}`).join('\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download='급식기록_'+_histData.date+'.csv';a.click();toast('CSV 다운로드 완료','ok');
+  list.sort((a,b)=>String(a.no).localeCompare(String(b.no), undefined, {numeric:true}));
+  const header=['학번','이름','학년','반','상태','식사 시각','확인 방법'];
+  const toAoa=arr=>[header].concat(arr.map(c=>[c.no,c.name,c.grade,c.cls,c.status,c.time,c.method]));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, xlsxSheet(toAoa(list),0), '전체');
+  XLSX.utils.book_append_sheet(wb, xlsxSheet(toAoa(list.filter(c=>c.status==='식사 완료')),0), '식사 완료');
+  XLSX.utils.book_append_sheet(wb, xlsxSheet(toAoa(list.filter(c=>c.status==='식사 안함')),0), '식사 안함');
+  XLSX.writeFile(wb, '급식기록_'+_histData.date+'.xlsx');
+  toast('엑셀 다운로드 완료','ok');
 }
-window.exportHistCSV=exportHistCSV;
+window.exportHistExcel=exportHistExcel;
 
 /* ══ 학생 관리 탭 ══ */
 const MANAGE_DAYS = ['월','화','수','목','금'];
@@ -2429,7 +2435,7 @@ function trSummarize(days, dayAttend){
   };
 }
 
-// 화면·CSV 공통 집계 (students를 주면 그 학생들 기준, 없으면 현재 필터)
+// 화면·엑셀 공통 집계 (students를 주면 그 학생들 기준, 없으면 현재 필터)
 function computeTrend(studentsArg){
   const students = studentsArg || getTrendFilteredStudents();
   const stNoSet = new Set(students.map(s => String(s.no)));
@@ -2665,53 +2671,82 @@ function renderTrendDowTable(T){
     </div>`;
 }
 
-// CSV — 요약·요일별 평균(전체+학년별)·(주별/월별)·일별·제외일을 한 파일에
-function downloadTrendCSV(){
+// ── 엑셀(xlsx) 내보내기 공통 ──
+// 셀 너비: 한글은 2칸, 그 외 1칸으로 어림
+function xlsxTextWidth(v){
+  if (v && typeof v === 'object') return v.z === '0.0%' ? 6 : String(v.v).length; // 퍼센트 칸은 "62.4%" 폭
+  const s = (v === null || v === undefined) ? '' : String(v);
+  let w = 0;
+  for (const ch of s) w += /[ㄱ-힣]/.test(ch) ? 2 : 1;
+  return w;
+}
+// 2차원 배열 → 시트. headerRow(0부터)부터 너비를 재고, noFilter가 아니면 그 줄부터 필터를 건다
+function xlsxSheet(aoa, headerRow, noFilter){
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const nCol = Math.max(...aoa.map(r => r.length));
+  const cols = [];
+  for (let c = 0; c < nCol; c++){
+    let w = 6;
+    aoa.forEach((r, i) => {
+      if (i < (headerRow || 0)) return; // 머리말 줄은 너비 계산에서 뺌
+      w = Math.max(w, xlsxTextWidth(r[c]) + 2);
+    });
+    cols.push({ wch: Math.min(w, 40) });
+  }
+  ws['!cols'] = cols;
+  if (!noFilter && headerRow !== undefined && aoa.length > headerRow + 1){
+    ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s:{r:headerRow, c:0}, e:{r:aoa.length-1, c:nCol-1} }) };
+  }
+  return ws;
+}
+// 퍼센트 값(62.4) → 엑셀 숫자 셀(0.624, 표시 62.4%). 없으면 '-'
+function xlsxPct(p){ return (p === null || p === undefined) ? '-' : { t:'n', v: Number((p / 100).toFixed(4)), z: '0.0%' }; }
+
+// 추이 탭 엑셀 — 시트: 요약 · 요일별 평균(전체+학년별) · (선택 요일) · 일별 · 주별 · 월별 · 제외한 날
+function downloadTrendExcel(){
   if (!_trData.startDate) { toast('먼저 데이터를 불러와 주세요','err'); return; }
   const T = computeTrend();
   if (!T.opDays.length && !T.excluded.length){ toast('내보낼 데이터가 없어요','err'); return; }
   const S = T.summary;
-  const esc = v => {
-    const s = (v === null || v === undefined) ? '' : String(v);
-    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  };
-  const lines = [];
-  const row = arr => lines.push(arr.map(esc).join(','));
-  const pct = v => v === null ? '-' : v + '%';
   const gf = document.getElementById('tr-grade').value;
   const cf = document.getElementById('tr-cls').value;
   const now = nowKST();
   const isDow = _trUnit === 'dow';
   const dayKr = ANA_DAYS_KR[_trDow];
+  const wb = XLSX.utils.book_new();
+  const add = (name, aoa, headerRow, noFilter) => XLSX.utils.book_append_sheet(wb, xlsxSheet(aoa, headerRow, noFilter), name);
+  const n = v => v === null || v === undefined ? '' : v;
 
-  row(['식사 추이']);
-  row(['기간', `${_trData.startDate} ~ ${_trData.endDate}`]);
-  row(['보기', isDow ? `요일별 (${dayKr}요일 선택)` : (_trUnit === 'week' ? '주별' : '월별')]);
-  row(['대상', (gf ? gf + '학년' : '전체 학년') + ' / ' + (cf ? cf + '반' : '전체 반'), `명단 ${T.students.length}명`]);
-  row(['내려받은 시각(KST)', fmtAnaDate(now) + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0')]);
-  row(['집계 기준', '평균은 실제 운영일(평일 중 미운영일로 등록하지 않았고 식사 기록이 있는 날)로 나눔. 오늘 기록은 18:50 이후 포함']);
-  lines.push('');
+  // 1. 요약
+  const info = [
+    ['식사 추이'],
+    ['기간', `${_trData.startDate} ~ ${_trData.endDate}`],
+    ['보기', isDow ? `요일별 (${dayKr}요일 선택)` : (_trUnit === 'week' ? '주별' : '월별')],
+    ['대상', (gf ? gf + '학년' : '전체 학년') + ' / ' + (cf ? cf + '반' : '전체 반'), `명단 ${T.students.length}명`],
+    ['내려받은 시각', fmtAnaDate(now) + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0')],
+    ['집계 기준', '평균은 실제 운영일(평일 중 미운영일로 등록하지 않았고 식사 기록이 있는 날)로 나눔. 오늘 기록은 18:50 이후 포함'],
+    [],
+  ];
+  const head = info.length;
+  add('요약', info.concat([
+    ['항목', '값', '비고'],
+    ['운영일', S.days, ''],
+    ['식사 연인원', S.meals, '운영일 식사 인원 합계'],
+    ['일평균 식사', S.avgMeal, ''],
+    ['일평균 신청', S.avgTarget, ''],
+    ['일평균 결석', S.avgAbsent, '신청 요일에 식사하지 않음'],
+    ['식사율', xlsxPct(S.rate), ''],
+    ['일 최대', S.max ? S.max.attended : '', S.max ? `${S.max.date}(${S.max.dayKr})` : ''],
+    ['일 최소', S.min ? S.min.attended : '', S.min ? `${S.min.date}(${S.min.dayKr})` : ''],
+    ['식사 인원(중복 제외)', S.unique, '한 번 이상 식사한 학생 수'],
+  ]), head, true);
 
-  row(['[요약]']);
-  row(['항목', '값', '비고']);
-  row(['운영일', S.days, '']);
-  row(['식사 연인원', S.meals, '운영일 식사 인원 합계']);
-  row(['일평균 식사', S.avgMeal, '']);
-  row(['일평균 신청', S.avgTarget, '']);
-  row(['일평균 결석', S.avgAbsent, '신청 요일에 식사하지 않음']);
-  row(['식사율', pct(S.rate), '']);
-  row(['일 최대', S.max ? S.max.attended : '', S.max ? `${S.max.date}(${S.max.dayKr})` : '']);
-  row(['일 최소', S.min ? S.min.attended : '', S.min ? `${S.min.date}(${S.min.dayKr})` : '']);
-  row(['식사 인원(중복 제외)', S.unique, '한 번 이상 식사한 학생 수']);
-  lines.push('');
-
-  // 요일별 평균 — 전체 + 학년별 (학년 필터를 걸었으면 그 학년만)
-  row(['[요일별 평균]']);
-  row(['학년', '요일', '운영일', '평균 식사', '평균 신청', '평균 결석', '식사율', '최대', '최소', '식사 인원(중복 제외)', '명단 인원']);
-  const dowRows = (label, R, nStudents) => R.forEach(r => row([
+  // 2. 요일별 평균 — 전체 + 학년별 (학년 필터를 걸었으면 그 학년만)
+  const dowAoa = [['학년', '요일', '운영일', '평균 식사', '평균 신청', '평균 결석', '식사율', '최대', '최소', '식사 인원(중복 제외)', '명단 인원']];
+  const dowRows = (label, R, nStudents) => R.forEach(r => dowAoa.push([
     label, r.dayKr, r.days,
     r.days ? r.avgMeal : '', r.days ? r.avgTarget : '', r.days ? r.avgAbsent : '',
-    r.days ? pct(r.rate) : '', r.max ? r.max.attended : '', r.min ? r.min.attended : '',
+    r.days ? xlsxPct(r.rate) : '', r.max ? r.max.attended : '', r.min ? r.min.attended : '',
     r.days ? r.unique : '', nStudents,
   ]));
   dowRows(gf ? gf + '학년' : '전체', T.byDow, T.students.length);
@@ -2722,52 +2757,31 @@ function downloadTrendCSV(){
       dowRows(g + '학년', computeTrend(list).byDow, list.length);
     });
   }
-  lines.push('');
+  add('요일별 평균', dowAoa, 0);
 
+  // 3. 날짜별 표 (선택 요일 / 일별)
+  const dayHeader = ['날짜', '요일', '식사', '신청', '결석', '식사율'];
+  const dayAoa = days => [dayHeader].concat(days.map(d => [d.date, d.dayKr, d.attended, d.target, d.absent, xlsxPct(trPct(d.target - d.absent, d.target))]));
+  if (isDow) add(`${dayKr}요일`, dayAoa(T.opDays.filter(d => d.dow === _trDow)), 0);
+  add('일별', dayAoa(T.opDays), 0);
+
+  // 4. 주별 / 월별 요약
   const groupHeader = ['운영일', '식사 연인원', '일평균 식사', '일평균 결석', '식사율', '일 최대', '일 최소', '식사 인원(중복 제외)'];
-  const groupRow = (label, g) => row([label, g.days, g.meals, g.avgMeal, g.avgAbsent, pct(g.rate), g.max ? g.max.attended : '', g.min ? g.min.attended : '', g.unique]);
+  const groupAoa = (label, groups) => [[label].concat(groupHeader)].concat(groups.map(g => [g.key, g.days, g.meals, g.avgMeal, g.avgAbsent, xlsxPct(g.rate), n(g.max && g.max.attended), n(g.min && g.min.attended), g.unique]));
   if (_trUnit !== 'week') {
-    if (T.byMonth.length > 1) {
-      row(['[월별 요약]']);
-      row(['월'].concat(groupHeader));
-      T.byMonth.forEach(g => groupRow(g.key, g));
-      lines.push('');
-    }
-    row(['[주별 요약]']);
-    row(['주 시작(월)'].concat(groupHeader));
-    T.byWeek.forEach(g => groupRow(g.key, g));
-    lines.push('');
+    add('주별', groupAoa('주 시작(월)', T.byWeek), 0);
+    if (T.byMonth.length > 1) add('월별', groupAoa('월', T.byMonth), 0);
   }
 
-  const dayRows = days => days.forEach(d => row([d.date, d.dayKr, d.attended, d.target, d.absent, pct(trPct(d.target - d.absent, d.target))]));
-  if (isDow) {
-    row([`[${dayKr}요일 날짜별]`]);
-    row(['날짜', '요일', '식사', '신청', '결석', '식사율']);
-    dayRows(T.opDays.filter(d => d.dow === _trDow));
-    lines.push('');
-  }
-  row(['[일별]']);
-  row(['날짜', '요일', '식사', '신청', '결석', '식사율']);
-  dayRows(T.opDays);
-  lines.push('');
+  // 5. 평균에서 뺀 평일
+  if (T.excluded.length) add('제외한 날', [['날짜', '요일', '사유']].concat(T.excluded.map(x => [x.date, ANA_DAYS_KR[x.dow], x.reason])), 0);
 
-  if (T.excluded.length) {
-    row(['[평균에서 뺀 평일]']);
-    row(['날짜', '요일', '사유']);
-    T.excluded.forEach(x => row([x.date, ANA_DAYS_KR[x.dow], x.reason]));
-  }
-
-  const csv = '﻿' + lines.join('\r\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
   const unitTag = isDow ? '요일별_' + dayKr : (_trUnit === 'week' ? '주별' : '월별');
   const filt = (gf ? '_' + gf + '학년' : '') + (cf ? '_' + cf + '반' : '');
-  a.download = `식사추이_${unitTag}${filt}_${_trData.startDate}_${_trData.endDate}.csv`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  toast('CSV 다운로드 완료','ok');
+  XLSX.writeFile(wb, `식사추이_${unitTag}${filt}_${_trData.startDate}_${_trData.endDate}.xlsx`);
+  toast('엑셀 다운로드 완료','ok');
 }
-window.downloadTrendCSV = downloadTrendCSV;
+window.downloadTrendExcel = downloadTrendExcel;
 
 
 /* ══ 토스트 ══ */
