@@ -9,12 +9,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="apple-theme.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8D%B1%3C/text%3E%3C/svg%3E">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap');
 :root{--ink:#0e1117;--card:rgba(255,255,255,0.05);--card2:rgba(255,255,255,0.09);--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);--accent:#f59e0b;--ok:#34d399;--sky:#60a5fa;--red:#f87171;--text:#edf0f7;--muted:#7a8499;--r:14px;--r-sm:10px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{background:#0e1117!important}
-body{font-family:'Noto Sans KR',sans-serif;background:#0e1117;color:#edf0f7;min-height:100vh;font-size:16px;line-height:1.7;-webkit-tap-highlight-color:transparent}
+body{word-break:keep-all;overflow-wrap:break-word;font-family:'Noto Sans KR',sans-serif;background:#0e1117;color:#edf0f7;min-height:100vh;font-size:16px;line-height:1.7;-webkit-tap-highlight-color:transparent}
 body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 20% 0%,rgba(245,158,11,.08) 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 80% 90%,rgba(249,115,22,.06) 0%,transparent 60%)}
 .wrap{position:relative;z-index:1}
 .topbar{display:flex;align-items:center;gap:12px;padding:0 20px;height:56px;background:rgba(14,17,23,.88);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200}
@@ -76,7 +77,7 @@ select option{background:#fff;color:#000}
 .s-input:focus{border-color:var(--accent)}
 .s-err{color:var(--red);font-size:13px;margin-top:10px;display:none;white-space:pre-line}
 .s-ok{display:none;flex-direction:column;align-items:center;gap:10px}
-.s-ok .check{font-size:64px;animation:popIn .4s cubic-bezier(.175,.885,.32,1.275)}
+.s-ok .check{font-size:64px;animation:popIn .24s cubic-bezier(.2,.8,.2,1)}
 @keyframes popIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
 .ok-name{font-size:22px;font-weight:800}
 .ok-meta{font-size:13px;color:var(--muted);white-space:pre-line;line-height:1.8}
@@ -109,6 +110,7 @@ select option{background:#fff;color:#000}
   <div style="padding:24px 20px;max-width:900px;margin:0 auto">
     <div class="tab-bar">
       <button class="tab-btn on" data-tab="today" onclick="goTab('today')">📡 오늘 현황</button>
+      <!-- 디자인게이트 E1 유지: 기존 탭 이모지 아이콘(도구 UI 프로파일 허용). 새로 만드는 요소에는 쓰지 않음 -->
       <button class="tab-btn" data-tab="roster" onclick="goTab('roster')">📋 명단</button>
       <button class="tab-btn" data-tab="manage" onclick="goTab('manage')">👥 학생 관리</button>
       <button class="tab-btn" data-tab="manual" onclick="goTab('manual')">✏️ 수동 입력</button>
@@ -320,7 +322,7 @@ select option{background:#fff;color:#000}
         </div>
         <!-- 콘텐츠 -->
         <div id="ana-content">
-          <div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>
+          <div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">불러오는 중...</div>
         </div>
       </div>
     </div>
@@ -333,14 +335,21 @@ select option{background:#fff;color:#000}
           <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
             <button id="tr-unit-week" class="on" onclick="setTrendUnit('week')">주별</button>
             <button id="tr-unit-month" onclick="setTrendUnit('month')">월별</button>
-            <button id="tr-unit-all" onclick="setTrendUnit('all')">전체 기간</button>
+            <button id="tr-unit-dow" onclick="setTrendUnit('dow')">요일별</button>
           </div>
           <!-- 주별/월별 네비게이션 -->
-          <div style="display:flex;align-items:center;gap:6px">
-            <button class="btn btn-ghost btn-sm" id="tr-prev" onclick="navTrend(-1)" style="padding:6px 10px;font-size:14px">←</button>
+          <div id="tr-nav" style="display:flex;align-items:center;gap:6px">
+            <button class="btn btn-ghost btn-sm" id="tr-prev" onclick="navTrend(-1)" aria-label="이전 기간" style="padding:6px 10px;font-size:14px">←</button>
             <span id="tr-period" style="font-size:14px;font-weight:700;min-width:180px;text-align:center">—</span>
-            <button class="btn btn-ghost btn-sm" id="tr-next" onclick="navTrend(1)" style="padding:6px 10px;font-size:14px">→</button>
+            <button class="btn btn-ghost btn-sm" id="tr-next" onclick="navTrend(1)" aria-label="다음 기간" style="padding:6px 10px;font-size:14px">→</button>
             <button class="btn btn-ghost btn-sm" id="tr-today" onclick="goTrendToday()" style="padding:6px 12px;font-size:13px">오늘</button>
+          </div>
+          <!-- 요일별: 기간 직접 지정 -->
+          <div id="tr-range" style="display:none;align-items:center;gap:6px">
+            <input type="date" id="tr-from" onchange="onTrendRangeChange()" aria-label="시작일">
+            <span style="color:var(--muted)">~</span>
+            <input type="date" id="tr-to" onchange="onTrendRangeChange()" aria-label="종료일">
+            <button class="btn btn-ghost btn-sm" id="tr-range-reset" onclick="resetTrendRange()" style="padding:6px 12px;font-size:13px">기간 초기화</button>
           </div>
           <select id="tr-grade" onchange="renderTrend()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
             <option value="">전체 학년</option>
@@ -353,13 +362,22 @@ select option{background:#fff;color:#000}
           </select>
           <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="downloadTrendCSV()">📥 CSV</button>
         </div>
+        <!-- 요일 선택 (요일별 보기) -->
+        <div id="tr-dow-pick" style="display:none;gap:6px;align-items:center;margin-bottom:14px">
+          <span style="font-size:12px;color:var(--muted);margin-right:4px">요일</span>
+          <button class="filter-chip" data-dow="1" onclick="setTrendDow(1)">월</button>
+          <button class="filter-chip" data-dow="2" onclick="setTrendDow(2)">화</button>
+          <button class="filter-chip" data-dow="3" onclick="setTrendDow(3)">수</button>
+          <button class="filter-chip" data-dow="4" onclick="setTrendDow(4)">목</button>
+          <button class="filter-chip" data-dow="5" onclick="setTrendDow(5)">금</button>
+        </div>
         <!-- 요약 통계 -->
         <div id="tr-summary" style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap"></div>
         <!-- 평균에서 제외된 날짜 안내 -->
         <div id="tr-note"></div>
         <!-- 그래프 -->
         <div id="tr-content">
-          <div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>
+          <div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">불러오는 중...</div>
         </div>
         <!-- 요일별 평균 -->
         <div id="tr-dow"></div>
@@ -428,8 +446,13 @@ function initSupabase(){
   return sbClient;
 }
 // KST 헬퍼
-function todayKST(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function nowTimeStr(){return new Date().toTimeString().slice(0,8)}
+// ── 한국 시간(KST, UTC+9) 기준 날짜·시각 ──
+// 기기 시간대가 KST가 아니어도 getFullYear/getHours 등이 한국 시각을 돌려주도록 옮긴 Date
+// (저장용 타임스탬프 toISOString()에는 쓰지 말 것 — 실제 시각이 9시간 어긋남)
+function toKST(d){return new Date(d.getTime()+(d.getTimezoneOffset()+540)*60000)}
+function nowKST(){return toKST(new Date())}
+function todayKST(){const d=nowKST();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function nowTimeStr(){const d=nowKST();return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}
 
 // ══════════════════════════════════════════════════════════════
 //  sb 헬퍼 — Supabase API 래퍼
@@ -566,15 +589,14 @@ const sb = {
       };
       const {error} = await sb.client().from('meal_sessions').insert(row);
       if(error) throw error;
-      return {sessionId: sid, time: now.toTimeString().slice(0,8)};
+      return {sessionId: sid, time: nowTimeStr()};
     },
     async getActive(){
       const {data,error} = await sb.client().from('meal_sessions').select('*').eq('날짜',todayKST()).eq('활성',true).order('시작시각',{ascending:false}).limit(1);
       if(error) throw error;
       if(!data || !data.length) return null;
       const s = data[0];
-      const t = new Date(s.시작시각);
-      return {sessionId: s.세션id, date: s.날짜, time: t.toTimeString().slice(0,8)};
+      return {sessionId: s.세션id, date: s.날짜, time: fmtTimeShort(s.시작시각)};
     },
     async validate(sid){
       if(!sid) return {ok:false, msg:'세션 정보가 없어요.'};
@@ -625,7 +647,7 @@ async function gasPost(payload, retry=2) {
   try {
     if(action === 'getRoster'){
       const list = await sb.students.list();
-      const todayKr = DAY_KR[new Date().getDay()];
+      const todayKr = DAY_KR[nowKST().getDay()];
       const students = list.map(s => {
         const days = Array.isArray(s.출석요일) ? s.출석요일 : [];
         const isToday = days.length === 0 || days.includes(todayKr);
@@ -671,7 +693,7 @@ async function gasPost(payload, retry=2) {
       if(!/^\d{5}$/.test(no)) return {ok:false, msg:'학번 5자리를 입력해주세요'};
 
       // 시간 검증 (18:20~18:50) — manual:true 또는 수동 입력은 우회
-      const now = new Date();
+      const now = nowKST();
       const cur = now.getHours()*60 + now.getMinutes();
       const skipTimeCheck = payload.manual || payload.method === '수동';
       if(!skipTimeCheck && (cur < 1100 || cur >= 1130)){
@@ -696,7 +718,7 @@ async function gasPost(payload, retry=2) {
       if(!student.활성) return {ok:false, msg:'비활성화된 학생입니다.'};
 
       // 오늘 요일 신청 여부
-      const todayKr = DAY_KR[new Date().getDay()];
+      const todayKr = DAY_KR[nowKST().getDay()];
       const days = Array.isArray(student.출석요일) ? student.출석요일 : [];
       if(days.length > 0 && !days.includes(todayKr)){
         return {ok:false, msg:student.이름+' 학생은 오늘('+todayKr+') 신청자가 아닙니다.'};
@@ -923,7 +945,7 @@ async function gasPost(payload, retry=2) {
 window.gasPost = gasPost; // 디버깅용
 
 function fmtDate(s){if(!s)return'';if(/^\d{4}-\d{2}-\d{2}$/.test(s.trim())){const p=s.trim().split('-');return p[0].slice(2)+'-'+p[1]+'-'+p[2]}const d=new Date(s);if(isNaN(d))return s;return String(d.getFullYear()).slice(2)+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
-function fmtTimeShort(t){if(!t)return'';if(/^\d{2}:\d{2}:\d{2}$/.test(t))return t;if(/^\d{2}:\d{2}$/.test(t))return t;try{const d=new Date(t);if(!isNaN(d))return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}catch(e){}return t}
+function fmtTimeShort(t){if(!t)return'';if(/^\d{2}:\d{2}:\d{2}$/.test(t))return t;if(/^\d{2}:\d{2}$/.test(t))return t;try{const d0=new Date(t);if(!isNaN(d0)){const d=toKST(d0);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}}catch(e){}return t}
 
 /* ══ 초기화 ══ */
 (async function init(){
@@ -952,8 +974,8 @@ function fmtTimeShort(t){if(!t)return'';if(/^\d{2}:\d{2}:\d{2}$/.test(t))return 
     return;
   }
   // 교사 대시보드
-  document.getElementById('top-date').textContent = fmtDate(new Date().toISOString().slice(0,10));
-  document.getElementById('hist-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('top-date').textContent = fmtDate(todayKST());
+  document.getElementById('hist-date').value = todayKST();
   // 오늘 활성 세션이 있으면 복원
   const sess = await gasPost({action:'getActiveSession'});
   if(sess.ok && sess.session){
@@ -970,10 +992,10 @@ function fmtTimeShort(t){if(!t)return'';if(/^\d{2}:\d{2}:\d{2}$/.test(t))return 
 // 18:50 이후 + 오늘 세션 있으면 종료 배지 표시
 function startTeacherAutoQR(){
   let _autoTriggered = false;
-  let _lastDate = new Date().toISOString().slice(0,10);
+  let _lastDate = todayKST();
   async function tick(){
     // 자정 넘김 시 트리거 플래그 리셋
-    const todayStr = new Date().toISOString().slice(0,10);
+    const todayStr = todayKST();
     if (todayStr !== _lastDate){
       _lastDate = todayStr;
       _autoTriggered = false;
@@ -982,7 +1004,7 @@ function startTeacherAutoQR(){
       document.getElementById('qr-empty').style.display = 'flex';
       document.getElementById('qr-active').style.display = 'none';
     }
-    const now = new Date();
+    const now = nowKST();
     const cur = now.getHours()*60 + now.getMinutes();
     const inWindow = cur >= 1100 && cur < 1130; // 18:20~18:50
     const afterEnd = cur >= 1130; // 18:50 이후
@@ -1001,7 +1023,7 @@ function startTeacherAutoQR(){
         if (r.ok){
           S.sessionId = r.sessionId;
           showQR(r.sessionId, r.time);
-          toast('식사 시간 시작 — QR 자동 생성됨','ok');
+          toast('식사 시간 시작: QR 자동 생성됨','ok');
         }
       }
     }
@@ -1034,7 +1056,7 @@ function startTeacherAutoQR(){
 function startStudentTimeGate(){
   // 매 5초마다 시간 체크 — 18:20~18:50 외엔 입력 비활성화 + 안내
   function check(){
-    const now = new Date();
+    const now = nowKST();
     const cur = now.getHours()*60 + now.getMinutes();
     const inWindow = cur >= 1100 && cur < 1130; // 18:20~18:50
     const input = document.getElementById('sf-no');
@@ -1066,7 +1088,7 @@ function startStudentTimeGate(){
 
 /* ══ QR 세션 생성 / 표시 ══ */
 async function createQR(force){
-  if(force && !confirm('새 QR을 생성하면 기존 QR은 무효화되지 않지만, 학생들에게 새 QR을 다시 안내해야 해요. 계속할까요?')) return;
+  if(force && !confirm('새 QR을 만들면 지금 QR은 더 이상 쓸 수 없어요. 학생들에게 새 QR을 다시 보여 줘야 해요. 계속할까요?')) return;
   const r = await gasPost({action:'createSession'});
   if(!r.ok){ toast(r.msg||'QR 생성 실패','err'); return; }
   S.sessionId = r.sessionId;
@@ -1101,17 +1123,17 @@ async function loadToday(){
 /* ══ 폴링 (5초 간격) ══ */
 function startPolling(){
   clearInterval(S.pollInt);
-  S.currentDate = new Date().toISOString().slice(0,10);
+  S.currentDate = todayKST();
   S.pollInt = setInterval(async()=>{
     // 자정 넘김 감지
-    const nowDate = new Date().toISOString().slice(0,10);
+    const nowDate = todayKST();
     if (nowDate !== S.currentDate) {
       S.currentDate = nowDate;
       document.getElementById('top-date').textContent = fmtDate(nowDate);
       document.getElementById('hist-date').value = nowDate;
       S.confirmed = []; // 어제 캐시 비우기
       await loadToday();
-      toast('날짜가 바뀌었어요. 오늘 데이터로 새로고침됨','ok');
+      toast('날짜가 바뀌어 오늘 기록을 새로 불러왔어요','ok');
       return;
     }
     const r = await gasPost({action:'getTodayStatus'});
@@ -1202,7 +1224,7 @@ async function tryConfirm(no,method){
   if(method !== '수동' && !sid) return{ok:false,msg:'먼저 QR을 생성해주세요.'};
   if(S.confirmed.find(c=>String(c.no)===no))return{ok:false,msg:'이미 식사 확인된 학생이에요.'};
   const local=S.roster.find(s=>String(s.no)===no);
-  const tmp={no,name:local?local.name:no,time:new Date().toTimeString().slice(0,8),method:method||'QR',_p:true};
+  const tmp={no,name:local?local.name:no,time:nowTimeStr(),method:method||'QR',_p:true};
   S.confirmed.push(tmp);refreshStats();renderTodayList();renderRoster();
   const r=await gasPost({action:'confirmMeal',studentNo:no,method:method||'QR',sessionId:sid});
   if(!r.ok){const idx=S.confirmed.indexOf(tmp);if(idx!==-1)S.confirmed.splice(idx,1);refreshStats();renderTodayList();renderRoster();return{ok:false,msg:r.msg}}
@@ -1299,7 +1321,7 @@ async function addRecord(no, date){
   // 로컬에도 추가
   _histData.records.push({no:no, name:r.name, time:r.time, method:'수동'});
   // 오늘이면 오늘 현황도 업데이트
-  const today=new Date().toISOString().slice(0,10);
+  const today=todayKST();
   if(date===today){
     S.confirmed.push({no:no, name:r.name, time:r.time, method:'수동'});
     refreshStats();renderTodayList();renderRoster();
@@ -1321,7 +1343,7 @@ async function deleteRecord(no, date){
   // 로컬에서도 제거
   _histData.records=_histData.records.filter(rec=>!(String(rec.no)===no));
   // 오늘 현황에서도 제거 (오늘 날짜인 경우)
-  const today=new Date().toISOString().slice(0,10);
+  const today=todayKST();
   if(date===today){S.confirmed=S.confirmed.filter(c=>String(c.no)!==no);refreshStats();renderTodayList();renderRoster()}
   // 통계 재계산 + 테이블 재렌더
   const doneSet=new Set(_histData.records.map(r=>String(r.no)));
@@ -1351,7 +1373,7 @@ async function loadManageList(){
   wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted);font-size:13px">불러오는 중...</div>';
   const r = await gasPost({action:'getRoster'});
   if (!r.ok) {
-    wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">'+(r.msg||'로드 실패')+'</div>';
+    wrap.innerHTML = '<div style="text-align:center;padding:30px;color:var(--red);font-size:13px">'+(r.msg||'불러오지 못했어요')+'</div>';
     return;
   }
   _manageStudents = r.students || [];
@@ -1464,7 +1486,7 @@ async function loadHolidays(){
   const el = document.getElementById('holiday-list');
   try {
     const r = await gasPost({action:'getHolidays'});
-    if(!r.ok){el.textContent='로드 실패';return}
+    if(!r.ok){el.textContent='불러오지 못했어요';return}
     const list = r.holidays || [];
     if(!list.length){el.innerHTML='<div style="padding:12px;color:var(--muted)">등록된 미운영일이 없어요</div>';return}
     el.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
@@ -1475,7 +1497,7 @@ async function loadHolidays(){
           <button class="btn btn-ghost btn-sm" onclick="removeHoliday('${h.date}')" style="color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:4px 10px;white-space:nowrap">삭제</button>
         </td>
       </tr>`).join('') + '</table>';
-  } catch(e){ el.textContent='로드 실패: '+e.message; }
+  } catch(e){ el.textContent='불러오지 못했어요: '+e.message; }
 }
 window.loadHolidays = loadHolidays;
 
@@ -1697,7 +1719,7 @@ const ANA_DAYS_KR = ['일','월','화','수','목','금','토'];
 const ANA_MIN_DATE = new Date(2026, 3, 6); // 2026-04-06 기준일
 var _anaView = 'week';
 var _anaMode = 'individual'; // 'individual' | 'trend'
-var _anaDate = new Date(); // 오늘이 속한 주/월로 시작 (기존: 2026-04-06 고정)
+var _anaDate = nowKST(); // 오늘(KST)이 속한 주/월로 시작
 var _anaData = { students: [], records: [] };
 
 function setAnalysisView(v){
@@ -1717,7 +1739,7 @@ function setAnalysisMode(m){
 window.setAnalysisMode = setAnalysisMode;
 
 function goAnalysisToday(){
-  _anaDate = new Date();
+  _anaDate = nowKST();
   loadAnalysis();
 }
 window.goAnalysisToday = goAnalysisToday;
@@ -1761,13 +1783,13 @@ function fmtAnaDate(d){
 
 async function loadAnalysis(){
   const el = document.getElementById('ana-content');
-  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>';
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">불러오는 중...</div>';
   const period = getAnaPeriod();
   const r = await gasPost({ action:'getMealAnalysisData', startDate: fmtAnaDate(period.start), endDate: fmtAnaDate(period.end) });
   // 미운영일도 함께 로드
   _holidaySet = await sb.holidays.getSet();
   if (!r.ok){
-    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);font-size:14px">데이터 로드 실패: '+(r.msg||'')+'</div>';
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);font-size:14px">불러오지 못했어요: '+(r.msg||'')+'</div>';
     return;
   }
   _anaData.students = r.students || [];
@@ -1817,7 +1839,7 @@ function renderAnaTrend(){
   }
 
   const attendMap = buildAttendMap();
-  const today = new Date(); today.setHours(23,59,59,999);
+  const today = nowKST(); today.setHours(23,59,59,999);
 
   // 표시할 날짜 목록 (월~금만)
   let dates;
@@ -1884,12 +1906,12 @@ function renderAnaTrend(){
     const dateStr = fmtAnaDate(c.date);
     const isFuture = c.date > today;
     const isBefore = c.date < ANA_MIN_DATE;
-    const fill = c.isHoliday ? 'rgba(0,0,0,.06)' : isFuture || isBefore ? 'rgba(0,0,0,.04)' : 'var(--ok)';
+    const fill = c.isHoliday || isFuture || isBefore ? 'var(--chart-empty)' : 'var(--chart-ok)';
     const label = isMonth ? `${c.date.getDate()}` : `${c.date.getDate()}\n${dow}`;
     const holidayMark = c.isHoliday ? `<text x="${x + barW/2}" y="${padTop + innerH/2}" text-anchor="middle" fill="var(--muted)" font-size="10">미운영</text>` : '';
     const labelLines = isMonth
-      ? `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="rgba(255,255,255,.55)" font-size="10" font-family="DM Mono, monospace">${c.date.getDate()}</text>`
-      : `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="rgba(255,255,255,.7)" font-size="11" font-family="DM Mono, monospace">${c.date.getMonth()+1}/${c.date.getDate()}</text>
+      ? `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="var(--chart-label)" font-size="10" font-family="DM Mono, monospace">${c.date.getDate()}</text>`
+      : `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="var(--chart-label)" font-size="11" font-family="DM Mono, monospace">${c.date.getMonth()+1}/${c.date.getDate()}</text>
          <text x="${x + barW/2}" y="${padTop + innerH + 28}" text-anchor="middle" fill="var(--muted)" font-size="10">${dow}</text>`;
     const valueLabel = c.isPast && c.count > 0
       ? `<text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" fill="var(--text)" font-size="${isMonth?9:11}" font-weight="700">${c.count}</text>`
@@ -1933,12 +1955,12 @@ function renderAnaWeek(){
   if (!students.length){ el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당하는 학생이 없어요</div>'; return; }
 
   const attendMap = buildAttendMap();
-  const today = new Date(); today.setHours(23,59,59,999);
+  const today = nowKST(); today.setHours(23,59,59,999);
 
   // 헤더
   const colHeaders = dates.map(d=>{
     const dow = d.getDay();
-    const isToday = fmtAnaDate(d) === fmtAnaDate(new Date());
+    const isToday = fmtAnaDate(d) === todayKST();
     const color = dow===0?'#ff7096':dow===6?'#5eb8ff':'var(--muted)';
     return `<th style="text-align:center;padding:8px 6px;font-size:12px;font-weight:700;color:${color};border-bottom:1px solid var(--border2);${isToday?'background:rgba(245,158,11,.08)':''}">${ANA_DAYS_KR[dow]}<br><span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:400">${d.getDate()}</span></th>`;
   }).join('');
@@ -1955,13 +1977,13 @@ function renderAnaWeek(){
       const isBefore = d < ANA_MIN_DATE;
       const isHoliday = _holidaySet.has(dateStr);
       const attended = attendMap[st.no] && attendMap[st.no].has(dateStr);
-      const isToday = dateStr === fmtAnaDate(new Date());
+      const isToday = dateStr === todayKST();
       let cell;
       if (isHoliday) cell = '<span style="color:var(--muted);font-size:10px">미운영</span>';
-      else if (isBefore) cell = '<span style="color:rgba(255,255,255,.15)">·</span>';
-      else if (isFuture) cell = '<span style="color:rgba(255,255,255,.4);font-size:16px">-</span>';
+      else if (isBefore) cell = '<span style="color:rgba(0,0,0,.15)">·</span>';
+      else if (isFuture) cell = '<span style="color:var(--muted);font-size:16px">-</span>';
       else if (attended && isTarget) cell = '<span style="color:var(--ok);font-size:18px;line-height:1">●</span>';
-      else if (!isTarget) cell = '<span style="color:rgba(255,255,255,.3);font-size:18px">·</span>';
+      else if (!isTarget) cell = '<span style="color:rgba(0,0,0,.3);font-size:18px">·</span>';
       else cell = '<span style="color:var(--red);font-weight:700">X</span>';
       return `<td style="text-align:center;padding:8px 4px;border-bottom:1px solid var(--border);${isToday?'background:rgba(245,158,11,.08)':''}">${cell}</td>`;
     }).join('');
@@ -2027,7 +2049,7 @@ function renderAnaMonth(){
   if (!students.length){ el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당하는 학생이 없어요</div>'; return; }
 
   const attendMap = buildAttendMap();
-  const today = new Date(); today.setHours(23,59,59,999);
+  const today = nowKST(); today.setHours(23,59,59,999);
 
   const cards = students.map(st=>{
     const days = String(st.days||'매일');
@@ -2060,7 +2082,7 @@ function renderAnaMonth(){
         const attended = attendMap[st.no] && attendMap[st.no].has(d.str);
         const isFuture = d.date > today;
         const isBefore = d.date < ANA_MIN_DATE;
-        const isToday = d.str === fmtAnaDate(new Date());
+        const isToday = d.str === todayKST();
         let bg = '', text = 'var(--muted)';
         if (isToday) bg = 'rgba(245,158,11,.15)';
         if (!isFuture && !isBefore && attended && isTarget){ bg = 'rgba(52,211,153,.25)'; text = 'var(--ok)'; }
@@ -2103,7 +2125,7 @@ function downloadAnalysisExcel(){
   const students = getFilteredStudents();
   if (!students.length){ toast('해당하는 학생이 없어요','err'); return; }
   const attendMap = buildAttendMap();
-  const today = new Date(); today.setHours(23,59,59,999);
+  const today = nowKST(); today.setHours(23,59,59,999);
   const wb = XLSX.utils.book_new();
 
   if (_anaView==='week'){
@@ -2195,16 +2217,20 @@ function downloadAnalysisExcel(){
 window.downloadAnalysisExcel = downloadAnalysisExcel;
 
 /* ══ 추이 탭 ══ */
-// 집계 원칙 (2026-10 개편)
-//  · 평균의 분모 = "실제 운영일" = 평일 ∩ 미운영일 미등록 ∩ 전교 식사 기록 1건 이상 ∩ 집계 마감 전
+// 집계 원칙
+//  · 날짜·시각은 모두 한국 시간(KST) 기준 (nowKST / todayKST)
+//  · 평균의 분모 = 실제 운영일 = 평일 ∩ 미운영일 미등록 ∩ 전교 식사 기록 1건 이상 ∩ 집계 마감 전
 //  · 운영일 판정은 학년/반 필터와 무관하게 전교 기록으로 한다 (필터 결과 0명인 날도 운영일이면 0으로 집계)
 //  · 오늘은 식사 시간(18:50)이 끝난 뒤에만 집계에 넣는다
-var _trUnit = 'week'; // 'week' | 'month' | 'all'
+var _trUnit = 'week'; // 'week' | 'month' | 'dow'
 var _trData = { students: [], records: [], startDate: '', endDate: '' };
 var _holidaySet = new Set(); // 석식 미운영일
 var _trReqSeq = 0;           // 빠르게 ←/→ 누를 때 늦게 도착한 응답 무시용
 var TR_MEAL_END_MIN = 18*60 + 50;
-var TR_UNIT_LABEL = { week:'주간', month:'월간', all:'전체 기간' };
+var TR_UNIT_LABEL = { week:'주간', month:'월간', dow:'기간' };
+var _trDow = (function(){ const w = nowKST().getDay(); return (w >= 1 && w <= 5) ? w : 1; })();
+var _trFrom = '';            // 요일별 보기 기간 (비어 있으면 기본값: 기준일 ~ 오늘)
+var _trTo = '';
 
 // 기준 날짜가 속한 주의 월요일 / 달의 1일 (시각 00:00)
 function trStartOfUnit(base, unit){
@@ -2215,52 +2241,67 @@ function trStartOfUnit(base, unit){
   return d;
 }
 function trNavUnit(){ return _trUnit === 'month' ? 'month' : 'week'; }
+function trParse(ds){ return new Date(ds + 'T00:00:00'); }
 
-// 추이 네비게이션 앵커 (주별: 월요일, 월별: 1일) — 항상 "오늘"이 속한 기간으로 시작
-var _trAnchor = trStartOfUnit(new Date(), 'week');
+// 추이 네비게이션 앵커 (주별: 월요일, 월별: 1일) — 항상 오늘이 속한 기간으로 시작
+var _trAnchor = trStartOfUnit(nowKST(), 'week');
 
 function updateTrendNavUI(){
-  ['week','month','all'].forEach(x=>{
+  ['week','month','dow'].forEach(x=>{
     const b = document.getElementById('tr-unit-'+x);
     if (b) b.classList.toggle('on', x===_trUnit);
   });
-  const isAll = _trUnit === 'all';
-  const cur = trStartOfUnit(new Date(), trNavUnit());
+  const isDow = _trUnit === 'dow';
+  document.getElementById('tr-nav').style.display = isDow ? 'none' : 'flex';
+  document.getElementById('tr-range').style.display = isDow ? 'flex' : 'none';
+  document.getElementById('tr-dow-pick').style.display = isDow ? 'flex' : 'none';
+  document.querySelectorAll('#tr-dow-pick .filter-chip').forEach(b => b.classList.toggle('on', Number(b.dataset.dow) === _trDow));
+  if (isDow) {
+    const {start, end} = getTrendRange();
+    const minStr = fmtAnaDate(ANA_MIN_DATE), maxStr = todayKST();
+    const f = document.getElementById('tr-from'), t = document.getElementById('tr-to');
+    f.min = minStr; f.max = maxStr; t.min = minStr; t.max = maxStr;
+    f.value = fmtAnaDate(start); t.value = fmtAnaDate(end);
+    const isDefault = !_trFrom && !_trTo;
+    const r = document.getElementById('tr-range-reset');
+    r.disabled = isDefault;
+    r.style.opacity = isDefault ? '0.35' : '';
+    return;
+  }
+  const cur = trStartOfUnit(nowKST(), trNavUnit());
   const min = trStartOfUnit(ANA_MIN_DATE, trNavUnit());
-  const setBtn = (id, show, enabled) => {
+  const setBtn = (id, enabled) => {
     const b = document.getElementById(id);
-    if (!b) return;
-    b.style.display = show ? '' : 'none';
     b.disabled = !enabled;
     b.style.opacity = enabled ? '' : '0.35';
     b.style.cursor = enabled ? '' : 'default';
   };
-  setBtn('tr-prev',  !isAll, _trAnchor.getTime() > min.getTime());
-  setBtn('tr-next',  !isAll, _trAnchor.getTime() < cur.getTime());
-  setBtn('tr-today', !isAll, _trAnchor.getTime() !== cur.getTime());
+  setBtn('tr-prev',  _trAnchor.getTime() > min.getTime());
+  setBtn('tr-next',  _trAnchor.getTime() < cur.getTime());
+  setBtn('tr-today', _trAnchor.getTime() !== cur.getTime());
 }
 
 function setTrendUnit(u){
   _trUnit = u;
-  _trAnchor = trStartOfUnit(new Date(), trNavUnit()); // 단위 바꾸면 오늘 기준으로
+  _trAnchor = trStartOfUnit(nowKST(), trNavUnit()); // 단위 바꾸면 오늘 기준으로
   loadTrend();
 }
 window.setTrendUnit = setTrendUnit;
 
 // "오늘" 버튼 — 현재 주/월로 바로 이동
 function goTrendToday(){
-  _trAnchor = trStartOfUnit(new Date(), trNavUnit());
+  _trAnchor = trStartOfUnit(nowKST(), trNavUnit());
   loadTrend();
 }
 window.goTrendToday = goTrendToday;
 
 // 네비게이션 (기준일 이전·미래 기간으로는 이동하지 않음)
 function navTrend(dir){
-  if (_trUnit === 'all') return;
+  if (_trUnit === 'dow') return;
   const next = new Date(_trAnchor);
   if (_trUnit === 'week') next.setDate(next.getDate() + dir * 7);
   else next.setMonth(next.getMonth() + dir);
-  const cur = trStartOfUnit(new Date(), trNavUnit());
+  const cur = trStartOfUnit(nowKST(), trNavUnit());
   const min = trStartOfUnit(ANA_MIN_DATE, trNavUnit());
   if (next.getTime() > cur.getTime() || next.getTime() < min.getTime()) return;
   _trAnchor = next;
@@ -2268,7 +2309,33 @@ function navTrend(dir){
 }
 window.navTrend = navTrend;
 
-// 기간 시작/끝 계산 (시작은 ANA_MIN_DATE 이전으로 가지 않음)
+// 요일별 보기: 기간 직접 지정
+function onTrendRangeChange(){
+  const minStr = fmtAnaDate(ANA_MIN_DATE), maxStr = todayKST();
+  const clamp = v => !v ? '' : (v < minStr ? minStr : (v > maxStr ? maxStr : v));
+  let f = clamp(document.getElementById('tr-from').value);
+  let t = clamp(document.getElementById('tr-to').value);
+  if (f && t && f > t) { const x = f; f = t; t = x; }
+  _trFrom = (f === minStr) ? '' : f;
+  _trTo = (t === maxStr) ? '' : t;
+  loadTrend();
+}
+window.onTrendRangeChange = onTrendRangeChange;
+
+function resetTrendRange(){
+  _trFrom = ''; _trTo = '';
+  loadTrend();
+}
+window.resetTrendRange = resetTrendRange;
+
+function setTrendDow(w){
+  _trDow = w;
+  updateTrendNavUI();
+  renderTrend(); // 데이터는 그대로, 다시 그리기만
+}
+window.setTrendDow = setTrendDow;
+
+// 기간 시작/끝 (시작은 ANA_MIN_DATE 이전으로 가지 않음)
 function getTrendRange(){
   let start, end;
   if (_trUnit === 'week'){
@@ -2279,9 +2346,8 @@ function getTrendRange(){
     start = new Date(_trAnchor);
     end = new Date(_trAnchor.getFullYear(), _trAnchor.getMonth() + 1, 0); // 월 말일
   } else {
-    const now = new Date();
-    start = new Date(ANA_MIN_DATE);
-    end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    start = _trFrom ? trParse(_trFrom) : new Date(ANA_MIN_DATE);
+    end = _trTo ? trParse(_trTo) : trParse(todayKST());
   }
   if (start < ANA_MIN_DATE) start = new Date(ANA_MIN_DATE);
   return {start, end};
@@ -2298,7 +2364,7 @@ async function loadTrend(){
   const seq = ++_trReqSeq;
   updateTrendNavUI();
   const el = document.getElementById('tr-content');
-  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>';
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">불러오는 중...</div>';
   document.getElementById('tr-note').innerHTML = '';
   document.getElementById('tr-dow').innerHTML = '';
   document.getElementById('tr-period').textContent = getTrendPeriodLabel();
@@ -2318,7 +2384,7 @@ async function loadTrend(){
   }
   if (seq !== _trReqSeq) return; // 그 사이 다른 기간을 눌렀으면 버림
   if (!r.ok) {
-    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);font-size:14px">로드 실패: '+(r.msg||'')+'</div>';
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);font-size:14px">불러오지 못했어요: '+(r.msg||'')+'</div>';
     return;
   }
   _trData.students = r.students || [];
@@ -2352,7 +2418,7 @@ function trIsTarget(st, dayKr){
 
 // 집계에 넣을 마지막 날짜 (오늘은 18:50 이후부터 포함)
 function trCountCutoffStr(){
-  const now = new Date();
+  const now = nowKST();
   const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   if (now.getHours()*60 + now.getMinutes() < TR_MEAL_END_MIN) d.setDate(d.getDate() - 1);
   return fmtAnaDate(d);
@@ -2361,7 +2427,7 @@ function trCountCutoffStr(){
 function trRound1(x){ return Math.round(x * 10) / 10; }
 function trPct(num, den){ return den ? Math.round(num / den * 1000) / 10 : null; }
 function trMD(ds){ const p = ds.split('-'); return Number(p[1]) + '/' + Number(p[2]); }
-function trDowOf(ds){ return ANA_DAYS_KR[new Date(ds+'T00:00:00').getDay()]; }
+function trDowOf(ds){ return ANA_DAYS_KR[trParse(ds).getDay()]; }
 
 // 날짜 묶음(운영일 목록)에 대한 통계
 function trSummarize(days, dayAttend){
@@ -2386,14 +2452,12 @@ function trSummarize(days, dayAttend){
   };
 }
 
-// 화면·CSV 공통 집계
-function computeTrend(){
-  const students = getTrendFilteredStudents();
+// 화면·CSV 공통 집계 (students를 주면 그 학생들 기준, 없으면 현재 필터)
+function computeTrend(studentsArg){
+  const students = studentsArg || getTrendFilteredStudents();
   const stNoSet = new Set(students.map(s => String(s.no)));
-  // 운영일 판정용: 전교 기록이 있는 날짜
-  const recordDates = new Set();
-  // 필터 대상 기록: 날짜 → Set<학번>
-  const dayAttend = {};
+  const recordDates = new Set(); // 운영일 판정용: 전교 기록이 있는 날짜
+  const dayAttend = {};          // 필터 대상 기록: 날짜 → Set<학번>
   _trData.records.forEach(r => {
     recordDates.add(r.date);
     const no = String(r.no);
@@ -2403,20 +2467,19 @@ function computeTrend(){
   });
 
   const cutoff = trCountCutoffStr();
-  const todayStr = fmtAnaDate(new Date());
+  const todayStr = todayKST();
   const opDays = [];   // 운영일 (평균 분모)
   const excluded = []; // 평균에서 뺀 평일
   let todayPending = false;
   if (_trData.startDate && _trData.endDate){
-    const sd = new Date(_trData.startDate + 'T00:00:00');
-    const ed = new Date(_trData.endDate + 'T00:00:00');
-    for (let d = new Date(sd); d <= ed; d.setDate(d.getDate()+1)) {
+    const ed = trParse(_trData.endDate);
+    for (let d = trParse(_trData.startDate); d <= ed; d.setDate(d.getDate()+1)) {
       const dow = d.getDay();
       if (dow === 0 || dow === 6) continue;
       const ds = fmtAnaDate(d);
       if (ds > cutoff) { if (ds === todayStr) todayPending = true; continue; }
-      if (_holidaySet.has(ds)) { excluded.push({date:ds, reason:'미운영일 등록'}); continue; }
-      if (!recordDates.has(ds)) { excluded.push({date:ds, reason:'식사 기록 없음'}); continue; }
+      if (_holidaySet.has(ds)) { excluded.push({date:ds, dow, reason:'미운영일 등록'}); continue; }
+      if (!recordDates.has(ds)) { excluded.push({date:ds, dow, reason:'식사 기록 없음'}); continue; }
       const dayKr = ANA_DAYS_KR[dow];
       const set = dayAttend[ds];
       let target = 0, absent = 0;
@@ -2429,16 +2492,13 @@ function computeTrend(){
     }
   }
 
-  const summary = trSummarize(opDays, dayAttend);
-
-  // 요일별 (월~금)
   const byDow = [1,2,3,4,5].map(dw => {
     const s = trSummarize(opDays.filter(d => d.dow === dw), dayAttend);
+    s.dow = dw;
     s.dayKr = ANA_DAYS_KR[dw];
     return s;
   });
 
-  // 주별 묶음 (월별·전체 기간 CSV용)
   const groupBy = (keyFn) => {
     const keys = [], map = {};
     opDays.forEach(d => {
@@ -2448,148 +2508,169 @@ function computeTrend(){
     });
     return keys.map(k => { const s = trSummarize(map[k], dayAttend); s.key = k; return s; });
   };
-  const byWeek = groupBy(d => fmtAnaDate(trStartOfUnit(new Date(d.date+'T00:00:00'), 'week')));
-  const byMonth = groupBy(d => d.date.slice(0,7));
 
-  return { students, opDays, excluded, todayPending, summary, byDow, byWeek, byMonth };
+  return {
+    students, opDays, excluded, todayPending, dayAttend,
+    summary: trSummarize(opDays, dayAttend),
+    byDow,
+    byWeek: groupBy(d => fmtAnaDate(trStartOfUnit(trParse(d.date), 'week'))),
+    byMonth: groupBy(d => d.date.slice(0,7)),
+  };
 }
 
-function renderTrend(){
-  const T = computeTrend();
-  const S = T.summary;
-  const unitLabel = TR_UNIT_LABEL[_trUnit];
-
-  const card = (num, label, sub, color) => `
+function trCard(num, label, sub, color){
+  return `
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
       <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:${color}">${num}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">${label}${sub ? `<br><span style="font-size:10px;opacity:.8">${sub}</span>` : ''}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${label}${sub ? `<br><span style="font-size:11px">${sub}</span>` : ''}</div>
     </div>`;
-  document.getElementById('tr-summary').innerHTML =
-    card(S.days, '운영일 수', '실제 급식한 평일', 'var(--sky)') +
-    card(S.avgMeal, '일평균 식사', S.rate === null ? '' : `식사율 ${S.rate}%`, 'var(--ok)') +
-    card(S.avgAbsent, '일평균 결석', '신청했는데 안 먹음', 'var(--red)') +
-    card(S.max ? S.max.attended : 0, '일 최대', S.max ? `${trMD(S.max.date)}(${S.max.dayKr})` : '', 'var(--accent)') +
-    card(S.min ? S.min.attended : 0, '일 최소', S.min ? `${trMD(S.min.date)}(${S.min.dayKr})` : '', 'var(--accent)') +
-    card(S.unique, `${unitLabel} 식사 인원`, '중복 제외', '#a78bfa');
+}
 
-  // 평균에서 제외된 평일 안내
-  let note = '';
-  if (T.excluded.length || T.todayPending) {
-    const parts = [];
-    if (T.excluded.length) {
-      const list = T.excluded.map(x => `${trMD(x.date)}(${trDowOf(x.date)}) ${x.reason}`);
-      const shown = list.length > 12 ? list.slice(0, 12).join(', ') + ` 외 ${list.length - 12}일` : list.join(', ');
-      parts.push(`평균에서 뺀 평일 <b>${T.excluded.length}일</b> — ${shown}`);
-    }
-    if (T.todayPending) parts.push('오늘은 식사 시간이 끝나는 18:50 이후 집계에 들어갑니다');
-    note = `<div style="font-size:12px;color:var(--muted-2);background:var(--bg-soft);border-radius:10px;padding:10px 12px;margin-bottom:14px;line-height:1.6">${parts.join('<br>')}</div>`;
+function trNoteHtml(excluded, todayPending){
+  if (!excluded.length && !todayPending) return '';
+  const parts = [];
+  if (excluded.length) {
+    const list = excluded.map(x => `${trMD(x.date)}(${ANA_DAYS_KR[x.dow]}) ${x.reason}`);
+    const shown = list.length > 12 ? list.slice(0, 12).join(', ') + ` 외 ${list.length - 12}일` : list.join(', ');
+    parts.push(`평균에서 뺀 평일 <b>${excluded.length}일</b>: ${shown}`);
   }
-  document.getElementById('tr-note').innerHTML = note;
+  if (todayPending) parts.push('오늘 기록은 식사 시간이 끝나는 18:50 이후 반영돼요.');
+  return `<div style="font-size:12px;color:var(--muted-2);background:var(--bg-soft);border-radius:10px;padding:10px 12px;margin-bottom:14px;line-height:1.6">${parts.join('<br>')}</div>`;
+}
 
-  const el = document.getElementById('tr-content');
-  const days = T.opDays;
-  if (!days.length) {
-    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">이 기간에 집계된 운영일이 없어요</div>';
-    document.getElementById('tr-dow').innerHTML = '';
-    return;
-  }
-
-  // SVG 막대그래프 — 운영일 기준 일별
+// 일별 막대그래프 — days: [{date, dayKr, attended, target, absent}]
+//  showTarget: 신청 대상 막대를 옅게 함께 그림 (요일별 보기)
+function trChartHtml(days, avg, caption, showTarget){
   const W = 800, H = 320;
-  const padL = 40, padR = 20, padT = 20, padB = 60;
+  const padL = 40, padR = 64, padT = 20, padB = 60; // 오른쪽 여백에 평균값 표시
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
   const n = days.length;
   const slot = innerW / n;
   const barGap = Math.max(2, Math.floor(slot * 0.15));
   const barW = Math.max(1, Math.min(64, Math.floor(slot) - barGap));
-  const dailyMax = Math.max(...days.map(d=>d.attended), 1);
-  const yTicks = [];
-  for (let i=0; i<=5; i++) yTicks.push(Math.round(dailyMax * i / 5));
+  const yMax = Math.max(1, ...days.map(d => showTarget ? Math.max(d.attended, d.target) : d.attended));
   const showEvery = n > 20 ? Math.ceil(n/15) : 1;
+  const y = v => padT + innerH - (v / yMax) * innerH;
 
   let bars = '', labels = '', valueLabels = '';
   days.forEach((d, i)=>{
     const cx = padL + i * slot + slot/2;
     const x = cx - barW/2;
-    const h = (d.attended / dailyMax) * innerH;
-    const y = padT + innerH - h;
-    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="#0a84ff">
-      <title>${d.date} (${d.dayKr}): ${d.attended}명 / 신청 ${d.target}명 · 결석 ${d.absent}명</title>
-    </rect>`;
+    const tip = `<title>${d.date} (${d.dayKr}): 식사 ${d.attended}명 · 신청 ${d.target}명 · 결석 ${d.absent}명</title>`;
+    if (showTarget) bars += `<rect x="${x}" y="${y(d.target)}" width="${barW}" height="${innerH - (y(d.target) - padT)}" rx="4" style="fill:var(--chart-bar-soft)">${tip}</rect>`;
+    bars += `<rect x="${x}" y="${y(d.attended)}" width="${barW}" height="${innerH - (y(d.attended) - padT)}" rx="4" style="fill:var(--chart-bar)">${tip}</rect>`;
     if (i % showEvery === 0) {
-      labels += `<text x="${cx}" y="${padT + innerH + 18}" text-anchor="middle" font-size="10" fill="#7a8499">${trMD(d.date)}</text>`;
-      if (n <= 31) labels += `<text x="${cx}" y="${padT + innerH + 32}" text-anchor="middle" font-size="10" fill="#7a8499">${d.dayKr}</text>`;
+      labels += `<text x="${cx}" y="${padT + innerH + 18}" text-anchor="middle" font-size="11" style="fill:var(--chart-label)">${trMD(d.date)}</text>`;
+      if (n <= 31 && !showTarget) labels += `<text x="${cx}" y="${padT + innerH + 32}" text-anchor="middle" font-size="11" style="fill:var(--chart-label)">${d.dayKr}</text>`;
     }
     if (n <= 31 || i % showEvery === 0) {
-      valueLabels += `<text x="${cx}" y="${y - 4}" text-anchor="middle" font-size="9" fill="#1d1d1f" font-weight="600">${d.attended}</text>`;
+      valueLabels += `<text x="${cx}" y="${y(d.attended) - 4}" text-anchor="middle" font-size="10" font-weight="600" style="fill:var(--chart-value);stroke:#fff" stroke-width="3" paint-order="stroke">${d.attended}</text>`;
     }
   });
 
   let grid = '';
-  yTicks.forEach(v => {
-    const y = padT + innerH - (v / dailyMax) * innerH;
-    grid += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(0,0,0,.06)" stroke-width="1"/>`;
-    grid += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="10" fill="#7a8499">${v}</text>`;
-  });
-  // 일평균 기준선
-  const avgY = padT + innerH - (S.avgMeal / dailyMax) * innerH;
-  const avgLine = `<line x1="${padL}" y1="${avgY}" x2="${W - padR}" y2="${avgY}" stroke="#ff9500" stroke-width="1.5" stroke-dasharray="5 4"/>
-    <text x="${W - padR}" y="${avgY - 5}" text-anchor="end" font-size="10" fill="#a85a00" font-weight="600" stroke="#fff" stroke-width="3" paint-order="stroke">평균 ${S.avgMeal}</text>`;
+  for (let i=0; i<=5; i++) {
+    const v = Math.round(yMax * i / 5);
+    grid += `<line x1="${padL}" y1="${y(v)}" x2="${W - padR}" y2="${y(v)}" stroke-width="1" style="stroke:var(--chart-grid)"/>`;
+    grid += `<text x="${padL - 6}" y="${y(v) + 3}" text-anchor="end" font-size="11" style="fill:var(--chart-label)">${v}</text>`;
+  }
+  const avgLine = `<line x1="${padL}" y1="${y(avg)}" x2="${W - padR}" y2="${y(avg)}" stroke-width="1.5" stroke-dasharray="5 4" style="stroke:var(--chart-avg)"/>
+    <text x="${W - padR + 6}" y="${y(avg) + 4}" text-anchor="start" font-size="11" font-weight="600" style="fill:var(--chart-avg-ink)">평균 ${avg}</text>`;
+  const legend = showTarget
+    ? `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--chart-bar);vertical-align:-1px"></span> 식사 &nbsp; <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--chart-bar-soft);vertical-align:-1px"></span> 신청 대상 &nbsp; `
+    : '';
 
-  el.innerHTML = `
+  return `
     <div style="overflow-x:auto">
-      <svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:500px;display:block" preserveAspectRatio="xMidYMid meet">
-        ${grid}
-        ${bars}
-        ${avgLine}
-        ${valueLabels}
-        ${labels}
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:500px;display:block" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${caption}">
+        ${grid}${bars}${avgLine}${valueLabels}${labels}
       </svg>
     </div>
     <div style="margin-top:8px;font-size:12px;color:var(--muted);text-align:center">
-      ${getTrendPeriodLabel()} · 운영일별 식사 인원 (점선 = 일평균)
-    </div>
-  `;
+      ${legend}${caption} (점선: 평균)
+    </div>`;
+}
 
-  renderTrendDow(T);
+function renderTrend(){
+  const T = computeTrend();
+  if (_trUnit === 'dow') { renderTrendByDow(T); return; }
+  const S = T.summary;
+  const unitLabel = TR_UNIT_LABEL[_trUnit];
+
+  document.getElementById('tr-summary').innerHTML =
+    trCard(S.days, '운영일', '급식한 평일', 'var(--sky)') +
+    trCard(S.avgMeal, '일평균 식사', S.rate === null ? '' : `식사율 ${S.rate}%`, 'var(--ok)') +
+    trCard(S.avgAbsent, '일평균 결석', '신청했지만 안 먹음', 'var(--red)') +
+    trCard(S.max ? S.max.attended : 0, '일 최대', S.max ? `${trMD(S.max.date)}(${S.max.dayKr})` : '', 'var(--accent)') +
+    trCard(S.min ? S.min.attended : 0, '일 최소', S.min ? `${trMD(S.min.date)}(${S.min.dayKr})` : '', 'var(--accent)') +
+    trCard(S.unique, `${unitLabel} 식사 인원`, '중복 제외', 'var(--purple-light)');
+  document.getElementById('tr-note').innerHTML = trNoteHtml(T.excluded, T.todayPending);
+  document.getElementById('tr-dow').innerHTML = '';
+
+  const el = document.getElementById('tr-content');
+  if (!T.opDays.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">이 기간에 집계된 운영일이 없어요</div>';
+    return;
+  }
+  el.innerHTML = trChartHtml(T.opDays, S.avgMeal, `${getTrendPeriodLabel()} 운영일별 식사 인원`, false);
 }
 window.renderTrend = renderTrend;
 
-// 요일별 평균 표
-function renderTrendDow(T){
+// 요일별 보기 — 선택한 요일의 날짜별 추이 + 요일 비교표
+function renderTrendByDow(T){
+  const dayKr = ANA_DAYS_KR[_trDow];
+  const days = T.opDays.filter(d => d.dow === _trDow);
+  const S = T.byDow[_trDow - 1];
+
+  document.getElementById('tr-summary').innerHTML =
+    trCard(S.days, `${dayKr}요일 운영일`, '급식한 날', 'var(--sky)') +
+    trCard(S.avgMeal, '평균 식사', S.days ? `신청 평균 ${S.avgTarget}명` : '', 'var(--ok)') +
+    trCard(S.rate === null ? '-' : S.rate + '%', '식사율', S.days ? `결석 평균 ${S.avgAbsent}명` : '', 'var(--ok)') +
+    trCard(S.max ? S.max.attended : 0, '최대', S.max ? trMD(S.max.date) : '', 'var(--accent)') +
+    trCard(S.min ? S.min.attended : 0, '최소', S.min ? trMD(S.min.date) : '', 'var(--accent)') +
+    trCard(S.unique, '식사한 학생', '중복 제외', 'var(--purple-light)');
+  document.getElementById('tr-note').innerHTML = trNoteHtml(T.excluded.filter(x => x.dow === _trDow), T.todayPending && nowKST().getDay() === _trDow);
+
+  const el = document.getElementById('tr-content');
+  el.innerHTML = days.length
+    ? trChartHtml(days, S.avgMeal, `${getTrendPeriodLabel()} ${dayKr}요일 식사 인원`, true)
+    : `<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">이 기간에 ${dayKr}요일 운영일이 없어요</div>`;
+
+  renderTrendDowTable(T);
+}
+
+// 요일 비교표 (행을 누르면 그 요일로 전환)
+function renderTrendDowTable(T){
   const rows = T.byDow;
   const maxAvg = Math.max(1, ...rows.map(r => r.avgMeal));
-  const best = rows.filter(r => r.days).reduce((m, r) => (!m || r.avgMeal > m.avgMeal) ? r : m, null);
-  const worst = rows.filter(r => r.days).reduce((m, r) => (!m || r.avgMeal < m.avgMeal) ? r : m, null);
-  const td = 'padding:8px 10px;text-align:center;font-family:\'DM Mono\',monospace;font-size:13px';
+  const num = 'padding:8px 10px;text-align:center;font-family:\'DM Mono\',monospace;font-size:13px';
   const body = rows.map(r => {
+    const sel = r.dow === _trDow;
+    const rowStyle = `cursor:pointer;${sel ? 'background:var(--sky-soft)' : ''}`;
+    const rowAttr = `tabindex="0" aria-selected="${sel}" onclick="setTrendDow(${r.dow})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setTrendDow(${r.dow})}"`;
     if (!r.days) {
-      return `<tr><td style="padding:8px 10px;font-weight:700">${r.dayKr}</td><td colspan="6" style="padding:8px 10px;color:var(--muted-2);font-size:12px">이 기간에 운영일 없음</td></tr>`;
+      return `<tr style="${rowStyle}" ${rowAttr}><td style="padding:8px 10px;font-weight:700">${r.dayKr}</td><td colspan="6" style="padding:8px 10px;color:var(--muted-2);font-size:12px">이 기간에 운영일 없음</td></tr>`;
     }
     const w = Math.round(r.avgMeal / maxAvg * 100);
-    const tag = (best && worst && best !== worst) ? (r === best ? ' <span style="font-size:10px;color:var(--ok-ink)">최다</span>' : r === worst ? ' <span style="font-size:10px;color:var(--red-ink)">최소</span>' : '') : '';
-    return `<tr>
-      <td style="padding:8px 10px;font-weight:700;white-space:nowrap">${r.dayKr}${tag}</td>
-      <td style="${td}">${r.days}일</td>
+    return `<tr style="${rowStyle}" ${rowAttr}>
+      <td style="padding:8px 10px;font-weight:700;white-space:nowrap">${r.dayKr}</td>
+      <td style="${num}">${r.days}일</td>
       <td style="padding:8px 10px;min-width:160px">
         <div style="display:flex;align-items:center;gap:8px">
-          <div style="flex:1;height:8px;background:var(--bg-soft);border-radius:4px;overflow:hidden"><div style="width:${w}%;height:100%;background:#0a84ff;border-radius:4px"></div></div>
+          <div style="flex:1;height:8px;background:var(--bg-soft);border-radius:4px;overflow:hidden"><div style="width:${w}%;height:100%;background:var(--chart-bar);border-radius:4px"></div></div>
           <span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;min-width:36px;text-align:right">${r.avgMeal}</span>
         </div>
       </td>
-      <td style="${td}">${r.avgTarget}</td>
-      <td style="${td}">${r.rate === null ? '-' : r.rate + '%'}</td>
-      <td style="${td}">${r.max ? r.max.attended : '-'}</td>
-      <td style="${td}">${r.min ? r.min.attended : '-'}</td>
+      <td style="${num}">${r.avgTarget}</td>
+      <td style="${num}">${r.rate === null ? '-' : r.rate + '%'}</td>
+      <td style="${num}">${r.max ? r.max.attended : '-'}</td>
+      <td style="${num}">${r.min ? r.min.attended : '-'}</td>
     </tr>`;
   }).join('');
-  const hint = _trUnit === 'week'
-    ? '<div style="font-size:11px;color:var(--muted-2);margin-top:6px">주별 보기에서는 요일마다 하루씩이라 비교가 어려워요. 월별이나 전체 기간에서 보세요.</div>'
-    : '';
   document.getElementById('tr-dow').innerHTML = `
     <div style="margin-top:22px">
-      <div style="font-size:14px;font-weight:700;margin-bottom:8px">요일별 평균 <span style="font-size:12px;font-weight:400;color:var(--muted-2)">· ${getTrendPeriodLabel()} · 운영일 기준</span></div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px">요일 비교 <span style="font-size:12px;font-weight:400;color:var(--muted-2)">${getTrendPeriodLabel()} · 운영일 기준 · 행을 누르면 그 요일로 바뀌어요</span></div>
       <div style="overflow-x:auto">
         <table style="width:100%;border-collapse:collapse;min-width:520px">
           <thead><tr>
@@ -2604,11 +2685,10 @@ function renderTrendDow(T){
           <tbody>${body}</tbody>
         </table>
       </div>
-      ${hint}
     </div>`;
 }
 
-// CSV — 요약·요일별·(주별/월별)·일별·제외일을 한 파일에
+// CSV — 요약·요일별 평균(전체+학년별)·(주별/월별)·일별·제외일을 한 파일에
 function downloadTrendCSV(){
   if (!_trData.startDate) { toast('먼저 데이터를 불러와 주세요','err'); return; }
   const T = computeTrend();
@@ -2616,71 +2696,94 @@ function downloadTrendCSV(){
   const S = T.summary;
   const esc = v => {
     const s = (v === null || v === undefined) ? '' : String(v);
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
   const lines = [];
   const row = arr => lines.push(arr.map(esc).join(','));
   const pct = v => v === null ? '-' : v + '%';
   const gf = document.getElementById('tr-grade').value;
   const cf = document.getElementById('tr-cls').value;
-  const now = new Date();
+  const now = nowKST();
+  const isDow = _trUnit === 'dow';
+  const dayKr = ANA_DAYS_KR[_trDow];
 
-  row(['식사 추이 리포트']);
+  row(['식사 추이']);
   row(['기간', `${_trData.startDate} ~ ${_trData.endDate}`]);
-  row(['보기', TR_UNIT_LABEL[_trUnit]]);
+  row(['보기', isDow ? `요일별 (${dayKr}요일 선택)` : (_trUnit === 'week' ? '주별' : '월별')]);
   row(['대상', (gf ? gf + '학년' : '전체 학년') + ' / ' + (cf ? cf + '반' : '전체 반'), `명단 ${T.students.length}명`]);
-  row(['생성', fmtAnaDate(now) + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0')]);
-  row(['집계 기준', '평균의 분모는 실제 운영일(평일 중 미운영일 미등록 + 식사 기록이 있는 날). 오늘은 18:50 이후 포함']);
+  row(['내려받은 시각(KST)', fmtAnaDate(now) + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0')]);
+  row(['집계 기준', '평균은 실제 운영일(평일 중 미운영일로 등록하지 않았고 식사 기록이 있는 날)로 나눔. 오늘 기록은 18:50 이후 포함']);
   lines.push('');
 
   row(['[요약]']);
   row(['항목', '값', '비고']);
-  row(['운영일 수', S.days, '']);
+  row(['운영일', S.days, '']);
   row(['식사 연인원', S.meals, '운영일 식사 인원 합계']);
   row(['일평균 식사', S.avgMeal, '']);
-  row(['일평균 신청 대상', S.avgTarget, '']);
-  row(['일평균 결석', S.avgAbsent, '신청 요일인데 식사 안 함']);
-  row(['평균 식사율', pct(S.rate), '']);
+  row(['일평균 신청', S.avgTarget, '']);
+  row(['일평균 결석', S.avgAbsent, '신청 요일에 식사하지 않음']);
+  row(['식사율', pct(S.rate), '']);
   row(['일 최대', S.max ? S.max.attended : '', S.max ? `${S.max.date}(${S.max.dayKr})` : '']);
   row(['일 최소', S.min ? S.min.attended : '', S.min ? `${S.min.date}(${S.min.dayKr})` : '']);
-  row([`${TR_UNIT_LABEL[_trUnit]} 식사 인원(중복 제외)`, S.unique, '한 번 이상 먹은 학생 수']);
+  row(['식사 인원(중복 제외)', S.unique, '한 번 이상 식사한 학생 수']);
   lines.push('');
 
+  // 요일별 평균 — 전체 + 학년별 (학년 필터를 걸었으면 그 학년만)
   row(['[요일별 평균]']);
-  row(['요일', '운영일 수', '평균 식사', '평균 신청', '평균 결석', '식사율', '최대', '최소', '식사 인원(중복 제외)']);
-  T.byDow.forEach(r => row([r.dayKr, r.days, r.days ? r.avgMeal : '', r.days ? r.avgTarget : '', r.days ? r.avgAbsent : '', r.days ? pct(r.rate) : '', r.max ? r.max.attended : '', r.min ? r.min.attended : '', r.days ? r.unique : '']));
+  row(['학년', '요일', '운영일', '평균 식사', '평균 신청', '평균 결석', '식사율', '최대', '최소', '식사 인원(중복 제외)', '명단 인원']);
+  const dowRows = (label, R, nStudents) => R.forEach(r => row([
+    label, r.dayKr, r.days,
+    r.days ? r.avgMeal : '', r.days ? r.avgTarget : '', r.days ? r.avgAbsent : '',
+    r.days ? pct(r.rate) : '', r.max ? r.max.attended : '', r.min ? r.min.attended : '',
+    r.days ? r.unique : '', nStudents,
+  ]));
+  dowRows(gf ? gf + '학년' : '전체', T.byDow, T.students.length);
+  if (!gf) {
+    const grades = [...new Set(T.students.map(s => String(s.grade)).filter(Boolean))].sort();
+    grades.forEach(g => {
+      const list = T.students.filter(s => String(s.grade) === g);
+      dowRows(g + '학년', computeTrend(list).byDow, list.length);
+    });
+  }
   lines.push('');
 
-  const groupHeader = ['운영일 수', '식사 연인원', '일평균 식사', '일평균 결석', '식사율', '일 최대', '일 최소', '식사 인원(중복 제외)'];
+  const groupHeader = ['운영일', '식사 연인원', '일평균 식사', '일평균 결석', '식사율', '일 최대', '일 최소', '식사 인원(중복 제외)'];
   const groupRow = (label, g) => row([label, g.days, g.meals, g.avgMeal, g.avgAbsent, pct(g.rate), g.max ? g.max.attended : '', g.min ? g.min.attended : '', g.unique]);
-  if (_trUnit === 'all') {
-    row(['[월별 요약]']);
-    row(['월'].concat(groupHeader));
-    T.byMonth.forEach(g => groupRow(g.key, g));
-    lines.push('');
-  }
   if (_trUnit !== 'week') {
+    if (T.byMonth.length > 1) {
+      row(['[월별 요약]']);
+      row(['월'].concat(groupHeader));
+      T.byMonth.forEach(g => groupRow(g.key, g));
+      lines.push('');
+    }
     row(['[주별 요약]']);
     row(['주 시작(월)'].concat(groupHeader));
     T.byWeek.forEach(g => groupRow(g.key, g));
     lines.push('');
   }
 
+  const dayRows = days => days.forEach(d => row([d.date, d.dayKr, d.attended, d.target, d.absent, pct(trPct(d.target - d.absent, d.target))]));
+  if (isDow) {
+    row([`[${dayKr}요일 날짜별]`]);
+    row(['날짜', '요일', '식사', '신청', '결석', '식사율']);
+    dayRows(T.opDays.filter(d => d.dow === _trDow));
+    lines.push('');
+  }
   row(['[일별]']);
-  row(['날짜', '요일', '식사', '신청 대상', '결석', '식사율']);
-  T.opDays.forEach(d => row([d.date, d.dayKr, d.attended, d.target, d.absent, pct(trPct(d.target - d.absent, d.target))]));
+  row(['날짜', '요일', '식사', '신청', '결석', '식사율']);
+  dayRows(T.opDays);
   lines.push('');
 
   if (T.excluded.length) {
     row(['[평균에서 뺀 평일]']);
     row(['날짜', '요일', '사유']);
-    T.excluded.forEach(x => row([x.date, trDowOf(x.date), x.reason]));
+    T.excluded.forEach(x => row([x.date, ANA_DAYS_KR[x.dow], x.reason]));
   }
 
   const csv = '﻿' + lines.join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
-  const unitTag = {week:'주별', month:'월별', all:'전체'}[_trUnit];
+  const unitTag = isDow ? '요일별_' + dayKr : (_trUnit === 'week' ? '주별' : '월별');
   const filt = (gf ? '_' + gf + '학년' : '') + (cf ? '_' + cf + '반' : '');
   a.download = `식사추이_${unitTag}${filt}_${_trData.startDate}_${_trData.endDate}.csv`;
   a.click();

@@ -77,6 +77,7 @@ body:has(.student-screen.on)::before{ display: none !important; }
   font-size: 56px !important;
   margin-bottom: 24px !important;
   filter: drop-shadow(0 6px 20px rgba(245, 158, 11, 0.25));
+  /* 디자인게이트 F3 보류: 학생 화면 🍱 상시 둥실 움직임. 움직임 줄이기 설정이면 멈춤. 유지 여부는 사용자 판단 */
   animation: floatEmoji 3s ease-in-out infinite;
 }
 @keyframes floatEmoji{
@@ -190,11 +191,11 @@ body:has(.student-screen.on)::before{ display: none !important; }
 .student-screen .s-ok .check{
   font-size: 88px !important;
   filter: drop-shadow(0 8px 24px rgba(52, 199, 89, 0.35));
-  animation: popInApple 0.6s cubic-bezier(.2, .9, .3, 1.3) !important;
+  /* 디자인게이트 F2 교정: 구 0.6s cubic-bezier(.2,.9,.3,1.3) + scale 1.08 오버슈트 → ease-out 240ms */
+  animation: popInApple 0.24s cubic-bezier(.2, .8, .2, 1) !important;
 }
 @keyframes popInApple{
-  0%{ transform: scale(0.3); opacity: 0; }
-  60%{ transform: scale(1.08); opacity: 1; }
+  0%{ transform: scale(0.6); opacity: 0; }
   100%{ transform: scale(1); opacity: 1; }
 }
 .student-screen .ok-name{
@@ -291,8 +292,46 @@ body:not(:has(.student-screen.on))::before{ display: none !important; }
   --sky-ink: #0051a8;
   --purple-light: #5856d6;
   --purple-soft: rgba(88, 86, 214, 0.10);
+
+  /* 디자인게이트 A4 교정 (2026-10): meal.html 기본 토큰은 다크 테마용이라
+     라이트 배경 위 인라인 스타일에서 대비가 무너짐 → 대시보드 안에서만 라이트용으로 재정의.
+     구값(흰 배경 대비): --text #edf0f7 = 1.1:1 · --muted #7a8499 = 3.8:1 · --ok #34d399 = 1.9:1
+     · --red #f87171 = 2.8:1 · --sky #60a5fa = 2.5:1 · --accent #f59e0b = 2.2:1
+     · --card/--border 흰색 반투명 = 흰 배경에서 보이지 않음.
+     버튼 배경(.btn-green 등)은 아래에서 !important로 따로 지정하므로 영향 없음. */
+  --text: #1d1d1f;
+  --muted: #6e6e73;      /* 5.1:1 */
+  --ok: #087b2b;         /* 5.4:1 */
+  --red: #c21a12;        /* 6.1:1 */
+  --sky: #0051a8;        /* 7.5:1 */
+  --accent: #a85a00;     /* 5.1:1 */
+  --card: #ffffff;
+  --card2: #f5f5f7;
+  --border: rgba(0, 0, 0, 0.08);
+  --border2: rgba(0, 0, 0, 0.12);
+
+  /* 그래프 토큰 (추이·분석 탭 SVG) */
+  --chart-bar: #0a84ff;
+  --chart-bar-soft: rgba(10, 132, 255, 0.14);
+  --chart-ok: #30d158;
+  --chart-avg: #ff9500;
+  --chart-avg-ink: #a85a00;
+  --chart-label: #6e6e73;
+  --chart-value: #1d1d1f;
+  --chart-grid: rgba(0, 0, 0, 0.06);
+  --chart-empty: rgba(0, 0, 0, 0.05);
+
   font-family: 'Pretendard', -apple-system, sans-serif;
   color: #1d1d1f;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* 키보드 포커스 링 (디자인게이트 H3) — 마우스 클릭에는 나타나지 않음 */
+#dashboard button:focus-visible,
+#dashboard [tabindex]:focus-visible{
+  outline: 2px solid var(--sky-light);
+  outline-offset: 2px;
 }
 
 /* ─── Topbar ─── */
@@ -692,7 +731,7 @@ body:not(:has(.student-screen.on))::before{ display: none !important; }
 #dashboard #ana-view-month,
 #dashboard #tr-unit-week,
 #dashboard #tr-unit-month,
-#dashboard #tr-unit-all{
+#dashboard #tr-unit-dow{
   font-family: 'Pretendard', sans-serif !important;
   border: none !important;
   border-radius: 7px !important;
@@ -710,7 +749,7 @@ body:not(:has(.student-screen.on))::before{ display: none !important; }
 #dashboard #ana-view-month.on,
 #dashboard #tr-unit-week.on,
 #dashboard #tr-unit-month.on,
-#dashboard #tr-unit-all.on{
+#dashboard #tr-unit-dow.on{
   background: #ffffff !important;
   color: var(--ink-light) !important;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
@@ -908,3 +947,13 @@ body:not(:has(.student-screen.on))::before{ display: none !important; }
   border-radius: 999px;
 }
 #dashboard ::-webkit-scrollbar-thumb:hover{ background: rgba(0,0,0,0.2); }
+
+/* 움직임 줄이기 설정 존중 (디자인게이트 F6) */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
