@@ -316,6 +316,7 @@ select option{background:#fff;color:#000}
           <button class="btn btn-ghost btn-sm" onclick="navAnalysis(-1)">← 이전</button>
           <div id="ana-period" style="font-size:15px;font-weight:700;min-width:200px;text-align:center">—</div>
           <button class="btn btn-ghost btn-sm" onclick="navAnalysis(1)">다음 →</button>
+          <button class="btn btn-ghost btn-sm" onclick="goAnalysisToday()">오늘</button>
         </div>
         <!-- 콘텐츠 -->
         <div id="ana-content">
@@ -332,12 +333,14 @@ select option{background:#fff;color:#000}
           <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden">
             <button id="tr-unit-week" class="on" onclick="setTrendUnit('week')">주별</button>
             <button id="tr-unit-month" onclick="setTrendUnit('month')">월별</button>
+            <button id="tr-unit-all" onclick="setTrendUnit('all')">전체 기간</button>
           </div>
           <!-- 주별/월별 네비게이션 -->
           <div style="display:flex;align-items:center;gap:6px">
             <button class="btn btn-ghost btn-sm" id="tr-prev" onclick="navTrend(-1)" style="padding:6px 10px;font-size:14px">←</button>
             <span id="tr-period" style="font-size:14px;font-weight:700;min-width:180px;text-align:center">—</span>
             <button class="btn btn-ghost btn-sm" id="tr-next" onclick="navTrend(1)" style="padding:6px 10px;font-size:14px">→</button>
+            <button class="btn btn-ghost btn-sm" id="tr-today" onclick="goTrendToday()" style="padding:6px 12px;font-size:13px">오늘</button>
           </div>
           <select id="tr-grade" onchange="renderTrend()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
             <option value="">전체 학년</option>
@@ -351,11 +354,15 @@ select option{background:#fff;color:#000}
           <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="downloadTrendCSV()">📥 CSV</button>
         </div>
         <!-- 요약 통계 -->
-        <div id="tr-summary" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap"></div>
+        <div id="tr-summary" style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap"></div>
+        <!-- 평균에서 제외된 날짜 안내 -->
+        <div id="tr-note"></div>
         <!-- 그래프 -->
         <div id="tr-content">
           <div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>
         </div>
+        <!-- 요일별 평균 -->
+        <div id="tr-dow"></div>
       </div>
     </div>
   </div>
@@ -1690,7 +1697,7 @@ const ANA_DAYS_KR = ['일','월','화','수','목','금','토'];
 const ANA_MIN_DATE = new Date(2026, 3, 6); // 2026-04-06 기준일
 var _anaView = 'week';
 var _anaMode = 'individual'; // 'individual' | 'trend'
-var _anaDate = new Date(2026, 3, 6); // 2026-04-06으로 초기화
+var _anaDate = new Date(); // 오늘이 속한 주/월로 시작 (기존: 2026-04-06 고정)
 var _anaData = { students: [], records: [] };
 
 function setAnalysisView(v){
@@ -1708,6 +1715,12 @@ function setAnalysisMode(m){
   renderAnalysis();
 }
 window.setAnalysisMode = setAnalysisMode;
+
+function goAnalysisToday(){
+  _anaDate = new Date();
+  loadAnalysis();
+}
+window.goAnalysisToday = goAnalysisToday;
 
 function navAnalysis(dir){
   const d = new Date(_anaDate);
@@ -2182,87 +2195,128 @@ function downloadAnalysisExcel(){
 window.downloadAnalysisExcel = downloadAnalysisExcel;
 
 /* ══ 추이 탭 ══ */
-var _trUnit = 'week';
+// 집계 원칙 (2026-10 개편)
+//  · 평균의 분모 = "실제 운영일" = 평일 ∩ 미운영일 미등록 ∩ 전교 식사 기록 1건 이상 ∩ 집계 마감 전
+//  · 운영일 판정은 학년/반 필터와 무관하게 전교 기록으로 한다 (필터 결과 0명인 날도 운영일이면 0으로 집계)
+//  · 오늘은 식사 시간(18:50)이 끝난 뒤에만 집계에 넣는다
+var _trUnit = 'week'; // 'week' | 'month' | 'all'
 var _trData = { students: [], records: [], startDate: '', endDate: '' };
 var _holidaySet = new Set(); // 석식 미운영일
-// 추이 네비게이션 앵커 (주별: 월요일, 월별: 1일)
-var _trAnchor = (function(){
-  const now = new Date();
-  const day = now.getDay();
-  const mon = new Date(now);
-  mon.setDate(now.getDate() - (day===0 ? 6 : day-1));
-  mon.setHours(0,0,0,0);
-  return mon;
-})();
+var _trReqSeq = 0;           // 빠르게 ←/→ 누를 때 늦게 도착한 응답 무시용
+var TR_MEAL_END_MIN = 18*60 + 50;
+var TR_UNIT_LABEL = { week:'주간', month:'월간', all:'전체 기간' };
+
+// 기준 날짜가 속한 주의 월요일 / 달의 1일 (시각 00:00)
+function trStartOfUnit(base, unit){
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+  if (unit === 'month') return new Date(d.getFullYear(), d.getMonth(), 1);
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day===0 ? 6 : day-1));
+  return d;
+}
+function trNavUnit(){ return _trUnit === 'month' ? 'month' : 'week'; }
+
+// 추이 네비게이션 앵커 (주별: 월요일, 월별: 1일) — 항상 "오늘"이 속한 기간으로 시작
+var _trAnchor = trStartOfUnit(new Date(), 'week');
+
+function updateTrendNavUI(){
+  ['week','month','all'].forEach(x=>{
+    const b = document.getElementById('tr-unit-'+x);
+    if (b) b.classList.toggle('on', x===_trUnit);
+  });
+  const isAll = _trUnit === 'all';
+  const cur = trStartOfUnit(new Date(), trNavUnit());
+  const min = trStartOfUnit(ANA_MIN_DATE, trNavUnit());
+  const setBtn = (id, show, enabled) => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.style.display = show ? '' : 'none';
+    b.disabled = !enabled;
+    b.style.opacity = enabled ? '' : '0.35';
+    b.style.cursor = enabled ? '' : 'default';
+  };
+  setBtn('tr-prev',  !isAll, _trAnchor.getTime() > min.getTime());
+  setBtn('tr-next',  !isAll, _trAnchor.getTime() < cur.getTime());
+  setBtn('tr-today', !isAll, _trAnchor.getTime() !== cur.getTime());
+}
 
 function setTrendUnit(u){
   _trUnit = u;
-  ['week','month'].forEach(x=>{
-    document.getElementById('tr-unit-'+x).classList.toggle('on', x===u);
-  });
-  // 현재 날짜 기준으로 초기화
-  const now = new Date();
-  if(u === 'week'){
-    // 이번 주 월요일
-    const day = now.getDay();
-    _trAnchor = new Date(now);
-    _trAnchor.setDate(now.getDate() - (day===0 ? 6 : day-1));
-  } else {
-    // 이번 달 1일
-    _trAnchor = new Date(now.getFullYear(), now.getMonth(), 1);
-  }
+  _trAnchor = trStartOfUnit(new Date(), trNavUnit()); // 단위 바꾸면 오늘 기준으로
   loadTrend();
 }
 window.setTrendUnit = setTrendUnit;
 
-// 네비게이션
+// "오늘" 버튼 — 현재 주/월로 바로 이동
+function goTrendToday(){
+  _trAnchor = trStartOfUnit(new Date(), trNavUnit());
+  loadTrend();
+}
+window.goTrendToday = goTrendToday;
+
+// 네비게이션 (기준일 이전·미래 기간으로는 이동하지 않음)
 function navTrend(dir){
-  if(_trUnit === 'week'){
-    _trAnchor.setDate(_trAnchor.getDate() + dir * 7);
-  } else {
-    _trAnchor.setMonth(_trAnchor.getMonth() + dir);
-  }
+  if (_trUnit === 'all') return;
+  const next = new Date(_trAnchor);
+  if (_trUnit === 'week') next.setDate(next.getDate() + dir * 7);
+  else next.setMonth(next.getMonth() + dir);
+  const cur = trStartOfUnit(new Date(), trNavUnit());
+  const min = trStartOfUnit(ANA_MIN_DATE, trNavUnit());
+  if (next.getTime() > cur.getTime() || next.getTime() < min.getTime()) return;
+  _trAnchor = next;
   loadTrend();
 }
 window.navTrend = navTrend;
 
-// 기간 시작/끝 계산
+// 기간 시작/끝 계산 (시작은 ANA_MIN_DATE 이전으로 가지 않음)
 function getTrendRange(){
   let start, end;
-  if(_trUnit === 'week'){
+  if (_trUnit === 'week'){
     start = new Date(_trAnchor);
     end = new Date(_trAnchor);
     end.setDate(end.getDate() + 6); // 월~일
-  } else {
+  } else if (_trUnit === 'month'){
     start = new Date(_trAnchor);
     end = new Date(_trAnchor.getFullYear(), _trAnchor.getMonth() + 1, 0); // 월 말일
+  } else {
+    const now = new Date();
+    start = new Date(ANA_MIN_DATE);
+    end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }
+  if (start < ANA_MIN_DATE) start = new Date(ANA_MIN_DATE);
   return {start, end};
 }
 
 // 기간 표시 텍스트
 function getTrendPeriodLabel(){
   const {start, end} = getTrendRange();
-  if(_trUnit === 'week'){
-    return fmtAnaDate(start) + ' ~ ' + fmtAnaDate(end);
-  } else {
-    return start.getFullYear() + '년 ' + (start.getMonth()+1) + '월';
-  }
+  if (_trUnit === 'month') return start.getFullYear() + '년 ' + (start.getMonth()+1) + '월';
+  return fmtAnaDate(start) + ' ~ ' + fmtAnaDate(end);
 }
 
 async function loadTrend(){
+  const seq = ++_trReqSeq;
+  updateTrendNavUI();
   const el = document.getElementById('tr-content');
   el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">데이터를 불러오는 중...</div>';
-  // 기간 레이블 업데이트
+  document.getElementById('tr-note').innerHTML = '';
+  document.getElementById('tr-dow').innerHTML = '';
   document.getElementById('tr-period').textContent = getTrendPeriodLabel();
   const {start, end} = getTrendRange();
-  // ANA_MIN_DATE 이전으로는 안 가도록
-  if (start < ANA_MIN_DATE) start.setTime(ANA_MIN_DATE.getTime());
   const startStr = fmtAnaDate(start);
   const endStr = fmtAnaDate(end);
-  const r = await gasPost({action:'getMealAnalysisData', startDate:startStr, endDate:endStr});
-  // 미운영일도 함께 로드
-  _holidaySet = await sb.holidays.getSet();
+  let r;
+  try {
+    const res = await Promise.all([
+      gasPost({action:'getMealAnalysisData', startDate:startStr, endDate:endStr}),
+      sb.holidays.getSet(), // 미운영일도 함께 로드
+    ]);
+    r = res[0];
+    _holidaySet = res[1];
+  } catch(e) {
+    r = {ok:false, msg:(e && e.message) || '미운영일 조회 실패'};
+  }
+  if (seq !== _trReqSeq) return; // 그 사이 다른 기간을 눌렀으면 버림
   if (!r.ok) {
     el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);font-size:14px">로드 실패: '+(r.msg||'')+'</div>';
     return;
@@ -2272,29 +2326,13 @@ async function loadTrend(){
   _trData.startDate = startStr;
   _trData.endDate = endStr;
   // 반 필터 옵션 갱신
-  const classes = [...new Set(_trData.students.map(s=>s.cls).filter(Boolean))].sort();
+  const classes = [...new Set(_trData.students.map(s=>s.cls).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b), undefined, {numeric:true}));
   const clsSel = document.getElementById('tr-cls');
   const cur = clsSel.value;
-  clsSel.innerHTML = '<option value="">전체 반</option>' + classes.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}반</option>`).join('');
+  clsSel.innerHTML = '<option value="">전체 반</option>' + classes.map(c=>`<option value="${c}" ${String(c)===cur?'selected':''}>${c}반</option>`).join('');
   renderTrend();
 }
 window.loadTrend = loadTrend;
-
-function getTrendFilteredRecords(){
-  const gf = document.getElementById('tr-grade').value;
-  const cf = document.getElementById('tr-cls').value;
-  // 학생 학번 → 학생 정보 매핑
-  const stMap = {};
-  _trData.students.forEach(s => { stMap[String(s.no)] = s; });
-  let records = _trData.records.filter(r=>{
-    const st = stMap[String(r.no)];
-    if (!st) return false;
-    if (gf && String(st.grade) !== gf) return false;
-    if (cf && String(st.cls) !== cf) return false;
-    return true;
-  });
-  return records;
-}
 
 function getTrendFilteredStudents(){
   const gf = document.getElementById('tr-grade').value;
@@ -2305,177 +2343,186 @@ function getTrendFilteredStudents(){
   return list;
 }
 
-function aggregateTrend(records, unit){
-  // 단위별로 카운트 집계
-  const map = {}; // key → count
-  records.forEach(r=>{
-    let key;
-    if (unit==='day') key = r.date;
-    else if (unit==='week'){
-      // 그 날짜가 속한 주의 월요일 yyyy-MM-dd
-      const d = new Date(r.date+'T00:00:00');
-      const day = d.getDay();
-      const monday = new Date(d);
-      monday.setDate(d.getDate() - (day===0 ? 6 : day-1));
-      key = fmtAnaDate(monday);
-    } else { // month
-      key = r.date.slice(0,7); // yyyy-MM
-    }
-    map[key] = (map[key]||0) + 1;
-  });
-
-  // 키 정렬해서 배열로
-  const keys = Object.keys(map).sort();
-  return keys.map(k=>({label:k, count:map[k]}));
+// 해당 요일 신청 대상인지 (출석요일 비어 있으면 매일)
+function trIsTarget(st, dayKr){
+  const days = String(st.days || '');
+  if (!days || days === '매일') return true;
+  return days.split(',').map(s=>s.trim()).indexOf(dayKr) >= 0;
 }
 
-// 표시할 라벨 (X축)
-function fmtTrendLabel(key, unit){
-  if (unit==='day'){
-    const p = key.split('-');
-    return `${p[1]}/${p[2]}`;
-  } else if (unit==='week'){
-    const p = key.split('-');
-    return `${p[1]}/${p[2]}~`;
-  } else {
-    const p = key.split('-');
-    return `${p[0].slice(2)}/${p[1]}`;
+// 집계에 넣을 마지막 날짜 (오늘은 18:50 이후부터 포함)
+function trCountCutoffStr(){
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (now.getHours()*60 + now.getMinutes() < TR_MEAL_END_MIN) d.setDate(d.getDate() - 1);
+  return fmtAnaDate(d);
+}
+
+function trRound1(x){ return Math.round(x * 10) / 10; }
+function trPct(num, den){ return den ? Math.round(num / den * 1000) / 10 : null; }
+function trMD(ds){ const p = ds.split('-'); return Number(p[1]) + '/' + Number(p[2]); }
+function trDowOf(ds){ return ANA_DAYS_KR[new Date(ds+'T00:00:00').getDay()]; }
+
+// 날짜 묶음(운영일 목록)에 대한 통계
+function trSummarize(days, dayAttend){
+  const n = days.length;
+  const uniq = new Set();
+  let meals = 0, target = 0, absent = 0, maxD = null, minD = null;
+  days.forEach(d => {
+    meals += d.attended; target += d.target; absent += d.absent;
+    if (dayAttend[d.date]) dayAttend[d.date].forEach(no => uniq.add(no));
+    if (!maxD || d.attended > maxD.attended) maxD = d;
+    if (!minD || d.attended < minD.attended) minD = d;
+  });
+  return {
+    days: n,
+    meals,
+    avgMeal: n ? trRound1(meals / n) : 0,
+    avgTarget: n ? trRound1(target / n) : 0,
+    avgAbsent: n ? trRound1(absent / n) : 0,
+    rate: trPct(target - absent, target),
+    max: maxD, min: minD,
+    unique: uniq.size,
+  };
+}
+
+// 화면·CSV 공통 집계
+function computeTrend(){
+  const students = getTrendFilteredStudents();
+  const stNoSet = new Set(students.map(s => String(s.no)));
+  // 운영일 판정용: 전교 기록이 있는 날짜
+  const recordDates = new Set();
+  // 필터 대상 기록: 날짜 → Set<학번>
+  const dayAttend = {};
+  _trData.records.forEach(r => {
+    recordDates.add(r.date);
+    const no = String(r.no);
+    if (!stNoSet.has(no)) return;
+    if (!dayAttend[r.date]) dayAttend[r.date] = new Set();
+    dayAttend[r.date].add(no);
+  });
+
+  const cutoff = trCountCutoffStr();
+  const todayStr = fmtAnaDate(new Date());
+  const opDays = [];   // 운영일 (평균 분모)
+  const excluded = []; // 평균에서 뺀 평일
+  let todayPending = false;
+  if (_trData.startDate && _trData.endDate){
+    const sd = new Date(_trData.startDate + 'T00:00:00');
+    const ed = new Date(_trData.endDate + 'T00:00:00');
+    for (let d = new Date(sd); d <= ed; d.setDate(d.getDate()+1)) {
+      const dow = d.getDay();
+      if (dow === 0 || dow === 6) continue;
+      const ds = fmtAnaDate(d);
+      if (ds > cutoff) { if (ds === todayStr) todayPending = true; continue; }
+      if (_holidaySet.has(ds)) { excluded.push({date:ds, reason:'미운영일 등록'}); continue; }
+      if (!recordDates.has(ds)) { excluded.push({date:ds, reason:'식사 기록 없음'}); continue; }
+      const dayKr = ANA_DAYS_KR[dow];
+      const set = dayAttend[ds];
+      let target = 0, absent = 0;
+      students.forEach(st => {
+        if (!trIsTarget(st, dayKr)) return;
+        target++;
+        if (!set || !set.has(String(st.no))) absent++;
+      });
+      opDays.push({ date:ds, dow, dayKr, attended: set ? set.size : 0, target, absent });
+    }
   }
+
+  const summary = trSummarize(opDays, dayAttend);
+
+  // 요일별 (월~금)
+  const byDow = [1,2,3,4,5].map(dw => {
+    const s = trSummarize(opDays.filter(d => d.dow === dw), dayAttend);
+    s.dayKr = ANA_DAYS_KR[dw];
+    return s;
+  });
+
+  // 주별 묶음 (월별·전체 기간 CSV용)
+  const groupBy = (keyFn) => {
+    const keys = [], map = {};
+    opDays.forEach(d => {
+      const k = keyFn(d);
+      if (!map[k]) { map[k] = []; keys.push(k); }
+      map[k].push(d);
+    });
+    return keys.map(k => { const s = trSummarize(map[k], dayAttend); s.key = k; return s; });
+  };
+  const byWeek = groupBy(d => fmtAnaDate(trStartOfUnit(new Date(d.date+'T00:00:00'), 'week')));
+  const byMonth = groupBy(d => d.date.slice(0,7));
+
+  return { students, opDays, excluded, todayPending, summary, byDow, byWeek, byMonth };
 }
 
 function renderTrend(){
-  const records = getTrendFilteredRecords();
-  const targetStudents = getTrendFilteredStudents();
+  const T = computeTrend();
+  const S = T.summary;
+  const unitLabel = TR_UNIT_LABEL[_trUnit];
 
-  // 일별 집계 (그래프 + 일 최대/최소용)
-  const dailyData = aggregateTrend(records, 'day');
+  const card = (num, label, sub, color) => `
+    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:${color}">${num}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${label}${sub ? `<br><span style="font-size:10px;opacity:.8">${sub}</span>` : ''}</div>
+    </div>`;
+  document.getElementById('tr-summary').innerHTML =
+    card(S.days, '운영일 수', '실제 급식한 평일', 'var(--sky)') +
+    card(S.avgMeal, '일평균 식사', S.rate === null ? '' : `식사율 ${S.rate}%`, 'var(--ok)') +
+    card(S.avgAbsent, '일평균 결석', '신청했는데 안 먹음', 'var(--red)') +
+    card(S.max ? S.max.attended : 0, '일 최대', S.max ? `${trMD(S.max.date)}(${S.max.dayKr})` : '', 'var(--accent)') +
+    card(S.min ? S.min.attended : 0, '일 최소', S.min ? `${trMD(S.min.date)}(${S.min.dayKr})` : '', 'var(--accent)') +
+    card(S.unique, `${unitLabel} 식사 인원`, '중복 제외', '#a78bfa');
 
-  // 평일 일수 계산 (총 식사 횟수 카드 = 평일 수)
-  // 오늘은 18:20 이후일 때만 카운트
-  let weekdayCount = 0;
-  const weekdayDates = []; // 평일 날짜 목록
-  if (_trData.startDate && _trData.endDate) {
-    const sd = new Date(_trData.startDate + 'T00:00:00');
-    const ed = new Date(_trData.endDate + 'T00:00:00');
-    const now = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const todayCounted = nowMin >= 1100;
-    const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-    const limit = todayCounted ? now : yesterday;
-    const limitDate = new Date(limit.getFullYear(), limit.getMonth(), limit.getDate());
-    const endLimit = ed < limitDate ? ed : limitDate;
-    for (let d = new Date(sd); d <= endLimit; d.setDate(d.getDate()+1)) {
-      const dow = d.getDay();
-      const dateStr = fmtAnaDate(d);
-      if (dow >= 1 && dow <= 5 && !_holidaySet.has(dateStr)) {
-        weekdayCount++;
-        weekdayDates.push(dateStr);
-      }
+  // 평균에서 제외된 평일 안내
+  let note = '';
+  if (T.excluded.length || T.todayPending) {
+    const parts = [];
+    if (T.excluded.length) {
+      const list = T.excluded.map(x => `${trMD(x.date)}(${trDowOf(x.date)}) ${x.reason}`);
+      const shown = list.length > 12 ? list.slice(0, 12).join(', ') + ` 외 ${list.length - 12}일` : list.join(', ');
+      parts.push(`평균에서 뺀 평일 <b>${T.excluded.length}일</b> — ${shown}`);
     }
+    if (T.todayPending) parts.push('오늘은 식사 시간이 끝나는 18:50 이후 집계에 들어갑니다');
+    note = `<div style="font-size:12px;color:var(--muted-2);background:var(--bg-soft);border-radius:10px;padding:10px 12px;margin-bottom:14px;line-height:1.6">${parts.join('<br>')}</div>`;
   }
-  const total = records.length;
-  // 평일 평균 (식사 인원)
-  const weekdayAvg = weekdayCount ? Math.round(total / weekdayCount) : 0;
-  // 일 최대/최소 (실제 식사 데이터가 있는 평일 중)
-  const validDaily = dailyData.filter(d => weekdayDates.indexOf(d.label) >= 0);
-  const dayMax = validDaily.length ? Math.max(...validDaily.map(d=>d.count)) : 0;
-  const dayMin = validDaily.length ? Math.min(...validDaily.map(d=>d.count)) : 0;
-
-  // 결석 평균 — 평일별로 (신청 대상 - 식사) 합산 후 평균
-  // 신청 대상: 학생의 신청 요일에 해당하는 평일만
-  function isStudentTarget(st, dateStr){
-    const days = String(st.days||'매일');
-    if (!days || days==='매일') return true;
-    const d = new Date(dateStr+'T00:00:00');
-    const dayKr = ANA_DAYS_KR[d.getDay()];
-    return days.indexOf(dayKr) >= 0;
-  }
-  // 학번 → 학생 매핑
-  const stMap = {};
-  targetStudents.forEach(s => { stMap[String(s.no)] = s; });
-  // 식사 기록을 (날짜 → Set<학번>)으로 매핑
-  const dayAttendMap = {};
-  records.forEach(r => {
-    if (!dayAttendMap[r.date]) dayAttendMap[r.date] = new Set();
-    dayAttendMap[r.date].add(String(r.no));
-  });
-  let absentTotal = 0;
-  weekdayDates.forEach(dateStr => {
-    let targetN = 0;
-    targetStudents.forEach(st => { if (isStudentTarget(st, dateStr)) targetN++; });
-    const attendedN = dayAttendMap[dateStr] ? dayAttendMap[dateStr].size : 0;
-    const absent = Math.max(0, targetN - attendedN);
-    absentTotal += absent;
-  });
-  const absentAvg = weekdayCount ? Math.round(absentTotal / weekdayCount) : 0;
-
-  // 단위별 총 식사 인원 (고유 학생) — 현재 보고 있는 기간 전체
-  const unitLabel = _trUnit==='week' ? '주간' : '월간';
-  const uniqueSet = new Set();
-  records.forEach(r => uniqueSet.add(String(r.no)));
-  const unitUniqueCount = uniqueSet.size;
-
-  document.getElementById('tr-summary').innerHTML = `
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--sky)">${weekdayCount}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 수</div>
-    </div>
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--ok)">${weekdayAvg}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 평균 식사</div>
-    </div>
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--red)">${absentAvg}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">평일 평균 결석</div>
-    </div>
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--accent)">${dayMax}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">일 최대</div>
-    </div>
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:var(--accent)">${dayMin}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">일 최소</div>
-    </div>
-    <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:#a78bfa">${unitUniqueCount}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">${unitLabel} 식사 인원<br><span style="font-size:9px;opacity:.7">(중복 제외)</span></div>
-    </div>
-  `;
+  document.getElementById('tr-note').innerHTML = note;
 
   const el = document.getElementById('tr-content');
-  if (!dailyData.length) {
-    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당 기간 식사 기록이 없어요</div>';
+  const days = T.opDays;
+  if (!days.length) {
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">이 기간에 집계된 운영일이 없어요</div>';
+    document.getElementById('tr-dow').innerHTML = '';
     return;
   }
 
-  // SVG 막대그래프 — 항상 일별
+  // SVG 막대그래프 — 운영일 기준 일별
   const W = 800, H = 320;
   const padL = 40, padR = 20, padT = 20, padB = 60;
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
-  const n = dailyData.length;
-  const barGap = Math.max(2, Math.floor(innerW / n * 0.15));
-  const barW = Math.max(1, Math.floor(innerW / n) - barGap);
-  const dailyMax = Math.max(...dailyData.map(d=>d.count), 1);
+  const n = days.length;
+  const slot = innerW / n;
+  const barGap = Math.max(2, Math.floor(slot * 0.15));
+  const barW = Math.max(1, Math.min(64, Math.floor(slot) - barGap));
+  const dailyMax = Math.max(...days.map(d=>d.attended), 1);
   const yTicks = [];
   for (let i=0; i<=5; i++) yTicks.push(Math.round(dailyMax * i / 5));
+  const showEvery = n > 20 ? Math.ceil(n/15) : 1;
 
-  let bars = '';
-  let labels = '';
-  let valueLabels = '';
-  dailyData.forEach((d, i)=>{
-    const x = padL + i * (innerW / n) + barGap/2;
-    const h = (d.count / dailyMax) * innerH;
+  let bars = '', labels = '', valueLabels = '';
+  days.forEach((d, i)=>{
+    const cx = padL + i * slot + slot/2;
+    const x = cx - barW/2;
+    const h = (d.attended / dailyMax) * innerH;
     const y = padT + innerH - h;
     bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="#0a84ff">
-      <title>${d.label}: ${d.count}명</title>
+      <title>${d.date} (${d.dayKr}): ${d.attended}명 / 신청 ${d.target}명 · 결석 ${d.absent}명</title>
     </rect>`;
-    const showEvery = n > 20 ? Math.ceil(n/15) : 1;
     if (i % showEvery === 0) {
-      labels += `<text x="${x + barW/2}" y="${padT + innerH + 18}" text-anchor="middle" font-size="10" fill="#7a8499">${fmtTrendLabel(d.label, 'day')}</text>`;
+      labels += `<text x="${cx}" y="${padT + innerH + 18}" text-anchor="middle" font-size="10" fill="#7a8499">${trMD(d.date)}</text>`;
+      if (n <= 31) labels += `<text x="${cx}" y="${padT + innerH + 32}" text-anchor="middle" font-size="10" fill="#7a8499">${d.dayKr}</text>`;
     }
-    if (d.count > 0 && (n <= 20 || i % showEvery === 0)) {
-      valueLabels += `<text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" font-size="9" fill="#1d1d1f" font-weight="600">${d.count}</text>`;
+    if (n <= 31 || i % showEvery === 0) {
+      valueLabels += `<text x="${cx}" y="${y - 4}" text-anchor="middle" font-size="9" fill="#1d1d1f" font-weight="600">${d.attended}</text>`;
     }
   });
 
@@ -2485,33 +2532,159 @@ function renderTrend(){
     grid += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="rgba(0,0,0,.06)" stroke-width="1"/>`;
     grid += `<text x="${padL - 6}" y="${y + 3}" text-anchor="end" font-size="10" fill="#7a8499">${v}</text>`;
   });
+  // 일평균 기준선
+  const avgY = padT + innerH - (S.avgMeal / dailyMax) * innerH;
+  const avgLine = `<line x1="${padL}" y1="${avgY}" x2="${W - padR}" y2="${avgY}" stroke="#ff9500" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="${W - padR}" y="${avgY - 5}" text-anchor="end" font-size="10" fill="#a85a00" font-weight="600" stroke="#fff" stroke-width="3" paint-order="stroke">평균 ${S.avgMeal}</text>`;
 
   el.innerHTML = `
     <div style="overflow-x:auto">
       <svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:500px;display:block" preserveAspectRatio="xMidYMid meet">
         ${grid}
         ${bars}
+        ${avgLine}
         ${valueLabels}
         ${labels}
       </svg>
     </div>
     <div style="margin-top:8px;font-size:12px;color:var(--muted);text-align:center">
-      ${getTrendPeriodLabel()} · 일별 식사 인원
+      ${getTrendPeriodLabel()} · 운영일별 식사 인원 (점선 = 일평균)
     </div>
   `;
+
+  renderTrendDow(T);
 }
 window.renderTrend = renderTrend;
 
+// 요일별 평균 표
+function renderTrendDow(T){
+  const rows = T.byDow;
+  const maxAvg = Math.max(1, ...rows.map(r => r.avgMeal));
+  const best = rows.filter(r => r.days).reduce((m, r) => (!m || r.avgMeal > m.avgMeal) ? r : m, null);
+  const worst = rows.filter(r => r.days).reduce((m, r) => (!m || r.avgMeal < m.avgMeal) ? r : m, null);
+  const td = 'padding:8px 10px;text-align:center;font-family:\'DM Mono\',monospace;font-size:13px';
+  const body = rows.map(r => {
+    if (!r.days) {
+      return `<tr><td style="padding:8px 10px;font-weight:700">${r.dayKr}</td><td colspan="6" style="padding:8px 10px;color:var(--muted-2);font-size:12px">이 기간에 운영일 없음</td></tr>`;
+    }
+    const w = Math.round(r.avgMeal / maxAvg * 100);
+    const tag = (best && worst && best !== worst) ? (r === best ? ' <span style="font-size:10px;color:var(--ok-ink)">최다</span>' : r === worst ? ' <span style="font-size:10px;color:var(--red-ink)">최소</span>' : '') : '';
+    return `<tr>
+      <td style="padding:8px 10px;font-weight:700;white-space:nowrap">${r.dayKr}${tag}</td>
+      <td style="${td}">${r.days}일</td>
+      <td style="padding:8px 10px;min-width:160px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;height:8px;background:var(--bg-soft);border-radius:4px;overflow:hidden"><div style="width:${w}%;height:100%;background:#0a84ff;border-radius:4px"></div></div>
+          <span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;min-width:36px;text-align:right">${r.avgMeal}</span>
+        </div>
+      </td>
+      <td style="${td}">${r.avgTarget}</td>
+      <td style="${td}">${r.rate === null ? '-' : r.rate + '%'}</td>
+      <td style="${td}">${r.max ? r.max.attended : '-'}</td>
+      <td style="${td}">${r.min ? r.min.attended : '-'}</td>
+    </tr>`;
+  }).join('');
+  const hint = _trUnit === 'week'
+    ? '<div style="font-size:11px;color:var(--muted-2);margin-top:6px">주별 보기에서는 요일마다 하루씩이라 비교가 어려워요. 월별이나 전체 기간에서 보세요.</div>'
+    : '';
+  document.getElementById('tr-dow').innerHTML = `
+    <div style="margin-top:22px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px">요일별 평균 <span style="font-size:12px;font-weight:400;color:var(--muted-2)">· ${getTrendPeriodLabel()} · 운영일 기준</span></div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;min-width:520px">
+          <thead><tr>
+            <th style="text-align:left;padding:8px 10px">요일</th>
+            <th style="text-align:center;padding:8px 10px">운영일</th>
+            <th style="text-align:left;padding:8px 10px">평균 식사</th>
+            <th style="text-align:center;padding:8px 10px">평균 신청</th>
+            <th style="text-align:center;padding:8px 10px">식사율</th>
+            <th style="text-align:center;padding:8px 10px">최대</th>
+            <th style="text-align:center;padding:8px 10px">최소</th>
+          </tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+      ${hint}
+    </div>`;
+}
+
+// CSV — 요약·요일별·(주별/월별)·일별·제외일을 한 파일에
 function downloadTrendCSV(){
-  const records = getTrendFilteredRecords();
-  const aggData = aggregateTrend(records, _trUnit);
-  if (!aggData.length){ toast('내보낼 데이터가 없어요','err'); return; }
-  const unitLabel = _trUnit==='week' ? '주(월요일)' : '월';
-  const csv = '\uFEFF'+unitLabel+',식사 인원\n' + aggData.map(d=>`${d.label},${d.count}`).join('\n');
+  if (!_trData.startDate) { toast('먼저 데이터를 불러와 주세요','err'); return; }
+  const T = computeTrend();
+  if (!T.opDays.length && !T.excluded.length){ toast('내보낼 데이터가 없어요','err'); return; }
+  const S = T.summary;
+  const esc = v => {
+    const s = (v === null || v === undefined) ? '' : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [];
+  const row = arr => lines.push(arr.map(esc).join(','));
+  const pct = v => v === null ? '-' : v + '%';
+  const gf = document.getElementById('tr-grade').value;
+  const cf = document.getElementById('tr-cls').value;
+  const now = new Date();
+
+  row(['식사 추이 리포트']);
+  row(['기간', `${_trData.startDate} ~ ${_trData.endDate}`]);
+  row(['보기', TR_UNIT_LABEL[_trUnit]]);
+  row(['대상', (gf ? gf + '학년' : '전체 학년') + ' / ' + (cf ? cf + '반' : '전체 반'), `명단 ${T.students.length}명`]);
+  row(['생성', fmtAnaDate(now) + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0')]);
+  row(['집계 기준', '평균의 분모는 실제 운영일(평일 중 미운영일 미등록 + 식사 기록이 있는 날). 오늘은 18:50 이후 포함']);
+  lines.push('');
+
+  row(['[요약]']);
+  row(['항목', '값', '비고']);
+  row(['운영일 수', S.days, '']);
+  row(['식사 연인원', S.meals, '운영일 식사 인원 합계']);
+  row(['일평균 식사', S.avgMeal, '']);
+  row(['일평균 신청 대상', S.avgTarget, '']);
+  row(['일평균 결석', S.avgAbsent, '신청 요일인데 식사 안 함']);
+  row(['평균 식사율', pct(S.rate), '']);
+  row(['일 최대', S.max ? S.max.attended : '', S.max ? `${S.max.date}(${S.max.dayKr})` : '']);
+  row(['일 최소', S.min ? S.min.attended : '', S.min ? `${S.min.date}(${S.min.dayKr})` : '']);
+  row([`${TR_UNIT_LABEL[_trUnit]} 식사 인원(중복 제외)`, S.unique, '한 번 이상 먹은 학생 수']);
+  lines.push('');
+
+  row(['[요일별 평균]']);
+  row(['요일', '운영일 수', '평균 식사', '평균 신청', '평균 결석', '식사율', '최대', '최소', '식사 인원(중복 제외)']);
+  T.byDow.forEach(r => row([r.dayKr, r.days, r.days ? r.avgMeal : '', r.days ? r.avgTarget : '', r.days ? r.avgAbsent : '', r.days ? pct(r.rate) : '', r.max ? r.max.attended : '', r.min ? r.min.attended : '', r.days ? r.unique : '']));
+  lines.push('');
+
+  const groupHeader = ['운영일 수', '식사 연인원', '일평균 식사', '일평균 결석', '식사율', '일 최대', '일 최소', '식사 인원(중복 제외)'];
+  const groupRow = (label, g) => row([label, g.days, g.meals, g.avgMeal, g.avgAbsent, pct(g.rate), g.max ? g.max.attended : '', g.min ? g.min.attended : '', g.unique]);
+  if (_trUnit === 'all') {
+    row(['[월별 요약]']);
+    row(['월'].concat(groupHeader));
+    T.byMonth.forEach(g => groupRow(g.key, g));
+    lines.push('');
+  }
+  if (_trUnit !== 'week') {
+    row(['[주별 요약]']);
+    row(['주 시작(월)'].concat(groupHeader));
+    T.byWeek.forEach(g => groupRow(g.key, g));
+    lines.push('');
+  }
+
+  row(['[일별]']);
+  row(['날짜', '요일', '식사', '신청 대상', '결석', '식사율']);
+  T.opDays.forEach(d => row([d.date, d.dayKr, d.attended, d.target, d.absent, pct(trPct(d.target - d.absent, d.target))]));
+  lines.push('');
+
+  if (T.excluded.length) {
+    row(['[평균에서 뺀 평일]']);
+    row(['날짜', '요일', '사유']);
+    T.excluded.forEach(x => row([x.date, trDowOf(x.date), x.reason]));
+  }
+
+  const csv = '﻿' + lines.join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
-  a.download = `식사추이_${_trUnit}_${_trData.startDate}_${_trData.endDate}.csv`;
+  const unitTag = {week:'주별', month:'월별', all:'전체'}[_trUnit];
+  const filt = (gf ? '_' + gf + '학년' : '') + (cf ? '_' + cf + '반' : '');
+  a.download = `식사추이_${unitTag}${filt}_${_trData.startDate}_${_trData.endDate}.csv`;
   a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   toast('CSV 다운로드 완료','ok');
 }
 window.downloadTrendCSV = downloadTrendCSV;
