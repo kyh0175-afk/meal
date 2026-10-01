@@ -1928,7 +1928,7 @@ function renderAnaTrend(){
   const maxCount = Math.max(1, ...opCounts.map(c => c.count));
   const totalAttend = opCounts.reduce((s,c) => s+c.count, 0);
   const opDays = opCounts.length;
-  const avg = opDays ? Math.round(totalAttend/opDays*10)/10 : 0;
+  const avg = opDays ? Math.round(totalAttend/opDays) : 0; // 평균은 정수로 반올림
   const peak = opCounts.reduce((m,c) => c.count > m.count ? c : m, opCounts[0] || {count:0});
   const skipped = counts.filter(c => c.status === 'holiday' || c.status === 'norecord');
 
@@ -2400,7 +2400,7 @@ function trCountCutoffStr(){
   return fmtAnaDate(d);
 }
 
-function trRound1(x){ return Math.round(x * 10) / 10; }
+function trRoundAvg(x){ return Math.round(x); } // 평균 인원은 정수로 반올림 (식사율 %는 소수 첫째 자리 유지)
 function trPct(num, den){ return den ? Math.round(num / den * 1000) / 10 : null; }
 function trMD(ds){ const p = ds.split('-'); return Number(p[1]) + '/' + Number(p[2]); }
 function trDowOf(ds){ return ANA_DAYS_KR[trParse(ds).getDay()]; }
@@ -2419,9 +2419,9 @@ function trSummarize(days, dayAttend){
   return {
     days: n,
     meals,
-    avgMeal: n ? trRound1(meals / n) : 0,
-    avgTarget: n ? trRound1(target / n) : 0,
-    avgAbsent: n ? trRound1(absent / n) : 0,
+    avgMeal: n ? trRoundAvg(meals / n) : 0,
+    avgTarget: n ? trRoundAvg(target / n) : 0,
+    avgAbsent: n ? trRoundAvg(absent / n) : 0,
     rate: trPct(target - absent, target),
     max: maxD, min: minD,
     unique: uniq.size,
