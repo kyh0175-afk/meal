@@ -13,6 +13,12 @@
 <style>
 /* 폰트 통일 (2026-10): Noto Sans KR·DM Mono 제거 → Pretendard 하나로. 숫자 줄맞춤은 tabular-nums로 */
 button,input,select,textarea,svg text{font-family:inherit}
+/* 엑셀 기간 선택 메뉴 (추이 탭) */
+.xl-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:200;min-width:250px;background:var(--card);border:1px solid var(--border2);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.08);padding:6px}
+.xl-menu-head{font-size:12px;color:var(--muted);padding:6px 12px 4px}
+.xl-menu button{display:block;width:100%;text-align:left;padding:8px 12px;border:none;background:none;border-radius:8px;cursor:pointer;color:var(--text);font-size:14px;font-weight:600}
+.xl-menu button:hover,.xl-menu button:focus-visible{background:var(--card2)}
+.xl-menu small{display:block;margin-top:2px;color:var(--muted);font-size:12px;font-weight:400;font-variant-numeric:tabular-nums}
 :root{--font:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;--ink:#0e1117;--card:rgba(255,255,255,0.05);--card2:rgba(255,255,255,0.09);--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);--accent:#f59e0b;--ok:#34d399;--sky:#60a5fa;--red:#f87171;--text:#edf0f7;--muted:#7a8499;--r:14px;--r-sm:10px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{background:#0e1117!important}
@@ -361,7 +367,10 @@ select option{background:#fff;color:#000}
           <select id="tr-cls" onchange="renderTrend()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-family:inherit;font-size:13px;outline:none;-webkit-appearance:none">
             <option value="">전체 반</option>
           </select>
-          <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="downloadTrendExcel()">📥 엑셀</button>
+          <div id="tr-xl-wrap" style="margin-left:auto;position:relative">
+            <button class="btn btn-ghost btn-sm" id="tr-xl-btn" onclick="toggleTrendExcelMenu()" aria-haspopup="menu" aria-expanded="false">📥 엑셀</button>
+            <div id="tr-xl-menu" class="xl-menu" role="menu" style="display:none"></div>
+          </div>
         </div>
         <!-- 요일 선택 (요일별 보기) -->
         <div id="tr-dow-pick" style="display:none;gap:6px;align-items:center;margin-bottom:14px">
@@ -2383,10 +2392,10 @@ async function loadTrend(){
 }
 window.loadTrend = loadTrend;
 
-function getTrendFilteredStudents(){
+function getTrendFilteredStudents(source){
   const gf = document.getElementById('tr-grade').value;
   const cf = document.getElementById('tr-cls').value;
-  let list = _trData.students;
+  let list = source || _trData.students;
   if (gf) list = list.filter(s => String(s.grade) === gf);
   if (cf) list = list.filter(s => String(s.cls) === cf);
   return list;
@@ -2435,13 +2444,16 @@ function trSummarize(days, dayAttend){
   };
 }
 
-// 화면·엑셀 공통 집계 (students를 주면 그 학생들 기준, 없으면 현재 필터)
-function computeTrend(studentsArg){
-  const students = studentsArg || getTrendFilteredStudents();
+// 화면·엑셀 공통 집계
+//  studentsArg: 이 학생들 기준 (없으면 현재 학년/반 필터)
+//  data: {students, records, startDate, endDate} (없으면 화면에 불러온 _trData)
+function computeTrend(studentsArg, data){
+  data = data || _trData;
+  const students = studentsArg || getTrendFilteredStudents(data.students);
   const stNoSet = new Set(students.map(s => String(s.no)));
   const recordDates = new Set(); // 운영일 판정용: 전교 기록이 있는 날짜
   const dayAttend = {};          // 필터 대상 기록: 날짜 → Set<학번>
-  _trData.records.forEach(r => {
+  data.records.forEach(r => {
     recordDates.add(r.date);
     const no = String(r.no);
     if (!stNoSet.has(no)) return;
@@ -2454,9 +2466,9 @@ function computeTrend(studentsArg){
   const opDays = [];   // 운영일 (평균 분모)
   const excluded = []; // 평균에서 뺀 평일
   let todayPending = false;
-  if (_trData.startDate && _trData.endDate){
-    const ed = trParse(_trData.endDate);
-    for (let d = trParse(_trData.startDate); d <= ed; d.setDate(d.getDate()+1)) {
+  if (data.startDate && data.endDate){
+    const ed = trParse(data.endDate);
+    for (let d = trParse(data.startDate); d <= ed; d.setDate(d.getDate()+1)) {
       const dow = d.getDay();
       if (dow === 0 || dow === 6) continue;
       const ds = fmtAnaDate(d);
@@ -2702,11 +2714,92 @@ function xlsxSheet(aoa, headerRow, noFilter){
 // 퍼센트 값(62.4) → 엑셀 숫자 셀(0.624, 표시 62.4%). 없으면 '-'
 function xlsxPct(p){ return (p === null || p === undefined) ? '-' : { t:'n', v: Number((p / 100).toFixed(4)), z: '0.0%' }; }
 
-// 추이 탭 엑셀 — 시트: 요약 · 요일별 평균(전체+학년별) · (선택 요일) · 일별 · 주별 · 월별 · 제외한 날
-function downloadTrendExcel(){
-  if (!_trData.startDate) { toast('먼저 데이터를 불러와 주세요','err'); return; }
-  const T = computeTrend();
-  if (!T.opDays.length && !T.excluded.length){ toast('내보낼 데이터가 없어요','err'); return; }
+// 추이 탭 엑셀 — 버튼을 누르면 기간(주간·월간·전체)을 고르는 메뉴가 뜬다.
+// 기준일: 화면에 보이는 기간에 오늘이 들어 있으면 오늘, 아니면 그 기간의 마지막 날.
+var _trXlOpts = [];
+
+function trExportOptions(){
+  const today = trParse(todayKST());
+  const minD = new Date(ANA_MIN_DATE);
+  const range = getTrendRange();
+  const ref = (today >= range.start && today <= range.end) ? today : (range.end > today ? today : range.end);
+  const clamp = (key, label, s, e) => ({
+    key, label,
+    start: s < minD ? new Date(minD) : s,
+    end: e > today ? new Date(today) : e,
+  });
+  const ws = trStartOfUnit(ref, 'week');
+  const we = new Date(ws); we.setDate(we.getDate() + 6);
+  const ms = trStartOfUnit(ref, 'month');
+  const me = new Date(ms.getFullYear(), ms.getMonth() + 1, 0);
+  const opts = [
+    clamp('week', '주간', ws, we),
+    clamp('month', `월간 (${ms.getMonth() + 1}월)`, ms, me),
+    clamp('all', '전체 기간', minD, today),
+  ];
+  if (_trUnit === 'dow' && (_trFrom || _trTo)) opts.push(clamp('range', '설정한 기간', range.start, range.end));
+  return opts;
+}
+
+function toggleTrendExcelMenu(force){
+  const menu = document.getElementById('tr-xl-menu');
+  const btn = document.getElementById('tr-xl-btn');
+  const open = (force === undefined) ? menu.style.display === 'none' : force;
+  if (open) {
+    _trXlOpts = trExportOptions();
+    const hint = _trUnit === 'dow' ? ` · ${ANA_DAYS_KR[_trDow]}요일 시트 포함` : '';
+    menu.innerHTML = `<div class="xl-menu-head">받을 기간${hint}</div>` + _trXlOpts.map((o, i) =>
+      `<button role="menuitem" onclick="downloadTrendExcel(${i})">${o.label}<small>${fmtAnaDate(o.start)} ~ ${fmtAnaDate(o.end)}</small></button>`
+    ).join('');
+  }
+  menu.style.display = open ? 'block' : 'none';
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) { const first = menu.querySelector('button'); if (first) first.focus(); }
+}
+window.toggleTrendExcelMenu = toggleTrendExcelMenu;
+
+// 메뉴 바깥을 누르거나 Esc를 누르면 닫기
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('tr-xl-wrap');
+  if (wrap && !wrap.contains(e.target)) { const m = document.getElementById('tr-xl-menu'); if (m && m.style.display !== 'none') toggleTrendExcelMenu(false); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const m = document.getElementById('tr-xl-menu');
+  if (m && m.style.display !== 'none') { toggleTrendExcelMenu(false); document.getElementById('tr-xl-btn').focus(); }
+});
+
+// 고른 기간의 자료를 불러와(화면에 이미 있는 기간이면 재사용) 엑셀로 저장
+async function downloadTrendExcel(idx){
+  const opt = _trXlOpts[idx];
+  toggleTrendExcelMenu(false);
+  if (!opt) return;
+  const startStr = fmtAnaDate(opt.start), endStr = fmtAnaDate(opt.end);
+  let data;
+  if (startStr === _trData.startDate && endStr === _trData.endDate) {
+    data = _trData;
+  } else {
+    toast('엑셀 만드는 중...','ok');
+    try {
+      const res = await Promise.all([
+        gasPost({action:'getMealAnalysisData', startDate:startStr, endDate:endStr}),
+        sb.holidays.getSet(),
+      ]);
+      if (!res[0].ok) { toast('불러오지 못했어요: ' + (res[0].msg || ''), 'err'); return; }
+      _holidaySet = res[1];
+      data = { students: res[0].students || [], records: res[0].records || [], startDate: startStr, endDate: endStr };
+    } catch(e) {
+      toast('불러오지 못했어요: ' + ((e && e.message) || ''), 'err'); return;
+    }
+  }
+  buildTrendExcel(data, opt);
+}
+window.downloadTrendExcel = downloadTrendExcel;
+
+// 시트: 요약 · 요일별 평균(전체+학년별) · (선택 요일) · 일별 · 주별 · 월별 · 제외한 날
+function buildTrendExcel(data, opt){
+  const T = computeTrend(undefined, data);
+  if (!T.opDays.length && !T.excluded.length){ toast('이 기간에는 내보낼 자료가 없어요','err'); return; }
   const S = T.summary;
   const gf = document.getElementById('tr-grade').value;
   const cf = document.getElementById('tr-cls').value;
@@ -2720,14 +2813,12 @@ function downloadTrendExcel(){
   // 1. 요약
   const info = [
     ['식사 추이'],
-    ['기간', `${_trData.startDate} ~ ${_trData.endDate}`],
-    ['보기', isDow ? `요일별 (${dayKr}요일 선택)` : (_trUnit === 'week' ? '주별' : '월별')],
+    ['기간', `${data.startDate} ~ ${data.endDate}`, opt.label],
     ['대상', (gf ? gf + '학년' : '전체 학년') + ' / ' + (cf ? cf + '반' : '전체 반'), `명단 ${T.students.length}명`],
     ['내려받은 시각', fmtAnaDate(now) + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0')],
     ['집계 기준', '평균은 실제 운영일(평일 중 미운영일로 등록하지 않았고 식사 기록이 있는 날)로 나눔. 오늘 기록은 18:50 이후 포함'],
     [],
   ];
-  const head = info.length;
   add('요약', info.concat([
     ['항목', '값', '비고'],
     ['운영일', S.days, ''],
@@ -2739,7 +2830,7 @@ function downloadTrendExcel(){
     ['일 최대', S.max ? S.max.attended : '', S.max ? `${S.max.date}(${S.max.dayKr})` : ''],
     ['일 최소', S.min ? S.min.attended : '', S.min ? `${S.min.date}(${S.min.dayKr})` : ''],
     ['식사 인원(중복 제외)', S.unique, '한 번 이상 식사한 학생 수'],
-  ]), head, true);
+  ]), info.length, true);
 
   // 2. 요일별 평균 — 전체 + 학년별 (학년 필터를 걸었으면 그 학년만)
   const dowAoa = [['학년', '요일', '운영일', '평균 식사', '평균 신청', '평균 결석', '식사율', '최대', '최소', '식사 인원(중복 제외)', '명단 인원']];
@@ -2754,7 +2845,7 @@ function downloadTrendExcel(){
     const grades = [...new Set(T.students.map(s => String(s.grade)).filter(Boolean))].sort();
     grades.forEach(g => {
       const list = T.students.filter(s => String(s.grade) === g);
-      dowRows(g + '학년', computeTrend(list).byDow, list.length);
+      dowRows(g + '학년', computeTrend(list, data).byDow, list.length);
     });
   }
   add('요일별 평균', dowAoa, 0);
@@ -2765,23 +2856,21 @@ function downloadTrendExcel(){
   if (isDow) add(`${dayKr}요일`, dayAoa(T.opDays.filter(d => d.dow === _trDow)), 0);
   add('일별', dayAoa(T.opDays), 0);
 
-  // 4. 주별 / 월별 요약
+  // 4. 주별 / 월별 요약 (두 주·두 달 이상일 때만)
   const groupHeader = ['운영일', '식사 연인원', '일평균 식사', '일평균 결석', '식사율', '일 최대', '일 최소', '식사 인원(중복 제외)'];
   const groupAoa = (label, groups) => [[label].concat(groupHeader)].concat(groups.map(g => [g.key, g.days, g.meals, g.avgMeal, g.avgAbsent, xlsxPct(g.rate), n(g.max && g.max.attended), n(g.min && g.min.attended), g.unique]));
-  if (_trUnit !== 'week') {
-    add('주별', groupAoa('주 시작(월)', T.byWeek), 0);
-    if (T.byMonth.length > 1) add('월별', groupAoa('월', T.byMonth), 0);
-  }
+  if (T.byWeek.length > 1) add('주별', groupAoa('주 시작(월)', T.byWeek), 0);
+  if (T.byMonth.length > 1) add('월별', groupAoa('월', T.byMonth), 0);
 
   // 5. 평균에서 뺀 평일
   if (T.excluded.length) add('제외한 날', [['날짜', '요일', '사유']].concat(T.excluded.map(x => [x.date, ANA_DAYS_KR[x.dow], x.reason])), 0);
 
-  const unitTag = isDow ? '요일별_' + dayKr : (_trUnit === 'week' ? '주별' : '월별');
+  const rangeTag = { week:'주간', month:'월간', all:'전체', range:'설정기간' }[opt.key];
+  const dowTag = isDow ? '_' + dayKr + '요일' : '';
   const filt = (gf ? '_' + gf + '학년' : '') + (cf ? '_' + cf + '반' : '');
-  XLSX.writeFile(wb, `식사추이_${unitTag}${filt}_${_trData.startDate}_${_trData.endDate}.xlsx`);
+  XLSX.writeFile(wb, `식사추이_${rangeTag}${dowTag}${filt}_${data.startDate}_${data.endDate}.xlsx`);
   toast('엑셀 다운로드 완료','ok');
 }
-window.downloadTrendExcel = downloadTrendExcel;
 
 
 /* ══ 토스트 ══ */
