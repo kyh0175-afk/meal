@@ -11,11 +11,12 @@
 <link rel="stylesheet" href="apple-theme.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ctext y=%22.9em%22 font-size=%2290%22%3E%F0%9F%8D%B1%3C/text%3E%3C/svg%3E">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=DM+Mono:wght@400;500&display=swap');
-:root{--ink:#0e1117;--card:rgba(255,255,255,0.05);--card2:rgba(255,255,255,0.09);--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);--accent:#f59e0b;--ok:#34d399;--sky:#60a5fa;--red:#f87171;--text:#edf0f7;--muted:#7a8499;--r:14px;--r-sm:10px}
+/* 폰트 통일 (2026-10): Noto Sans KR·DM Mono 제거 → Pretendard 하나로. 숫자 줄맞춤은 tabular-nums로 */
+button,input,select,textarea,svg text{font-family:inherit}
+:root{--font:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;--ink:#0e1117;--card:rgba(255,255,255,0.05);--card2:rgba(255,255,255,0.09);--border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);--accent:#f59e0b;--ok:#34d399;--sky:#60a5fa;--red:#f87171;--text:#edf0f7;--muted:#7a8499;--r:14px;--r-sm:10px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{background:#0e1117!important}
-body{word-break:keep-all;overflow-wrap:break-word;font-family:'Noto Sans KR',sans-serif;background:#0e1117;color:#edf0f7;min-height:100vh;font-size:16px;line-height:1.7;-webkit-tap-highlight-color:transparent}
+body{word-break:keep-all;overflow-wrap:break-word;font-family:var(--font);background:#0e1117;color:#edf0f7;min-height:100vh;font-size:16px;line-height:1.7;-webkit-tap-highlight-color:transparent}
 body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 80% 60% at 20% 0%,rgba(245,158,11,.08) 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 80% 90%,rgba(249,115,22,.06) 0%,transparent 60%)}
 .wrap{position:relative;z-index:1}
 .topbar{display:flex;align-items:center;gap:12px;padding:0 20px;height:56px;background:rgba(14,17,23,.88);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:200}
@@ -36,7 +37,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;bac
 .field input:focus{border-color:var(--accent)}
 .stats-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
 .stat-box{flex:1;min-width:80px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 8px}
-.stat-num{font-size:28px;font-weight:900;font-family:'DM Mono',monospace;line-height:1.1}
+.stat-num{font-size:28px;font-weight:900;font-family:var(--font);font-variant-numeric:tabular-nums;line-height:1.1}
 .stat-lbl{font-size:13px;color:var(--muted);margin-top:4px}
 table{width:100%;border-collapse:collapse;margin-top:10px}
 th{font-size:13px;font-weight:600;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border2)}
@@ -62,18 +63,18 @@ select option{background:#fff;color:#000}
 select option{background:#fff;color:#000}
 /* numpad */
 .numpad-wrap{position:fixed;bottom:0;left:0;right:0;background:rgba(14,17,23,.96);backdrop-filter:blur(16px);border-top:1px solid var(--border2);padding:16px 20px 28px;z-index:300;display:none;flex-direction:column;align-items:center;gap:10px}
-.numpad-display{font-family:'DM Mono',monospace;font-size:28px;font-weight:500;text-align:center;color:var(--text);letter-spacing:4px;padding:8px 16px;width:100%;max-width:420px;border:1px solid var(--border2);border-radius:var(--r-sm);min-height:48px}
+.numpad-display{font-family:var(--font);font-variant-numeric:tabular-nums;font-size:28px;font-weight:500;text-align:center;color:var(--text);letter-spacing:4px;padding:8px 16px;width:100%;max-width:420px;border:1px solid var(--border2);border-radius:var(--r-sm);min-height:48px}
 .numpad-display.full{color:var(--ok);border-color:rgba(52,211,153,.35)}
 .numpad-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;width:100%;max-width:420px}
-.npbtn{padding:14px 0;border:none;border-radius:var(--r-sm);font-family:'DM Mono',monospace;font-size:18px;font-weight:500;background:var(--card2);color:var(--text);cursor:pointer;transition:all .15s}
+.npbtn{padding:14px 0;border:none;border-radius:var(--r-sm);font-family:var(--font);font-variant-numeric:tabular-nums;font-size:18px;font-weight:500;background:var(--card2);color:var(--text);cursor:pointer;transition:all .15s}
 .npbtn:active{transform:scale(.93)}.npbtn-del{background:rgba(248,113,113,.15);color:var(--red)}
-.npbtn-ok{background:var(--ok);color:#000;font-family:'Noto Sans KR',sans-serif;font-weight:700;font-size:14px}
+.npbtn-ok{background:var(--ok);color:#000;font-family:var(--font);font-weight:700;font-size:14px}
 /* student screen */
 .student-screen{display:none;position:fixed;inset:0;z-index:500;background:#0e1117;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center}
 .student-screen.on{display:flex}
 .s-title{font-size:24px;font-weight:900;margin-bottom:8px}
 .s-sub{font-size:14px;color:var(--muted);line-height:1.7;white-space:pre-line;margin-bottom:28px}
-.s-input{font-family:'DM Mono',monospace;font-size:28px;font-weight:500;text-align:center;letter-spacing:4px;background:rgba(255,255,255,.05);border:2px solid var(--border2);border-radius:12px;color:var(--text);padding:14px 20px;width:220px;outline:none}
+.s-input{font-family:var(--font);font-variant-numeric:tabular-nums;font-size:28px;font-weight:500;text-align:center;letter-spacing:4px;background:rgba(255,255,255,.05);border:2px solid var(--border2);border-radius:12px;color:var(--text);padding:14px 20px;width:220px;outline:none}
 .s-input:focus{border-color:var(--accent)}
 .s-err{color:var(--red);font-size:13px;margin-top:10px;display:none;white-space:pre-line}
 .s-ok{display:none;flex-direction:column;align-items:center;gap:10px}
@@ -196,7 +197,7 @@ select option{background:#fff;color:#000}
             <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:6px">신청 요일 (모두 선택 = 매일)</label>
             <div id="add-days" style="display:flex;gap:6px;flex-wrap:wrap"></div>
           </div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:10px">학번은 학년·반·번호로 자동 생성됩니다 (예: 1학년 1반 1번 → <span style="font-family:'DM Mono',monospace;color:var(--text)">10101</span>)</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:10px">학번은 학년·반·번호로 자동 생성됩니다 (예: 1학년 1반 1번 → <span style="font-family:var(--font);font-variant-numeric:tabular-nums;color:var(--text)">10101</span>)</div>
           <div style="display:flex;gap:8px;justify-content:flex-end">
             <button class="btn btn-ghost btn-sm" onclick="toggleAddForm()">취소</button>
             <button class="btn btn-green btn-sm" onclick="confirmAddStudent()">등록</button>
@@ -1198,7 +1199,7 @@ function renderRoster(){
   tbody.innerHTML=list.map(s=>{
     const badge=s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>';
     const tc=s.isDone?fmtTimeShort(s.time):'<button class="btn btn-green btn-sm" onclick="manualConfirmNo(\''+s.no+'\')">수동 확인</button>';
-    return`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${badge}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${tc}</td></tr>`}).join('');
+    return`<tr><td style="font-family:var(--font);font-variant-numeric:tabular-nums">${s.no}</td><td>${s.name}</td><td>${badge}</td><td style="font-family:var(--font);font-variant-numeric:tabular-nums;font-size:12px">${tc}</td></tr>`}).join('');
 }
 window.renderRoster=renderRoster;
 
@@ -1308,7 +1309,7 @@ function renderHistTable(){
     const actBtn = s.isDone
       ? `<button class="btn btn-ghost btn-sm" onclick="deleteRecord('${s.no}','${_histData.date}')" style="color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:4px 10px;white-space:nowrap">삭제</button>`
       : `<button class="btn btn-ghost btn-sm" onclick="addRecord('${s.no}','${_histData.date}')" style="color:var(--ok);border-color:rgba(52,211,153,.3);font-size:11px;padding:4px 10px;white-space:nowrap">추가</button>`;
-    return`<tr><td style="font-family:'DM Mono',monospace">${s.no}</td><td>${s.name}</td><td>${s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>'}</td><td style="font-family:'DM Mono',monospace;font-size:12px">${s.isDone?fmtTimeShort(s.time):'—'}</td><td style="white-space:nowrap">${actBtn}</td></tr>`
+    return`<tr><td style="font-family:var(--font);font-variant-numeric:tabular-nums">${s.no}</td><td>${s.name}</td><td>${s.isDone?'<span class="badge badge-ok">식사 완료</span>':'<span class="badge badge-wait">식사 안함</span>'}</td><td style="font-family:var(--font);font-variant-numeric:tabular-nums;font-size:12px">${s.isDone?fmtTimeShort(s.time):'—'}</td><td style="white-space:nowrap">${actBtn}</td></tr>`
   }).join('');
 }
 window.renderHistTable=renderHistTable;
@@ -1421,7 +1422,7 @@ function renderManageList(){
     return `<div style="display:flex;align-items:center;gap:10px;padding:12px 8px;border-bottom:1px solid var(--border);flex-wrap:wrap">
       <div style="min-width:130px">
         <div style="font-weight:700;font-size:14px">${s.name||'(이름없음)'}</div>
-        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${s.no} · ${s.grade||'-'}-${s.cls||'-'}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:var(--font);font-variant-numeric:tabular-nums">${s.no} · ${s.grade||'-'}-${s.cls||'-'}</div>
       </div>
       <div style="display:flex;gap:4px;flex-wrap:wrap">${dayBtns}</div>
       <button class="btn btn-ghost btn-sm" onclick="deleteManageStudent('${s.no}')" style="margin-left:auto;color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:5px 10px">삭제</button>
@@ -1491,7 +1492,7 @@ async function loadHolidays(){
     if(!list.length){el.innerHTML='<div style="padding:12px;color:var(--muted)">등록된 미운영일이 없어요</div>';return}
     el.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
       list.map(h => `<tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:8px 12px;font-family:'DM Mono',monospace;font-size:13px">${h.date}</td>
+        <td style="padding:8px 12px;font-family:var(--font);font-variant-numeric:tabular-nums;font-size:13px">${h.date}</td>
         <td style="padding:8px 12px;font-size:13px;color:var(--text)">${h.reason || '—'}</td>
         <td style="padding:8px 4px;text-align:right">
           <button class="btn btn-ghost btn-sm" onclick="removeHoliday('${h.date}')" style="color:var(--red);border-color:rgba(248,113,113,.3);font-size:11px;padding:4px 10px;white-space:nowrap">삭제</button>
@@ -1954,8 +1955,8 @@ function renderAnaTrend(){
           : `<text x="${x + barW/2}" y="${padTop + innerH - 4}" text-anchor="middle" style="fill:var(--chart-label)" font-size="10">·</text>`)
       : '';
     const labelLines = isMonth
-      ? `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="var(--chart-label)" font-size="10" font-family="DM Mono, monospace">${c.date.getDate()}</text>`
-      : `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="var(--chart-label)" font-size="11" font-family="DM Mono, monospace">${c.date.getMonth()+1}/${c.date.getDate()}</text>
+      ? `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="var(--chart-label)" font-size="10">${c.date.getDate()}</text>`
+      : `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="var(--chart-label)" font-size="11">${c.date.getMonth()+1}/${c.date.getDate()}</text>
          <text x="${x + barW/2}" y="${padTop + innerH + 28}" text-anchor="middle" fill="var(--muted)" font-size="10">${dow}</text>`;
     const valueLabel = isOp
       ? `<text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" fill="var(--text)" font-size="${isMonth?9:11}" font-weight="700">${c.count}</text>`
@@ -2021,7 +2022,7 @@ function renderAnaWeek(){
   const colHeaders = dates.map(d=>{
     const dow = d.getDay();
     const isToday = fmtAnaDate(d) === todayStr;
-    return `<th style="text-align:center;padding:8px 6px;font-size:12px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border2);${isToday?'background:rgba(245,158,11,.08)':''}">${ANA_DAYS_KR[dow]}<br><span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:400">${d.getDate()}</span></th>`;
+    return `<th style="text-align:center;padding:8px 6px;font-size:12px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border2);${isToday?'background:rgba(245,158,11,.08)':''}">${ANA_DAYS_KR[dow]}<br><span style="font-family:var(--font);font-variant-numeric:tabular-nums;font-size:11px;font-weight:400">${d.getDate()}</span></th>`;
   }).join('');
 
   const rows = students.map(st=>{
@@ -2037,11 +2038,11 @@ function renderAnaWeek(){
     return `<tr>
       <td style="padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap">
         <div style="font-weight:600;font-size:14px">${st.name}</div>
-        <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${st.no} · ${st.grade}-${st.cls}</div>
+        <div style="font-size:11px;color:var(--muted);font-family:var(--font);font-variant-numeric:tabular-nums">${st.no} · ${st.grade}-${st.cls}</div>
       </td>
       ${cells}
       <td style="text-align:center;padding:8px;border-bottom:1px solid var(--border);white-space:nowrap" title="신청 요일: ${days}">
-        <div style="font-family:'DM Mono',monospace;font-size:13px;color:${rColor};font-weight:700">${R.rate === null ? '-' : R.rate + '%'}</div>
+        <div style="font-family:var(--font);font-variant-numeric:tabular-nums;font-size:13px;color:${rColor};font-weight:700">${R.rate === null ? '-' : R.rate + '%'}</div>
         <div style="font-size:10px;color:var(--muted)">${R.done}/${R.total}</div>
       </td>
     </tr>`;
@@ -2119,12 +2120,12 @@ function renderAnaMonth(){
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
           <div>
             <div style="font-weight:700;font-size:15px">${st.name}
-              <span style="font-weight:400;color:var(--muted);font-size:12px;margin-left:6px;font-family:'DM Mono',monospace">${st.no} · ${st.grade}-${st.cls}</span>
+              <span style="font-weight:400;color:var(--muted);font-size:12px;margin-left:6px;font-family:var(--font);font-variant-numeric:tabular-nums">${st.no} · ${st.grade}-${st.cls}</span>
             </div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px">신청 요일: ${days}</div>
           </div>
           <div style="text-align:right">
-            <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:${rColor}">${R.rate === null ? '-' : R.rate + '%'}</div>
+            <div style="font-family:var(--font);font-variant-numeric:tabular-nums;font-size:22px;font-weight:700;color:${rColor}">${R.rate === null ? '-' : R.rate + '%'}</div>
             <div style="font-size:11px;color:var(--muted)">${R.done}/${R.total}일</div>
           </div>
         </div>
@@ -2497,7 +2498,7 @@ function computeTrend(studentsArg){
 function trCard(num, label, sub, color){
   return `
     <div style="flex:1;min-width:100px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:900;color:${color}">${num}</div>
+      <div style="font-family:var(--font);font-variant-numeric:tabular-nums;font-size:24px;font-weight:900;color:${color}">${num}</div>
       <div style="font-size:11px;color:var(--muted);margin-top:2px">${label}${sub ? `<br><span style="font-size:11px">${sub}</span>` : ''}</div>
     </div>`;
 }
@@ -2620,7 +2621,7 @@ function renderTrendByDow(T){
 function renderTrendDowTable(T){
   const rows = T.byDow;
   const maxAvg = Math.max(1, ...rows.map(r => r.avgMeal));
-  const num = 'padding:8px 10px;text-align:center;font-family:\'DM Mono\',monospace;font-size:13px';
+  const num = 'padding:8px 10px;text-align:center;font-family:var(--font);font-variant-numeric:tabular-nums;font-size:13px';
   const body = rows.map(r => {
     const sel = r.dow === _trDow;
     const rowStyle = `cursor:pointer;${sel ? 'background:var(--sky-soft)' : ''}`;
@@ -2635,7 +2636,7 @@ function renderTrendDowTable(T){
       <td style="padding:8px 10px;min-width:160px">
         <div style="display:flex;align-items:center;gap:8px">
           <div style="flex:1;height:8px;background:var(--bg-soft);border-radius:4px;overflow:hidden"><div style="width:${w}%;height:100%;background:var(--chart-bar);border-radius:4px"></div></div>
-          <span style="font-family:'DM Mono',monospace;font-size:13px;font-weight:700;min-width:36px;text-align:right">${r.avgMeal}</span>
+          <span style="font-family:var(--font);font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;min-width:36px;text-align:right">${r.avgMeal}</span>
         </div>
       </td>
       <td style="${num}">${r.avgTarget}</td>
