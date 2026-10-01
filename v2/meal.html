@@ -1721,6 +1721,7 @@ var _anaView = 'week';
 var _anaMode = 'individual'; // 'individual' | 'trend'
 var _anaDate = nowKST(); // 오늘(KST)이 속한 주/월로 시작
 var _anaData = { students: [], records: [] };
+var _anaReqSeq = 0;
 
 function setAnalysisView(v){
   _anaView = v;
@@ -1784,10 +1785,20 @@ function fmtAnaDate(d){
 async function loadAnalysis(){
   const el = document.getElementById('ana-content');
   el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">불러오는 중...</div>';
+  const seq = ++_anaReqSeq;
   const period = getAnaPeriod();
-  const r = await gasPost({ action:'getMealAnalysisData', startDate: fmtAnaDate(period.start), endDate: fmtAnaDate(period.end) });
-  // 미운영일도 함께 로드
-  _holidaySet = await sb.holidays.getSet();
+  let r;
+  try {
+    const res = await Promise.all([
+      gasPost({ action:'getMealAnalysisData', startDate: fmtAnaDate(period.start), endDate: fmtAnaDate(period.end) }),
+      sb.holidays.getSet(), // 미운영일도 함께 로드
+    ]);
+    r = res[0];
+    _holidaySet = res[1];
+  } catch(e) {
+    r = {ok:false, msg:(e && e.message) || '미운영일 조회 실패'};
+  }
+  if (seq !== _anaReqSeq) return; // 그 사이 다른 기간을 눌렀으면 버림
   if (!r.ok){
     el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--red);font-size:14px">불러오지 못했어요: '+(r.msg||'')+'</div>';
     return;
@@ -1822,6 +1833,60 @@ function buildAttendMap(){
   return m;
 }
 
+// ── 날짜 상태 판정 (추이 탭과 같은 운영일 기준) ──
+//  op       : 운영일 — 평일 · 미운영일 미등록 · 전교 식사 기록 있음 · 집계 마감 지남
+//  holiday  : 미운영일로 등록된 평일
+//  norecord : 평일인데 식사 기록이 한 건도 없음 (등록 안 한 휴업일 등)
+//  pending  : 오늘, 식사 시간(18:50) 전
+//  future / before / weekend : 집계 대상 아님
+// 식사율·평균은 op 날짜만으로 계산한다.
+var ANA_STATUS_LABEL = { holiday:'미운영', norecord:'기록 없음', pending:'집계 전' };
+function anaRecordDates(){
+  const s = new Set();
+  _anaData.records.forEach(r => s.add(r.date));
+  return s;
+}
+function anaDayStatus(d, recDates){
+  const dow = d.getDay();
+  if (dow === 0 || dow === 6) return 'weekend';
+  const ds = fmtAnaDate(d);
+  if (ds < fmtAnaDate(ANA_MIN_DATE)) return 'before';
+  if (ds > todayKST()) return 'future';
+  if (ds > trCountCutoffStr()) return 'pending';
+  if (_holidaySet.has(ds)) return 'holiday';
+  if (!recDates.has(ds)) return 'norecord';
+  return 'op';
+}
+function anaIsTarget(st, d){ return trIsTarget(st, ANA_DAYS_KR[d.getDay()]); }
+
+// 학생 한 명의 기간 식사율 (운영일 + 신청 요일만)
+function anaStudentRate(st, dates, attendMap, recDates){
+  let total = 0, done = 0;
+  dates.forEach(d => {
+    if (anaDayStatus(d, recDates) !== 'op') return;
+    if (!anaIsTarget(st, d)) return;
+    total++;
+    if (attendMap[st.no] && attendMap[st.no].has(fmtAnaDate(d))) done++;
+  });
+  return { total, done, rate: total ? Math.round(done/total*100) : null };
+}
+
+// 주별: 월~금 / 월별: 해당 월 전체 날짜 (기준일 이전 제외)
+function anaWeekDates(){
+  const start = getAnaPeriod().start;
+  return Array.from({length:5}, (_,i)=>{ const d = new Date(start); d.setDate(start.getDate()+i); return d; });
+}
+function anaMonthDates(){
+  const y = _anaDate.getFullYear(), m = _anaDate.getMonth();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const out = [];
+  for (let dd = 1; dd <= daysInMonth; dd++){
+    const d = new Date(y, m, dd);
+    if (d >= ANA_MIN_DATE) out.push(d);
+  }
+  return out;
+}
+
 function renderAnalysis(){
   if (_anaMode === 'trend') { renderAnaTrend(); return; }
   if (_anaView==='week') renderAnaWeek();
@@ -1839,57 +1904,35 @@ function renderAnaTrend(){
   }
 
   const attendMap = buildAttendMap();
-  const today = nowKST(); today.setHours(23,59,59,999);
+  const recDates = anaRecordDates();
+  const isMonth = _anaView === 'month';
 
-  // 표시할 날짜 목록 (월~금만)
-  let dates;
-  if (_anaView === 'week'){
-    const period = getAnaPeriod();
-    const start = period.start;
-    dates = Array.from({length:5}, (_,i)=>{ const d = new Date(start); d.setDate(start.getDate()+i); return d; });
-    document.getElementById('ana-period').textContent = `${fmtAnaDate(dates[0])} ~ ${fmtAnaDate(dates[4])}`;
-  } else {
-    const y = _anaDate.getFullYear(), m = _anaDate.getMonth();
-    const daysInMonth = new Date(y, m+1, 0).getDate();
-    const startDay = (y===2026 && m===3) ? 6 : 1;
-    dates = [];
-    for (let dd = startDay; dd <= daysInMonth; dd++){
-      const d = new Date(y, m, dd);
-      const dow = d.getDay();
-      if (dow >= 1 && dow <= 5) {
-        const dateStr = fmtAnaDate(d);
-        if (!_holidaySet.has(dateStr)) dates.push(d); // 평일 + 미운영일 제외
-      }
-    }
-    document.getElementById('ana-period').textContent = `${y}년 ${m+1}월`;
-  }
+  // 표시할 날짜 (평일만)
+  const dates = (isMonth ? anaMonthDates() : anaWeekDates()).filter(d => d.getDay() >= 1 && d.getDay() <= 5);
+  document.getElementById('ana-period').textContent = isMonth
+    ? `${_anaDate.getFullYear()}년 ${_anaDate.getMonth()+1}월`
+    : `${fmtAnaDate(dates[0])} ~ ${fmtAnaDate(dates[dates.length-1])}`;
 
-  // 학생 학번 셋 (필터링된 학생만 카운트)
   const studentNoSet = new Set(students.map(s => String(s.no)));
-
-  // 날짜별 식사 인원 계산
   const counts = dates.map(d => {
-    const dateStr = fmtAnaDate(d);
-    const isHoliday = _holidaySet.has(dateStr);
-    if (isHoliday) return { date: d, count: 0, isPast: true, isHoliday: true };
-    if (d > today || d < ANA_MIN_DATE) return { date: d, count: 0, isPast: false, isHoliday: false };
+    const status = anaDayStatus(d, recDates);
     let count = 0;
-    studentNoSet.forEach(no => {
-      if (attendMap[no] && attendMap[no].has(dateStr)) count++;
-    });
-    return { date: d, count, isPast: true, isHoliday: false };
+    if (status === 'op') {
+      const ds = fmtAnaDate(d);
+      studentNoSet.forEach(no => { if (attendMap[no] && attendMap[no].has(ds)) count++; });
+    }
+    return { date: d, count, status };
   });
 
-  const maxCount = Math.max(1, ...counts.map(c => c.count));
-  const activeCounts = counts.filter(c => c.isPast && !c.isHoliday);
-  const totalAttend = activeCounts.reduce((s,c) => s+c.count, 0);
-  const pastDays = activeCounts.length;
-  const avg = pastDays ? Math.round(totalAttend/pastDays*10)/10 : 0;
-  const peak = activeCounts.reduce((m,c) => c.count > m.count ? c : m, activeCounts[0] || {count:0});
+  const opCounts = counts.filter(c => c.status === 'op');
+  const maxCount = Math.max(1, ...opCounts.map(c => c.count));
+  const totalAttend = opCounts.reduce((s,c) => s+c.count, 0);
+  const opDays = opCounts.length;
+  const avg = opDays ? Math.round(totalAttend/opDays*10)/10 : 0;
+  const peak = opCounts.reduce((m,c) => c.count > m.count ? c : m, opCounts[0] || {count:0});
+  const skipped = counts.filter(c => c.status === 'holiday' || c.status === 'norecord');
 
-  // 막대 너비 동적 계산
-  const isMonth = _anaView === 'month';
-  const barW = isMonth ? Math.max(20, Math.floor(640/counts.length) - 4) : 56;
+  const barW = isMonth ? Math.max(20, Math.floor(640/Math.max(counts.length,1)) - 4) : 56;
   const gap = isMonth ? 4 : 12;
   const chartW = counts.length * (barW + gap);
   const chartH = 280;
@@ -1897,40 +1940,45 @@ function renderAnaTrend(){
   const padBot = 40;
   const innerH = chartH - padTop - padBot;
 
-  // SVG 생성
   const bars = counts.map((c, i) => {
     const x = i * (barW + gap);
-    const h = c.isPast ? Math.round(innerH * c.count / maxCount) : 0;
+    const isOp = c.status === 'op';
+    const h = isOp ? Math.round(innerH * c.count / maxCount) : 0;
     const y = padTop + (innerH - h);
     const dow = ANA_DAYS_KR[c.date.getDay()];
     const dateStr = fmtAnaDate(c.date);
-    const isFuture = c.date > today;
-    const isBefore = c.date < ANA_MIN_DATE;
-    const fill = c.isHoliday || isFuture || isBefore ? 'var(--chart-empty)' : 'var(--chart-ok)';
-    const label = isMonth ? `${c.date.getDate()}` : `${c.date.getDate()}\n${dow}`;
-    const holidayMark = c.isHoliday ? `<text x="${x + barW/2}" y="${padTop + innerH/2}" text-anchor="middle" fill="var(--muted)" font-size="10">미운영</text>` : '';
+    const label = ANA_STATUS_LABEL[c.status];
+    const mark = label
+      ? (barW >= 40
+          ? `<text x="${x + barW/2}" y="${padTop + innerH/2}" text-anchor="middle" style="fill:var(--chart-label)" font-size="10">${label}</text>`
+          : `<text x="${x + barW/2}" y="${padTop + innerH - 4}" text-anchor="middle" style="fill:var(--chart-label)" font-size="10">·</text>`)
+      : '';
     const labelLines = isMonth
       ? `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="var(--chart-label)" font-size="10" font-family="DM Mono, monospace">${c.date.getDate()}</text>`
       : `<text x="${x + barW/2}" y="${padTop + innerH + 14}" text-anchor="middle" fill="var(--chart-label)" font-size="11" font-family="DM Mono, monospace">${c.date.getMonth()+1}/${c.date.getDate()}</text>
          <text x="${x + barW/2}" y="${padTop + innerH + 28}" text-anchor="middle" fill="var(--muted)" font-size="10">${dow}</text>`;
-    const valueLabel = c.isPast && c.count > 0
+    const valueLabel = isOp
       ? `<text x="${x + barW/2}" y="${y - 4}" text-anchor="middle" fill="var(--text)" font-size="${isMonth?9:11}" font-weight="700">${c.count}</text>`
       : '';
     return `
       <g>
-        <rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="${fill}" rx="3">
-          <title>${dateStr} (${dow}): ${c.isHoliday ? '미운영일' : c.count+'명'}</title>
+        <rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="var(--chart-ok)" rx="3">
+          <title>${dateStr} (${dow}): ${isOp ? c.count+'명' : (label || '집계 대상 아님')}</title>
         </rect>
-        ${holidayMark}
+        ${mark}
         ${valueLabel}
         ${labelLines}
       </g>`;
   }).join('');
 
+  const skippedNote = skipped.length
+    ? `<div style="margin-top:6px;font-size:12px;color:var(--muted);text-align:center">평균에서 뺀 평일 ${skipped.length}일: ${skipped.map(c => `${c.date.getMonth()+1}/${c.date.getDate()} ${ANA_STATUS_LABEL[c.status]}`).join(', ')}</div>`
+    : '';
+
   el.innerHTML = `
     <div class="stats-row" style="margin-bottom:18px">
       <div class="stat-box"><div class="stat-num" style="color:var(--ok)">${totalAttend}</div><div class="stat-lbl">총 식사 인원</div></div>
-      <div class="stat-box"><div class="stat-num" style="color:var(--accent)">${avg}</div><div class="stat-lbl">일평균</div></div>
+      <div class="stat-box"><div class="stat-num" style="color:var(--accent)">${avg}</div><div class="stat-lbl">일평균 (운영일 ${opDays}일)</div></div>
       <div class="stat-box"><div class="stat-num" style="color:var(--sky)">${peak.count}</div><div class="stat-lbl">최대${peak.count>0?` (${peak.date.getMonth()+1}/${peak.date.getDate()})`:''}</div></div>
       <div class="stat-box"><div class="stat-num" style="color:var(--text)">${students.length}</div><div class="stat-lbl">신청 학생</div></div>
     </div>
@@ -1939,15 +1987,26 @@ function renderAnaTrend(){
         ${bars}
       </svg>
     </div>
-    <div style="margin-top:10px;font-size:12px;color:var(--muted);text-align:center">막대에 마우스를 올리면 정확한 숫자를 볼 수 있어요</div>`;
+    ${skippedNote}
+    <div style="margin-top:6px;font-size:12px;color:var(--muted);text-align:center">막대에 마우스를 올리면 정확한 숫자를 볼 수 있어요</div>`;
+}
+
+// 주별 표 칸 하나
+function anaWeekCell(st, d, status, attendMap){
+  const label = ANA_STATUS_LABEL[status];
+  if (status === 'holiday' || status === 'norecord') return `<span style="color:var(--muted);font-size:10px">${label}</span>`;
+  if (status === 'before') return '<span style="color:rgba(0,0,0,.15)">·</span>';
+  if (status === 'future' || status === 'pending') return `<span style="color:var(--muted);font-size:16px"${status==='pending'?' title="식사 시간이 끝나는 18:50 이후 반영"':''}>-</span>`;
+  const isTarget = anaIsTarget(st, d);
+  const attended = attendMap[st.no] && attendMap[st.no].has(fmtAnaDate(d));
+  if (attended && isTarget) return '<span style="color:var(--ok);font-size:18px;line-height:1">●</span>';
+  if (!isTarget) return '<span style="color:rgba(0,0,0,.3);font-size:18px">·</span>';
+  return '<span style="color:var(--red);font-weight:700">X</span>';
 }
 
 /* ── 주별 뷰 ── */
 function renderAnaWeek(){
-  const period = getAnaPeriod();
-  const start = period.start;
-  // 월~금 5일만 표시
-  const dates = Array.from({length:5}, (_,i)=>{ const d = new Date(start); d.setDate(start.getDate()+i); return d; });
+  const dates = anaWeekDates();
   document.getElementById('ana-period').textContent = `${fmtAnaDate(dates[0])} ~ ${fmtAnaDate(dates[4])}`;
 
   const students = getFilteredStudents();
@@ -1955,52 +2014,25 @@ function renderAnaWeek(){
   if (!students.length){ el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당하는 학생이 없어요</div>'; return; }
 
   const attendMap = buildAttendMap();
-  const today = nowKST(); today.setHours(23,59,59,999);
+  const recDates = anaRecordDates();
+  const statuses = dates.map(d => anaDayStatus(d, recDates));
+  const todayStr = todayKST();
 
-  // 헤더
   const colHeaders = dates.map(d=>{
     const dow = d.getDay();
-    const isToday = fmtAnaDate(d) === todayKST();
-    const color = dow===0?'#ff7096':dow===6?'#5eb8ff':'var(--muted)';
-    return `<th style="text-align:center;padding:8px 6px;font-size:12px;font-weight:700;color:${color};border-bottom:1px solid var(--border2);${isToday?'background:rgba(245,158,11,.08)':''}">${ANA_DAYS_KR[dow]}<br><span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:400">${d.getDate()}</span></th>`;
+    const isToday = fmtAnaDate(d) === todayStr;
+    return `<th style="text-align:center;padding:8px 6px;font-size:12px;font-weight:700;color:var(--muted);border-bottom:1px solid var(--border2);${isToday?'background:rgba(245,158,11,.08)':''}">${ANA_DAYS_KR[dow]}<br><span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:400">${d.getDate()}</span></th>`;
   }).join('');
 
   const rows = students.map(st=>{
-    const days = String(st.days||'매일');
-    const isAllDays = days==='매일' || days==='';
-    const cells = dates.map(d=>{
-      const dateStr = fmtAnaDate(d);
-      const dow = d.getDay();
-      const dayKr = ANA_DAYS_KR[dow];
-      const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
-      const isFuture = d > today;
-      const isBefore = d < ANA_MIN_DATE;
-      const isHoliday = _holidaySet.has(dateStr);
-      const attended = attendMap[st.no] && attendMap[st.no].has(dateStr);
-      const isToday = dateStr === todayKST();
-      let cell;
-      if (isHoliday) cell = '<span style="color:var(--muted);font-size:10px">미운영</span>';
-      else if (isBefore) cell = '<span style="color:rgba(0,0,0,.15)">·</span>';
-      else if (isFuture) cell = '<span style="color:var(--muted);font-size:16px">-</span>';
-      else if (attended && isTarget) cell = '<span style="color:var(--ok);font-size:18px;line-height:1">●</span>';
-      else if (!isTarget) cell = '<span style="color:rgba(0,0,0,.3);font-size:18px">·</span>';
-      else cell = '<span style="color:var(--red);font-weight:700">X</span>';
-      return `<td style="text-align:center;padding:8px 4px;border-bottom:1px solid var(--border);${isToday?'background:rgba(245,158,11,.08)':''}">${cell}</td>`;
+    const days = String(st.days||'') || '매일';
+    const cells = dates.map((d, i)=>{
+      const isToday = fmtAnaDate(d) === todayStr;
+      return `<td style="text-align:center;padding:8px 4px;border-bottom:1px solid var(--border);${isToday?'background:rgba(245,158,11,.08)':''}">${anaWeekCell(st, d, statuses[i], attendMap)}</td>`;
     }).join('');
 
-    // 식사율 계산 (미운영일 제외)
-    let total=0, done=0;
-    dates.forEach(d=>{
-      if (d > today || d < ANA_MIN_DATE) return;
-      if (_holidaySet.has(fmtAnaDate(d))) return; // 미운영일 제외
-      const dayKr = ANA_DAYS_KR[d.getDay()];
-      const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
-      if (!isTarget) return;
-      total++;
-      if (attendMap[st.no] && attendMap[st.no].has(fmtAnaDate(d))) done++;
-    });
-    const rate = total ? Math.round(done/total*100) : 0;
-    const rColor = rate>=80?'var(--ok)':rate>=50?'var(--accent)':'var(--red)';
+    const R = anaStudentRate(st, dates, attendMap, recDates);
+    const rColor = R.rate === null ? 'var(--muted)' : R.rate>=80?'var(--ok)':R.rate>=50?'var(--accent)':'var(--red)';
 
     return `<tr>
       <td style="padding:8px 12px;border-bottom:1px solid var(--border);white-space:nowrap">
@@ -2008,9 +2040,9 @@ function renderAnaWeek(){
         <div style="font-size:11px;color:var(--muted);font-family:'DM Mono',monospace">${st.no} · ${st.grade}-${st.cls}</div>
       </td>
       ${cells}
-      <td style="text-align:center;padding:8px;border-bottom:1px solid var(--border);white-space:nowrap">
-        <div style="font-family:'DM Mono',monospace;font-size:13px;color:${rColor};font-weight:700">${rate}%</div>
-        <div style="font-size:10px;color:var(--muted)">${done}/${total}</div>
+      <td style="text-align:center;padding:8px;border-bottom:1px solid var(--border);white-space:nowrap" title="신청 요일: ${days}">
+        <div style="font-family:'DM Mono',monospace;font-size:13px;color:${rColor};font-weight:700">${R.rate === null ? '-' : R.rate + '%'}</div>
+        <div style="font-size:10px;color:var(--muted)">${R.done}/${R.total}</div>
       </td>
     </tr>`;
   }).join('');
@@ -2026,10 +2058,11 @@ function renderAnaWeek(){
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <div style="margin-top:12px;font-size:12px;color:var(--muted);text-align:center">
+    <div style="margin-top:12px;font-size:12px;color:var(--muted);text-align:center;line-height:1.7">
       <span style="color:var(--ok)">●</span> 식사 완료 &nbsp;·&nbsp;
       <span style="color:var(--red)">X</span> 식사 안함 &nbsp;·&nbsp;
-      · 비신청일 &nbsp;·&nbsp; - 미래
+      · 비신청일 &nbsp;·&nbsp; - 집계 전<br>
+      미운영·기록 없음 날은 식사율에서 뺍니다. 오늘은 18:50 이후 반영돼요.
     </div>`;
 }
 
@@ -2037,58 +2070,46 @@ function renderAnaWeek(){
 function renderAnaMonth(){
   const y = _anaDate.getFullYear(), m = _anaDate.getMonth();
   document.getElementById('ana-period').textContent = `${y}년 ${m+1}월`;
-  const daysInMonth = new Date(y, m+1, 0).getDate();
-  const startDay = (y===2026 && m===3) ? 6 : 1; // 2026-04는 6일부터
-  const allDates = Array.from({length: daysInMonth - startDay + 1}, (_,i)=>{
-    const d = new Date(y, m, startDay+i);
-    return { date: d, str: fmtAnaDate(d), dayKr: ANA_DAYS_KR[d.getDay()] };
-  });
+  const allDates = anaMonthDates().map(d => ({ date: d, str: fmtAnaDate(d), dayKr: ANA_DAYS_KR[d.getDay()] }));
 
   const students = getFilteredStudents();
   const el = document.getElementById('ana-content');
   if (!students.length){ el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">해당하는 학생이 없어요</div>'; return; }
+  if (!allDates.length){ el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px">기록 시작일(2026-04-06) 이전이에요</div>'; return; }
 
   const attendMap = buildAttendMap();
-  const today = nowKST(); today.setHours(23,59,59,999);
+  const recDates = anaRecordDates();
+  allDates.forEach(d => { d.status = anaDayStatus(d.date, recDates); });
+  const todayStr = todayKST();
+
+  // 달력 칸 배치는 학생과 무관하므로 한 번만 계산
+  const weeks = [];
+  let week = [];
+  for (let i=0; i<allDates[0].date.getDay(); i++) week.push(null);
+  allDates.forEach(d=>{
+    week.push(d);
+    if (week.length===7){ weeks.push(week); week=[]; }
+  });
+  if (week.length) weeks.push(week);
 
   const cards = students.map(st=>{
-    const days = String(st.days||'매일');
-    const isAllDays = days==='매일' || days==='';
-
-    // 식사율 계산
-    const targetDates = allDates.filter(d=>{
-      if (d.date > today || d.date < ANA_MIN_DATE) return false;
-      return isAllDays || days.indexOf(d.dayKr) >= 0;
-    });
-    const attendedDates = targetDates.filter(d => attendMap[st.no] && attendMap[st.no].has(d.str));
-    const rate = targetDates.length ? Math.round(attendedDates.length/targetDates.length*100) : 0;
-    const rColor = rate>=80?'var(--ok)':rate>=50?'var(--accent)':'var(--red)';
-
-    // 미니 달력
-    const weeks = [];
-    let week = [];
-    const firstDay = new Date(y, m, startDay).getDay();
-    for (let i=0; i<firstDay; i++) week.push(null);
-    allDates.forEach(d=>{
-      week.push(d);
-      if (week.length===7){ weeks.push(week); week=[]; }
-    });
-    if (week.length) weeks.push(week);
+    const days = String(st.days||'') || '매일';
+    const R = anaStudentRate(st, allDates.map(d => d.date), attendMap, recDates);
+    const rColor = R.rate === null ? 'var(--muted)' : R.rate>=80?'var(--ok)':R.rate>=50?'var(--accent)':'var(--red)';
 
     const calRows = weeks.map(w=>
       `<tr>${w.map(d=>{
         if (!d) return '<td style="padding:2px"></td>';
-        const isTarget = isAllDays || days.indexOf(d.dayKr) >= 0;
+        const isOp = d.status === 'op';
+        const isTarget = isOp && anaIsTarget(st, d.date);
         const attended = attendMap[st.no] && attendMap[st.no].has(d.str);
-        const isFuture = d.date > today;
-        const isBefore = d.date < ANA_MIN_DATE;
-        const isToday = d.str === todayKST();
-        let bg = '', text = 'var(--muted)';
-        if (isToday) bg = 'rgba(245,158,11,.15)';
-        if (!isFuture && !isBefore && attended && isTarget){ bg = 'rgba(52,211,153,.25)'; text = 'var(--ok)'; }
-        else if (!isFuture && !isBefore && isTarget){ bg = 'rgba(248,113,113,.15)'; text = 'var(--red)'; }
-        return `<td style="padding:2px;text-align:center">
-          <div style="width:26px;height:26px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:11px;color:${text};margin:auto;${(!isFuture&&!isBefore&&(attended||isTarget))?'font-weight:700':''}">${d.date.getDate()}</div>
+        let bg = '', text = 'var(--muted)', weight = '';
+        if (d.str === todayStr) bg = 'rgba(245,158,11,.15)';
+        if (isTarget && attended){ bg = 'rgba(52,211,153,.25)'; text = 'var(--ok)'; weight = 'font-weight:700;'; }
+        else if (isTarget){ bg = 'rgba(248,113,113,.15)'; text = 'var(--red)'; weight = 'font-weight:700;'; }
+        const tip = ANA_STATUS_LABEL[d.status] ? ` title="${ANA_STATUS_LABEL[d.status]}"` : '';
+        return `<td style="padding:2px;text-align:center"${tip}>
+          <div style="width:26px;height:26px;border-radius:50%;background:${bg};display:flex;align-items:center;justify-content:center;font-size:11px;color:${text};margin:auto;${weight}">${d.date.getDate()}</div>
         </td>`;
       }).join('')}</tr>`
     ).join('');
@@ -2103,114 +2124,69 @@ function renderAnaMonth(){
             <div style="font-size:11px;color:var(--muted);margin-top:2px">신청 요일: ${days}</div>
           </div>
           <div style="text-align:right">
-            <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:${rColor}">${rate}%</div>
-            <div style="font-size:11px;color:var(--muted)">${attendedDates.length}/${targetDates.length}일</div>
+            <div style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:${rColor}">${R.rate === null ? '-' : R.rate + '%'}</div>
+            <div style="font-size:11px;color:var(--muted)">${R.done}/${R.total}일</div>
           </div>
         </div>
         <table style="width:100%;border-collapse:collapse">
-          <thead><tr>${['일','월','화','수','목','금','토'].map((d,i)=>
-            `<th style="text-align:center;font-size:11px;color:${i===0?'#ff7096':i===6?'#5eb8ff':'var(--muted)'};padding:3px;font-weight:600">${d}</th>`
+          <thead><tr>${['일','월','화','수','목','금','토'].map(d=>
+            `<th style="text-align:center;font-size:11px;color:var(--muted);padding:3px;font-weight:600">${d}</th>`
           ).join('')}</tr></thead>
           <tbody>${calRows}</tbody>
         </table>
       </div>`;
   }).join('');
 
-  el.innerHTML = cards;
+  el.innerHTML = cards + `<div style="font-size:12px;color:var(--muted);text-align:center">미운영·기록 없음 날과 주말은 식사율에서 뺍니다. 오늘은 18:50 이후 반영돼요.</div>`;
 }
 
 /* ── 엑셀 다운로드 ── */
+// 칸 표기: O 식사 · X 안 먹음 · 빈칸 비신청/주말/기준일 이전 · - 집계 전 · 미운영 · 기록없음
+function anaExcelCell(st, d, status, attendMap){
+  if (status === 'weekend' || status === 'before') return '';
+  if (status === 'future' || status === 'pending') return '-';
+  if (status === 'holiday') return '미운영';
+  if (status === 'norecord') return '기록없음';
+  const isTarget = anaIsTarget(st, d);
+  if (!isTarget) return '';
+  return (attendMap[st.no] && attendMap[st.no].has(fmtAnaDate(d))) ? 'O' : 'X';
+}
+
 function downloadAnalysisExcel(){
   if (!_anaData.students.length){ toast('데이터가 없어요','err'); return; }
   const students = getFilteredStudents();
   if (!students.length){ toast('해당하는 학생이 없어요','err'); return; }
   const attendMap = buildAttendMap();
-  const today = nowKST(); today.setHours(23,59,59,999);
+  const recDates = anaRecordDates();
   const wb = XLSX.utils.book_new();
+  const isWeek = _anaView === 'week';
+  const dates = isWeek ? anaWeekDates() : anaMonthDates();
+  if (!dates.length){ toast('내보낼 날짜가 없어요','err'); return; }
+  const statuses = dates.map(d => anaDayStatus(d, recDates));
+  const header = ['학년','반','번호','이름','신청요일',
+    ...dates.map(d => isWeek ? `${d.getMonth()+1}/${d.getDate()}(${ANA_DAYS_KR[d.getDay()]})` : `${d.getDate()}(${ANA_DAYS_KR[d.getDay()]})`),
+    '식사','대상','식사율'];
+  const rows = [header];
 
-  if (_anaView==='week'){
-    const period = getAnaPeriod();
-    const dates = Array.from({length:5}, (_,i)=>{ const d = new Date(period.start); d.setDate(period.start.getDate()+i); return d; });
-    const label = `${fmtAnaDate(dates[0])}_${fmtAnaDate(dates[4])}`;
-    const header = ['학년','반','번호','이름','신청요일',
-      ...dates.map(d=>`${d.getMonth()+1}/${d.getDate()}(${ANA_DAYS_KR[d.getDay()]})`),
-      '식사','대상','식사율'];
-    const rows = [header];
+  students.forEach(st=>{
+    const days = String(st.days||'') || '매일';
+    const cells = dates.map((d, i) => anaExcelCell(st, d, statuses[i], attendMap));
+    const R = anaStudentRate(st, dates, attendMap, recDates);
+    const num = String(st.no).slice(-2).replace(/^0/,'');
+    rows.push([st.grade, st.cls, num, st.name, days, ...cells, R.done, R.total, R.rate === null ? '-' : R.rate + '%']);
+  });
+  rows.push([]);
+  rows.push(['식사율은 운영일(미운영일로 등록하지 않았고 식사 기록이 있는 평일) 중 신청 요일만으로 계산. 오늘은 18:50 이후 반영']);
 
-    students.forEach(st=>{
-      const days = String(st.days||'매일');
-      const isAllDays = days==='매일' || days==='';
-      const cells = dates.map(d=>{
-        const dateStr = fmtAnaDate(d);
-        const dayKr = ANA_DAYS_KR[d.getDay()];
-        const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
-        const attended = attendMap[st.no] && attendMap[st.no].has(dateStr);
-        const isFuture = d > today;
-        const isBefore = d < ANA_MIN_DATE;
-        if (isBefore) return '';
-        if (isFuture) return '-';
-        if (attended && isTarget) return 'O';
-        if (!isTarget) return '';
-        return 'X';
-      });
-      let total=0, done=0;
-      dates.forEach(d=>{
-        if (d > today || d < ANA_MIN_DATE) return;
-        const dayKr = ANA_DAYS_KR[d.getDay()];
-        const isTarget = isAllDays || days.indexOf(dayKr) >= 0;
-        if (!isTarget) return;
-        total++;
-        if (attendMap[st.no] && attendMap[st.no].has(fmtAnaDate(d))) done++;
-      });
-      const rate = total ? Math.round(done/total*100)+'%' : '-';
-      const num = String(st.no).slice(-2).replace(/^0/,'');
-      rows.push([st.grade, st.cls, num, st.name, days, ...cells, done, total, rate]);
-    });
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{wch:6},{wch:6},{wch:6},{wch:10},{wch:14}, ...dates.map(()=>({wch:8})), {wch:6},{wch:6},{wch:8}];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:6},{wch:6},{wch:6},{wch:10},{wch:14}, ...dates.map(()=>({wch: isWeek ? 9 : 6})), {wch:6},{wch:6},{wch:8}];
+  if (isWeek){
     XLSX.utils.book_append_sheet(wb, ws, '주별식사');
-    XLSX.writeFile(wb, `급식분석_주별_${label}.xlsx`);
+    XLSX.writeFile(wb, `급식분석_주별_${fmtAnaDate(dates[0])}_${fmtAnaDate(dates[4])}.xlsx`);
   } else {
     const y = _anaDate.getFullYear(), m = _anaDate.getMonth();
-    const daysInMonth = new Date(y, m+1, 0).getDate();
-    const startDay = (y===2026 && m===3) ? 6 : 1;
-    const allDates = Array.from({length: daysInMonth - startDay + 1}, (_,i)=>{
-      const d = new Date(y, m, startDay+i);
-      return { date: d, str: fmtAnaDate(d), dayKr: ANA_DAYS_KR[d.getDay()] };
-    });
-    const label = `${y}년${m+1}월`;
-    const header = ['학년','반','번호','이름','신청요일',
-      ...allDates.map(d=>`${d.date.getDate()}(${d.dayKr})`),
-      '식사','대상','식사율'];
-    const rows = [header];
-
-    students.forEach(st=>{
-      const days = String(st.days||'매일');
-      const isAllDays = days==='매일' || days==='';
-      const cells = allDates.map(d=>{
-        const isTarget = isAllDays || days.indexOf(d.dayKr) >= 0;
-        const attended = attendMap[st.no] && attendMap[st.no].has(d.str);
-        const isFuture = d.date > today;
-        if (isFuture) return '-';
-        if (attended && isTarget) return 'O';
-        if (!isTarget) return '';
-        return 'X';
-      });
-      const targetDates = allDates.filter(d=>{
-        if (d.date > today) return false;
-        return isAllDays || days.indexOf(d.dayKr) >= 0;
-      });
-      const attendedDates = targetDates.filter(d => attendMap[st.no] && attendMap[st.no].has(d.str));
-      const rate = targetDates.length ? Math.round(attendedDates.length/targetDates.length*100)+'%' : '-';
-      const num = String(st.no).slice(-2).replace(/^0/,'');
-      rows.push([st.grade, st.cls, num, st.name, days, ...cells, attendedDates.length, targetDates.length, rate]);
-    });
-
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{wch:6},{wch:6},{wch:6},{wch:10},{wch:14}, ...allDates.map(()=>({wch:5})), {wch:6},{wch:6},{wch:8}];
     XLSX.utils.book_append_sheet(wb, ws, '월별식사');
-    XLSX.writeFile(wb, `급식분석_${label}.xlsx`);
+    XLSX.writeFile(wb, `급식분석_${y}년${m+1}월.xlsx`);
   }
   toast('엑셀 다운로드 완료','ok');
 }
